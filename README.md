@@ -315,13 +315,14 @@ Config examples live in `examples/mcp/`:
 - `examples/mcp/cursor.json`
 - `examples/mcp/claude-desktop.json`
 
-The MCP server exposes:
+The MCP server exposes prefixed tools to avoid collisions with other MCP servers:
 
-- `import_github_profile`
-- `search_people`
-- `get_person_profile`
-- `list_cards`
-- `create_note_card`
+- `opendinq_import_github_profile`
+- `opendinq_search_people`
+- `opendinq_get_person_profile`
+- `opendinq_get_evidence`
+- `opendinq_list_cards`
+- `opendinq_create_note_card`
 
 ## Data And Compliance Boundaries
 

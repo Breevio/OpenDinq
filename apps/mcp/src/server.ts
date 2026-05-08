@@ -14,51 +14,62 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   const tools = createToolHandlers(client);
 
   server.registerTool(
-    "import_github_profile",
+    "opendinq_import_github_profile",
     {
       description: "Import a public GitHub profile into OpenDinq and generate deterministic cards.",
       inputSchema: {
         input: z.string().min(1).describe("GitHub username or profile URL")
       }
     },
-    async (input) => textResult(await tools.import_github_profile(input))
+    async (input) => textResult(await tools.opendinq_import_github_profile(input))
   );
 
   server.registerTool(
-    "search_people",
+    "opendinq_search_people",
     {
       description: "Search OpenDinq people with a natural-language query and return explanations plus evidence.",
       inputSchema: {
         query: z.string().min(1).describe("Natural-language people search query")
       }
     },
-    async (input) => textResult(await tools.search_people(input))
+    async (input) => textResult(await tools.opendinq_search_people(input))
   );
 
   server.registerTool(
-    "get_person_profile",
+    "opendinq_get_person_profile",
     {
       description: "Get an OpenDinq profile, including sources, artifacts, and cards.",
       inputSchema: {
         handle: z.string().min(1).describe("OpenDinq person handle")
       }
     },
-    async (input) => textResult(await tools.get_person_profile(input))
+    async (input) => textResult(await tools.opendinq_get_person_profile(input))
   );
 
   server.registerTool(
-    "list_cards",
+    "opendinq_get_evidence",
+    {
+      description: "Get sources, artifacts, and card evidence refs for an OpenDinq person.",
+      inputSchema: {
+        handle: z.string().min(1).describe("OpenDinq person handle")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_get_evidence(input))
+  );
+
+  server.registerTool(
+    "opendinq_list_cards",
     {
       description: "List generated and manual cards for an OpenDinq person.",
       inputSchema: {
         handle: z.string().min(1).describe("OpenDinq person handle")
       }
     },
-    async (input) => textResult(await tools.list_cards(input))
+    async (input) => textResult(await tools.opendinq_list_cards(input))
   );
 
   server.registerTool(
-    "create_note_card",
+    "opendinq_create_note_card",
     {
       description: "Create a manual note card for an existing OpenDinq person.",
       inputSchema: {
@@ -67,7 +78,7 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
         contentMd: z.string().min(1).describe("Markdown note content")
       }
     },
-    async (input) => textResult(await tools.create_note_card(input))
+    async (input) => textResult(await tools.opendinq_create_note_card(input))
   );
 
   return server;

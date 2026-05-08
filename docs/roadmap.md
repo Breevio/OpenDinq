@@ -52,7 +52,7 @@ Current limitation: these sources add evidence to an existing profile. GitHub re
 
 ## v0.5 - MCP-Native Workflow
 
-Planned.
+Status: complete for the local API-backed MCP baseline.
 
 - Harden MCP tool names and schemas
 - Add richer evidence retrieval through MCP

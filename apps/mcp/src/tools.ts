@@ -1,20 +1,22 @@
 import type { OpenDinqApiClient } from "./api-client.js";
 
 export const MCP_TOOL_PLAN = [
-  "import_github_profile",
-  "search_people",
-  "get_person_profile",
-  "list_cards",
-  "create_note_card"
+  "opendinq_import_github_profile",
+  "opendinq_search_people",
+  "opendinq_get_person_profile",
+  "opendinq_get_evidence",
+  "opendinq_list_cards",
+  "opendinq_create_note_card"
 ] as const;
 
 export function createToolHandlers(client: OpenDinqApiClient) {
   return {
-    import_github_profile: ({ input }: { input: string }) => client.importGitHubProfile(input),
-    search_people: ({ query }: { query: string }) => client.searchPeople(query),
-    get_person_profile: ({ handle }: { handle: string }) => client.getPersonProfile(handle),
-    list_cards: ({ handle }: { handle: string }) => client.listCards(handle),
-    create_note_card: ({ handle, title, contentMd }: { handle: string; title: string; contentMd: string }) =>
+    opendinq_import_github_profile: ({ input }: { input: string }) => client.importGitHubProfile(input),
+    opendinq_search_people: ({ query }: { query: string }) => client.searchPeople(query),
+    opendinq_get_person_profile: ({ handle }: { handle: string }) => client.getPersonProfile(handle),
+    opendinq_get_evidence: ({ handle }: { handle: string }) => client.getEvidence(handle),
+    opendinq_list_cards: ({ handle }: { handle: string }) => client.listCards(handle),
+    opendinq_create_note_card: ({ handle, title, contentMd }: { handle: string; title: string; contentMd: string }) =>
       client.createNoteCard(handle, title, contentMd)
   };
 }

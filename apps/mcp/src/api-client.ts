@@ -2,6 +2,7 @@ export type OpenDinqApiClient = {
   importGitHubProfile(input: string): Promise<unknown>;
   searchPeople(query: string): Promise<unknown>;
   getPersonProfile(handle: string): Promise<unknown>;
+  getEvidence(handle: string): Promise<unknown>;
   listCards(handle: string): Promise<unknown>;
   createNoteCard(handle: string, title: string, contentMd: string): Promise<unknown>;
 };
@@ -21,6 +22,10 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
     },
     getPersonProfile(handle) {
       return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}`);
+    },
+    async getEvidence(handle) {
+      const profile = await request(`${baseUrl}/api/people/${encodeURIComponent(handle)}`);
+      return extractEvidence(profile);
     },
     listCards(handle) {
       return request(`${baseUrl}/api/cards/${encodeURIComponent(handle)}`);
@@ -51,6 +56,22 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
   }
 
   return body;
+}
+
+function extractEvidence(profile: unknown) {
+  const record = profile as {
+    person?: { handle?: string; displayName?: string };
+    sources?: unknown[];
+    artifacts?: unknown[];
+    cards?: Array<{ evidence?: unknown[] }>;
+  };
+
+  return {
+    person: record.person,
+    sources: record.sources ?? [],
+    artifacts: record.artifacts ?? [],
+    cardEvidence: (record.cards ?? []).flatMap((card) => card.evidence ?? [])
+  };
 }
 
 function requiredApiUrl(): string {

@@ -81,11 +81,11 @@
 
 ## Milestone 9 - MCP
 - [x] MCP server
-- [x] import_github_profile tool
-- [x] search_people tool
-- [x] get_person_profile tool
-- [x] list_cards tool
-- [x] create_note_card tool
+- [x] opendinq_import_github_profile tool
+- [x] opendinq_search_people tool
+- [x] opendinq_get_person_profile tool
+- [x] opendinq_list_cards tool
+- [x] opendinq_create_note_card tool
 - [x] Codex/Cursor/Claude config examples
 
 ## Milestone 10 - Polish
@@ -125,7 +125,7 @@
 - [x] Keep LinkedIn/X scraping out of scope
 
 ## Milestone 14 - v0.5 MCP-native workflow
-- [ ] Harden MCP tool schemas
-- [ ] Add richer evidence retrieval through MCP
-- [ ] Keep MCP tools API-backed
-- [ ] Add Codex/Cursor/Claude Code setup verification notes
+- [x] Harden MCP tool schemas
+- [x] Add richer evidence retrieval through MCP
+- [x] Keep MCP tools API-backed
+- [x] Add Codex/Cursor/Claude Code setup verification notes
