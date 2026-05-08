@@ -1,4 +1,4 @@
-import type { SearchArtifact, SearchEvidenceRef } from "./types.js";
+import type { SearchArtifact, SearchCard, SearchEvidenceRef, SearchPerson } from "./types.js";
 
 export function artifactEvidence(artifact: SearchArtifact, reason: string, fallbackIndex = 0): SearchEvidenceRef {
   return {
@@ -6,6 +6,24 @@ export function artifactEvidence(artifact: SearchArtifact, reason: string, fallb
     type: "artifact",
     title: artifact.title,
     url: artifact.url,
+    reason
+  };
+}
+
+export function cardEvidence(card: SearchCard, reason: string, fallbackIndex = 0): SearchEvidenceRef {
+  return {
+    id: `card-${card.type}-${fallbackIndex}`,
+    type: "card",
+    title: card.title,
+    reason
+  };
+}
+
+export function personEvidence(person: SearchPerson, reason: string): SearchEvidenceRef {
+  return {
+    id: `person-${person.handle}`,
+    type: "person",
+    title: person.displayName,
     reason
   };
 }
@@ -24,4 +42,3 @@ export function dedupeEvidence(evidence: SearchEvidenceRef[]): SearchEvidenceRef
 
   return deduped;
 }
-

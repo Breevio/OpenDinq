@@ -17,13 +17,13 @@ OpenDinq is not a DINQ fork. It does not copy DINQ code, branding, private APIs,
 
 ## Current Status
 
-OpenDinq is currently a `v0.1-alpha` local MVP.
+OpenDinq is currently a local MVP. The main branch includes the `v0.1-alpha` release baseline plus early `v0.2`/`v0.3` hardening work.
 
 What works today:
 
 - GitHub/demo profile ingestion
 - Person, artifact, card, and evidence data model
-- Rule-based people search
+- Hybrid deterministic people search with rule-based and full-text signals
 - Match explanations with evidence
 - Minimal web UI
 - API health endpoint
@@ -35,12 +35,12 @@ Current limitations:
 
 - Runtime is in-memory by default
 - Imported data is not persisted after restart
-- Search is rule-based, not semantic/vector search yet
+- Search has a hybrid lexical layer, but not a production pgvector/embedding runtime yet
 - Postgres runtime is available when `DATABASE_URL` is set, but still experimental
 - Docker/Postgres setup is experimental
 - GitHub-first only
 - No auth, inbox, credits, or team workspace
-- LinkedIn/X scraping
+- No LinkedIn/X scraping
 
 ## Screenshots
 
@@ -67,10 +67,10 @@ apps/
 
 packages/
   shared/      Zod schemas and shared domain types
-  core/        domain package placeholder
+  core/        domain store contract and in-memory runtime store
   connectors/ GitHub connector and normalization
   cards/       deterministic evidence-backed card generation
-  search/      rule-based query parsing, ranking, explanation, evidence
+  search/      query parsing, rule ranking, full-text scoring, hybrid merge, evidence
   db/          Prisma schema, migration, and repository boundaries
   llm/         reserved LLM package boundary
 ```
@@ -91,8 +91,9 @@ Search flow:
 ```text
 Natural-language query
   -> query terms
-  -> skill + artifact text matching
-  -> impact, recency, completeness signals
+  -> rule ranking + full-text scoring
+  -> skills, artifact/card text, impact, recency, completeness signals
+  -> optional provider boundary for future vector search
   -> ranked results
   -> explanation + evidence refs
 ```
@@ -337,13 +338,14 @@ pnpm screenshots
 
 ## Project Status
 
-All items in `TASKS.md` are complete for the current MVP checklist.
+The current MVP checklist is complete through the local demo path, with v0.2/v0.3 work tracked in `TASKS.md`.
 
 Known limitations:
 
 - In-memory runtime remains the default local mode.
 - Postgres runtime is implemented but still experimental.
 - Docker must be running before local Postgres migrations can be applied.
+- Hybrid search is deterministic lexical search today; pgvector/embedding-backed search is still planned.
 - `pnpm audit --audit-level high` passes.
 
 ## License

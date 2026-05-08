@@ -13,7 +13,7 @@ Status: complete.
 
 ## v0.2 - DB-Backed Runtime
 
-Status: in progress.
+Status: complete, except local Docker/Postgres migration verification is blocked until Docker is running.
 
 - Store abstraction
 - MemoryStore moved out of the API package
@@ -23,12 +23,18 @@ Status: in progress.
 
 ## v0.3 - Hybrid Search
 
-Planned.
+Status: complete for the deterministic hybrid baseline.
 
 - Keep rule-based search
-- Add full-text search
-- Add vector search when embeddings are configured
+- Add full-text search over profiles, artifacts, and cards
+- Add an optional provider boundary for future vector search
 - Preserve explanations and evidence refs
+
+Still planned after this baseline:
+
+- pgvector-backed semantic search
+- embedding provider configuration
+- persisted search indexes
 
 ## v0.4 - Multi-Source Ingestion
 

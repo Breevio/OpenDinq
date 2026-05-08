@@ -109,12 +109,12 @@
 - [ ] Verify Docker/Postgres migration locally; currently blocked because the Docker daemon is not running in this environment
 
 ## Milestone 12 - v0.3 hybrid search
-- [ ] Keep rule-based search as the deterministic fallback
-- [ ] Add a search provider interface
-- [ ] Add full-text style scoring over profiles, cards, and artifacts
-- [ ] Add optional vector search provider boundary
-- [ ] Preserve evidence and explanations for every result
-- [ ] Add search evaluation fixtures
+- [x] Keep rule-based search as the deterministic fallback
+- [x] Add a search provider interface
+- [x] Add full-text style scoring over profiles, cards, and artifacts
+- [x] Add optional vector search provider boundary
+- [x] Preserve evidence and explanations for every result
+- [x] Add search evaluation fixtures
 
 ## Milestone 13 - v0.4 multi-source ingestion
 - [ ] Add manual artifact import

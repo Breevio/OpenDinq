@@ -36,7 +36,7 @@ export type ParsedSearchQuery = {
 
 export type SearchEvidenceRef = {
   id: string;
-  type: "artifact";
+  type: "artifact" | "card" | "person";
   title: string;
   url?: string;
   reason: string;
@@ -58,3 +58,23 @@ export type RankedSearchResult = {
   evidence: SearchEvidenceRef[];
 };
 
+export type SearchProviderMatch = {
+  handle: string;
+  score: number;
+  explanation?: string;
+  evidence: SearchEvidenceRef[];
+};
+
+export type SearchProvider = {
+  name: string;
+  search(query: ParsedSearchQuery, documents: PersonSearchDocument[]): Promise<SearchProviderMatch[]> | SearchProviderMatch[];
+};
+
+export type HybridSearchOptions = {
+  providers?: SearchProvider[];
+  weights?: {
+    rule: number;
+    fullText: number;
+    provider: number;
+  };
+};

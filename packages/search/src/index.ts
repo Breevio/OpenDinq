@@ -1,6 +1,9 @@
 export { parseSearchQuery, tokenize } from "./query.js";
 export { explainMatch, rankPeople, SEARCH_RANKING_WEIGHTS, searchPeople } from "./rank.js";
+export { fullTextSearch } from "./full-text.js";
+export { hybridSearchPeople } from "./hybrid.js";
 export type {
+  HybridSearchOptions,
   MatchedSignals,
   ParsedSearchQuery,
   PersonSearchDocument,
@@ -8,5 +11,7 @@ export type {
   SearchArtifact,
   SearchCard,
   SearchEvidenceRef,
-  SearchPerson
+  SearchPerson,
+  SearchProvider,
+  SearchProviderMatch
 } from "./types.js";

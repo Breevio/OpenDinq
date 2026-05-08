@@ -8,7 +8,7 @@ import {
 } from "@opendinq/connectors";
 import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
 import type { OpenDinqStore } from "@opendinq/core";
-import { searchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
+import { hybridSearchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
@@ -89,7 +89,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
 
       return context.json({
         query,
-        results: searchPeople(query, documents)
+        results: await hybridSearchPeople(query, documents)
       });
     } catch (error) {
       return errorResponse(context, error);
