@@ -5,7 +5,8 @@ Before tagging a release:
 - [ ] `./scripts/check.sh` passes
 - [ ] `pnpm audit --audit-level high` passes
 - [ ] `pnpm db:generate` passes
-- [ ] `DATABASE_URL=... pnpm --filter @opendinq/db exec prisma validate --schema prisma/schema.prisma` passes
+- [ ] `pnpm db:validate` passes
+- [ ] `DATABASE_URL=... pnpm verify:db` passes when Postgres is available
 - [ ] `/health` returns ok
 - [ ] `/generate` returns 200
 - [ ] `/discover` returns 200
@@ -13,8 +14,9 @@ Before tagging a release:
 - [ ] Manual-only profile generation works from `/generate`
 - [ ] Demo search returns `demo-agent-builder`
 - [ ] MemoryStore verification passes
-- [ ] PrismaStore/Postgres verification passes, or the release notes clearly say it was not manually verified
+- [ ] PrismaStore/Postgres verification passes, or release notes clearly say it is pending local Docker/Postgres availability
 - [ ] MCP package build and tests pass
+- [ ] Playwright smoke passes
 - [ ] `pnpm screenshots` succeeds
 - [ ] README screenshots are up to date
 - [ ] Known limitations are accurate

@@ -6,11 +6,13 @@ OpenDinq supports two runtime modes.
 
 MemoryStore is the default when `DATABASE_URL` is not set.
 
-It is useful for local demos, tests, and quick development. Imported profiles are lost when the API process restarts.
+It is non-persistent and useful for local demos, tests, and quick development. Imported profiles are lost when the API process restarts.
 
 ## PrismaStore
 
 PrismaStore is selected when `DATABASE_URL` is set.
+
+It is persistent and requires a reachable Postgres database plus generated Prisma Client files.
 
 It persists:
 
@@ -28,18 +30,41 @@ It persists:
 docker compose up -d postgres
 pnpm db:generate
 pnpm db:migrate
+DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm verify:db
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
-## Verify Persistence
+## Verify DB Runtime
+
+`pnpm verify:db` requires `DATABASE_URL`.
+
+It verifies:
+
+- Prisma connection
+- profile generation through the API service layer
+- profile run persistence
+- profile sources, artifacts, claims, and cards
+- manual note cards
+- card patch visibility/order
+- hidden card public filtering
+- DB-backed search
+- evidence retrieval
+- profile/search persistence after Prisma reconnect
+
+## Manual Verification Checklist
 
 1. Start Postgres.
 2. Run migrations.
-3. Start the API with `DATABASE_URL`.
-4. Generate a profile through `/generate` or `POST /api/profiles/generate`.
-5. Stop and restart the API with the same `DATABASE_URL`.
-6. Confirm `/api/people/:handle` still returns the profile.
-7. Confirm `/api/search?q=<matching query>` returns the profile.
+3. Run `DATABASE_URL=... pnpm verify:db`.
+4. Start the API and web app with `DATABASE_URL`.
+5. Generate a profile through `/generate`.
+6. Stop and restart the API with the same `DATABASE_URL`.
+7. Confirm `/u/:handle` still renders the profile.
+8. Confirm `/discover` finds the profile.
+
+## Current Verification Status
+
+The repository includes an automated DB runtime verification script. In the current authoring environment, Docker was unavailable, so full Postgres E2E verification remains pending until local Docker/Postgres is available.
 
 ## Current Limitations
 
@@ -47,5 +72,4 @@ DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:a
 - There is no auth or ownership model.
 - There is no production migration policy yet.
 - Search is not a production vector index.
-- Docker/Postgres must be verified in the local environment before release.
-
+- Docker/Postgres verification depends on local Docker availability.

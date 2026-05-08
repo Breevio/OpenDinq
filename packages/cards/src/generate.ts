@@ -192,7 +192,7 @@ function maybeTimelineCard(person: CardPerson, artifacts: CardArtifact[], claims
 
 function manualNoteCards(person: CardPerson, claims: CardClaim[]): GeneratedCard[] {
   return claims
-    .filter((claim) => claim.type === "summary" && claim.sourceId?.startsWith("manual-note"))
+    .filter((claim) => claim.type === "summary" && claim.evidence.some((item) => item.type === "source" && item.id === "manual"))
     .map((claim, index) => ({
       id: `card-${person.handle}-note-${index + 1}`,
       personId: person.handle,

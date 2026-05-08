@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:validate": "DATABASE_URL=postgresql://opendinq:opendinq@localhost:5432/opendinq prisma validate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
     "lint": "tsc -p tsconfig.json --noEmit",

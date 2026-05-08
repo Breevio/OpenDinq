@@ -7,6 +7,7 @@
     "build": "pnpm -r --workspace-concurrency=1 build",
     "check": "./scripts/check.sh",
     "db:generate": "pnpm --filter @opendinq/db db:generate",
+    "db:validate": "pnpm --filter @opendinq/db db:validate",
     "db:migrate": "pnpm --filter @opendinq/db db:migrate",
     "db:migrate:dev": "pnpm --filter @opendinq/db db:migrate:dev",
     "dev": "node scripts/dev.mjs",
@@ -16,7 +17,8 @@
     "screenshots": "node scripts/capture-screenshots.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "test": "pnpm -r --workspace-concurrency=1 test",
-    "typecheck": "pnpm -r --workspace-concurrency=1 typecheck"
+    "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
+    "verify:db": "pnpm --dir apps/api exec tsx ../../scripts/verify-db-runtime.ts"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

@@ -266,7 +266,7 @@ async function normalizeSource(
   } satisfies ArtifactRecord : undefined;
   const evidence = artifact ? evidenceForArtifact(artifact, "Manual source supplied by the profile creator.") : evidenceForSource("manual", undefined, "Manual note supplied by the profile creator.");
   return bundleFrom("manual", runId, manual.url, manual, {}, artifact ? [artifact] : [], [
-    claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", 0.7, evidence, "manual-note")
+    claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", 0.7, evidence)
   ]);
 }
 

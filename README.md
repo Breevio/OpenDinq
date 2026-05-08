@@ -2,10 +2,12 @@
 
 OpenDinq is an open-source profile generator for evidence-backed AI-native profiles, cards, and people search.
 
+Current status: v0.7-alpha product alpha. It is useful for local demos and contributor development, but it is not production-ready.
+
 Primary flow:
 
 ```text
-Generate Profile -> Cards -> Public Profile -> Discover
+Generate Profile -> Cards -> Public Profile -> Discover -> MCP/API automation
 ```
 
 GitHub is one connector. Profiles can also use websites, OpenAlex, arXiv, ORCID, and manual links or notes.
@@ -14,9 +16,10 @@ GitHub is one connector. Profiles can also use websites, OpenAlex, arXiv, ORCID,
 
 - Multi-source profile generation
 - Evidence-backed claims
-- DINQ-style profile cards
+- Card-first public profiles with evidence drawers
+- Card ordering, visibility, manual notes, and patch API
 - Public profile pages
-- Natural-language discover search
+- Natural-language discover search with matched claims, cards, artifacts, skills, and evidence
 - Local API
 - MCP tools for coding agents
 - MemoryStore by default, Prisma/Postgres when configured
@@ -112,6 +115,8 @@ pnpm dev:api          # Start API on port 3001
 pnpm dev:web          # Start web app on port 3000
 pnpm seed:demo        # Seed demo profiles into the running API
 pnpm screenshots      # Capture screenshots into docs/screenshots
+pnpm db:validate      # Validate Prisma schema
+pnpm verify:db        # Verify DB-backed runtime when DATABASE_URL is set
 pnpm typecheck        # Type-check all workspaces
 pnpm test             # Run tests
 pnpm build            # Build all workspaces
@@ -128,10 +133,13 @@ To persist data with Postgres:
 docker compose up -d postgres
 pnpm db:generate
 pnpm db:migrate
+DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm verify:db
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
 Without `DATABASE_URL`, the API uses MemoryStore.
+
+Postgres E2E status is tracked in [DB Runtime](./docs/db-runtime.md) and the current release notes.
 
 ## MCP
 
@@ -191,8 +199,9 @@ packages/
 ## Notes
 
 - Not production-ready.
-- No auth, teams, billing, or permissions yet.
-- Semantic vector search is still a future layer; current search is rule/full-text hybrid.
+- No auth, ownership, claim verification, teams, billing, or permissions yet.
+- Semantic/vector search is not a production runtime; current search is rule/full-text hybrid.
 - Multi-source generation quality depends on source data quality.
 - Cards are generated from evidence-backed claims.
+- Cards do not yet have a full editor, regenerate workflow, or publishing permissions.
 - LinkedIn/X scraping, private DINQ APIs, browser automation, and login-gated scraping are intentionally out of scope.

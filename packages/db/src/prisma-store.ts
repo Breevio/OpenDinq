@@ -173,7 +173,7 @@ export function createPrismaStore(client: PrismaStoreClient): OpenDinqStore {
       await client.profileClaim.deleteMany({ where: { personId } });
       if (record.claims?.length) {
         await client.profileClaim.createMany({
-          data: record.claims.map((claim) => toClaimInput(personId, claim))
+          data: record.claims.map((claim) => toClaimInput(personId, claim, false))
         });
       }
 
@@ -262,7 +262,7 @@ export function createPrismaStore(client: PrismaStoreClient): OpenDinqStore {
         return [];
       }
       await client.profileClaim.deleteMany({ where: { personId: person.id } });
-      await client.profileClaim.createMany({ data: claims.map((claim) => toClaimInput(person.id, claim)) });
+      await client.profileClaim.createMany({ data: claims.map((claim) => toClaimInput(person.id, claim, true)) });
       return claims;
     },
     async listProfileClaims(handle) {
@@ -292,7 +292,13 @@ export async function createPrismaStoreFromGeneratedClient(): Promise<OpenDinqSt
 const profileInclude = {
   sources: true,
   artifacts: true,
-  cards: true,
+  cards: {
+    orderBy: [
+      { order: "asc" },
+      { type: "asc" },
+      { title: "asc" }
+    ]
+  },
   claims: true
 } as const;
 
@@ -472,7 +478,8 @@ function toRunPatch(patch: Partial<ProfileGenerationRunRecord>) {
 }
 
 function toProfileSourceInput(personId: string, source: ProfileSourceRecord) {
-  return {
+  return compactRecord({
+    id: source.id,
     personId,
     runId: source.runId,
     type: source.type,
@@ -481,7 +488,7 @@ function toProfileSourceInput(personId: string, source: ProfileSourceRecord) {
     rawJson: source.rawJson,
     normalizedJson: source.normalizedJson,
     warningsJson: source.warnings
-  };
+  });
 }
 
 function toProfileSource(source: DbProfileSource): ProfileSourceRecord {
@@ -498,11 +505,11 @@ function toProfileSource(source: DbProfileSource): ProfileSourceRecord {
   });
 }
 
-function toClaimInput(personId: string, claim: ProfileClaimRecord) {
+function toClaimInput(personId: string, claim: ProfileClaimRecord, preserveReferences: boolean) {
   return {
     personId,
-    sourceId: claim.sourceId,
-    artifactId: claim.artifactId,
+    sourceId: preserveReferences ? claim.sourceId : undefined,
+    artifactId: preserveReferences ? claim.artifactId : undefined,
     type: claim.type,
     text: claim.text,
     confidence: claim.confidence,
