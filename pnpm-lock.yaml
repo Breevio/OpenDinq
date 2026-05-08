@@ -35,6 +35,12 @@ importers:
       '@opendinq/connectors':
         specifier: workspace:*
         version: link:../../packages/connectors
+      '@opendinq/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@opendinq/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@opendinq/search':
         specifier: workspace:*
         version: link:../../packages/search
@@ -108,6 +114,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@opendinq/core':
+        specifier: workspace:*
+        version: link:../core
       '@opendinq/shared':
         specifier: workspace:*
         version: link:../shared

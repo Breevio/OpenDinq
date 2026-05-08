@@ -44,7 +44,7 @@ This is the first public MVP of OpenDinq.
 ## Limitations
 
 - In-memory runtime by default
-- No persistent DB-backed API yet
+- Postgres runtime is experimental
 - Rule-based search only
 - GitHub-first only
 - Docker/Postgres path is experimental

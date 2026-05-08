@@ -7,15 +7,15 @@ import {
   parseGitHubProfileUrl
 } from "@opendinq/connectors";
 import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
+import type { OpenDinqStore } from "@opendinq/core";
 import { searchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
 import { errorResponse } from "./errors.js";
-import type { ApiStore } from "./store.js";
 
 export type ApiRouteOptions = {
-  store: ApiStore;
+  store: OpenDinqStore;
   fetchImpl?: typeof fetch;
 };
 
@@ -50,7 +50,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
         generateSkillsCard(person, artifacts)
       ];
 
-      options.store.upsertProfile({
+      await options.store.upsertProfile({
         person,
         sources: [source],
         artifacts,
@@ -67,8 +67,8 @@ export function createApiRoutes(options: ApiRouteOptions) {
     }
   });
 
-  routes.get("/people/:handle", (context) => {
-    const profile = options.store.getProfile(context.req.param("handle"));
+  routes.get("/people/:handle", async (context) => {
+    const profile = await options.store.getProfile(context.req.param("handle"));
 
     if (!profile) {
       return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
@@ -77,10 +77,11 @@ export function createApiRoutes(options: ApiRouteOptions) {
     return context.json(profile);
   });
 
-  routes.get("/search", (context) => {
+  routes.get("/search", async (context) => {
     try {
       const query = z.string().min(1).parse(context.req.query("q"));
-      const documents: PersonSearchDocument[] = options.store.listProfiles().map((profile) => ({
+      const profiles = await options.store.listProfiles();
+      const documents: PersonSearchDocument[] = profiles.map((profile) => ({
         person: profile.person,
         artifacts: profile.artifacts,
         cards: profile.cards
@@ -95,9 +96,9 @@ export function createApiRoutes(options: ApiRouteOptions) {
     }
   });
 
-  routes.get("/cards/:handle", (context) => {
+  routes.get("/cards/:handle", async (context) => {
     const handle = context.req.param("handle");
-    const cards = options.store.listCards(handle);
+    const cards = await options.store.listCards(handle);
 
     if (!cards) {
       return context.json({ error: { code: "not_found", message: "Cards were not found." } }, 404);
@@ -110,7 +111,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
     try {
       const handle = context.req.param("handle");
       const body = createNoteCardSchema.parse(await context.req.json());
-      const card = options.store.saveCard(handle, {
+      const card = await options.store.saveCard(handle, {
         type: "note",
         title: body.title,
         contentMd: body.contentMd,
@@ -137,9 +138,9 @@ export function createApiRoutes(options: ApiRouteOptions) {
     }
   });
 
-  routes.post("/seed/demo", (context) => {
+  routes.post("/seed/demo", async (context) => {
     const profiles = createDemoProfiles();
-    profiles.forEach((profile) => options.store.upsertProfile(profile));
+    await Promise.all(profiles.map((profile) => options.store.upsertProfile(profile)));
 
     return context.json({
       profileCount: profiles.length,

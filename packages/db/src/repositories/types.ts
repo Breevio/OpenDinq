@@ -54,6 +54,6 @@ export type PrismaRepositoryClient = {
   card: {
     create(args: unknown): Promise<unknown>;
     findMany(args: unknown): Promise<unknown[]>;
+    deleteMany?(args: unknown): Promise<unknown>;
   };
 };
-

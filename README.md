@@ -36,7 +36,7 @@ Current limitations:
 - Runtime is in-memory by default
 - Imported data is not persisted after restart
 - Search is rule-based, not semantic/vector search yet
-- Prisma schema exists, but DB-backed API runtime is not enabled by default
+- Postgres runtime is available when `DATABASE_URL` is set, but still experimental
 - Docker/Postgres setup is experimental
 - GitHub-first only
 - No auth, inbox, credits, or team workspace
@@ -239,7 +239,9 @@ The API starts with seed profiles and accepts GitHub imports, but imported data 
 
 ### Experimental: Postgres Mode
 
-The API currently uses an in-memory store for the local MVP. Prisma schema, repository boundaries, and the first PostgreSQL migration are included for the DB-backed API step.
+When `DATABASE_URL` is set, the API uses the Prisma/Postgres store instead of the in-memory store. Imported profiles, artifacts, and cards persist across API restarts.
+
+If `DATABASE_URL` is not set, the API falls back to in-memory mode.
 
 Start local Postgres:
 
@@ -252,6 +254,12 @@ Generate Prisma Client and apply migrations:
 ```bash
 pnpm db:generate
 pnpm db:migrate
+```
+
+Start the API in Postgres mode:
+
+```bash
+DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
 Validate the schema without Docker:
@@ -310,6 +318,7 @@ Read these files before making larger changes:
 - `CODEBASE_NOTES.md`
 - `DECISIONS.md`
 - `TASKS.md`
+- `docs/roadmap.md`
 - `docs/release-checklist.md`
 
 Run before claiming work is complete:
@@ -332,7 +341,8 @@ All items in `TASKS.md` are complete for the current MVP checklist.
 
 Known limitations:
 
-- API runtime is still in-memory.
+- In-memory runtime remains the default local mode.
+- Postgres runtime is implemented but still experimental.
 - Docker must be running before local Postgres migrations can be applied.
 - `pnpm audit --audit-level high` passes.
 

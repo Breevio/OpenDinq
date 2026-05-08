@@ -14,6 +14,8 @@
     "@hono/node-server": "^1.14.1",
     "@opendinq/cards": "workspace:*",
     "@opendinq/connectors": "workspace:*",
+    "@opendinq/core": "workspace:*",
+    "@opendinq/db": "workspace:*",
     "@opendinq/search": "workspace:*",
     "@opendinq/shared": "workspace:*",
     "hono": "^4.7.7",

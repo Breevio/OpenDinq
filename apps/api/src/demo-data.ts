@@ -1,6 +1,6 @@
 import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
+import type { PersonProfileRecord } from "@opendinq/core";
 import type { SearchArtifact, SearchPerson } from "@opendinq/search";
-import type { ApiPersonRecord } from "./store.js";
 
 type DemoProfileInput = {
   person: SearchPerson;
@@ -73,7 +73,7 @@ const demoProfiles: DemoProfileInput[] = [
   }
 ];
 
-export function createDemoProfiles(): ApiPersonRecord[] {
+export function createDemoProfiles(): PersonProfileRecord[] {
   return demoProfiles.map(({ person, artifacts }) => ({
     person,
     sources: [

@@ -20,6 +20,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@opendinq/core": "workspace:*",
     "@prisma/client": "^6.7.0",
     "@opendinq/shared": "workspace:*"
   },

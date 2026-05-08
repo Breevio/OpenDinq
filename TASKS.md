@@ -94,3 +94,38 @@
 - [x] screenshots
 - [x] Docker quickstart
 - [x] AGENTS.md hardening
+
+## Milestone 11 - v0.2 DB-backed runtime
+- [x] Add OpenDinqStore interface
+- [x] Move API memory data handling into MemoryStore
+- [x] Add PrismaStore backed by the existing Prisma schema
+- [x] Use MemoryStore by default when DATABASE_URL is missing
+- [x] Use PrismaStore when DATABASE_URL is present
+- [x] Preserve public API response shapes
+- [x] Keep demo seed working in MemoryStore mode
+- [x] Add MemoryStore tests
+- [x] Add isolated PrismaStore tests
+- [x] Update README runtime mode docs
+- [ ] Verify Docker/Postgres migration locally; currently blocked because the Docker daemon is not running in this environment
+
+## Milestone 12 - v0.3 hybrid search
+- [ ] Keep rule-based search as the deterministic fallback
+- [ ] Add a search provider interface
+- [ ] Add full-text style scoring over profiles, cards, and artifacts
+- [ ] Add optional vector search provider boundary
+- [ ] Preserve evidence and explanations for every result
+- [ ] Add search evaluation fixtures
+
+## Milestone 13 - v0.4 multi-source ingestion
+- [ ] Add manual artifact import
+- [ ] Add personal website import
+- [ ] Add OpenAlex connector
+- [ ] Add arXiv connector
+- [ ] Add ORCID connector
+- [ ] Keep LinkedIn/X scraping out of scope
+
+## Milestone 14 - v0.5 MCP-native workflow
+- [ ] Harden MCP tool schemas
+- [ ] Add richer evidence retrieval through MCP
+- [ ] Keep MCP tools API-backed
+- [ ] Add Codex/Cursor/Claude Code setup verification notes
