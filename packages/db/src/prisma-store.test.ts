@@ -70,6 +70,27 @@ describe("PrismaStore", () => {
       })
     ).resolves.toBeUndefined();
   });
+
+  it("updates allowed card fields", async () => {
+    const client = createMockClient();
+    const store = createPrismaStore(client);
+
+    await expect(store.updateCard("card-1", { title: "Updated", visibility: "hidden", order: 90 })).resolves.toMatchObject({
+      id: "card-1",
+      title: "Updated",
+      visibility: "hidden",
+      order: 90
+    });
+
+    expect(client.card.update).toHaveBeenCalledWith({
+      where: { id: "card-1" },
+      data: {
+        title: "Updated",
+        visibility: "hidden",
+        order: 90
+      }
+    });
+  });
 });
 
 function createMockClient() {
@@ -95,11 +116,17 @@ function createMockClient() {
     ],
     cards: [
       {
+        id: "card-1",
+        personId: "person-1",
         type: "summary",
         title: "Summary",
         contentMd: "Builds tools.",
         dataJson: null,
-        evidenceJson: [{ id: "artifact-0", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }]
+        evidenceJson: [{ id: "artifact-0", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }],
+        visibility: "public",
+        order: 10,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }
     ],
     claims: []
@@ -122,14 +149,33 @@ function createMockClient() {
     },
     card: {
       create: vi.fn().mockResolvedValue({
+        id: "card-note",
+        personId: "person-1",
         type: "note",
         title: "Note",
         contentMd: "Manual note.",
         dataJson: null,
-        evidenceJson: [{ id: "note", type: "external", title: "Note", reason: "Manual note." }]
+        evidenceJson: [{ id: "note", type: "external", title: "Note", reason: "Manual note." }],
+        visibility: "public",
+        order: 60,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }),
       findMany: vi.fn().mockResolvedValue(profile.cards),
-      deleteMany: vi.fn().mockResolvedValue({ count: 1 })
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({
+        id: "card-1",
+        personId: "person-1",
+        type: "summary",
+        title: data.title ?? "Summary",
+        contentMd: data.contentMd ?? "Builds tools.",
+        dataJson: null,
+        evidenceJson: [{ id: "artifact-0", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }],
+        visibility: data.visibility ?? "public",
+        order: data.order ?? 10,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }))
     },
     profileGenerationRun: {
       create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ ...data, createdAt: new Date(), updatedAt: new Date() })),

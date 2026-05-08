@@ -26,6 +26,24 @@ const documents: PersonSearchDocument[] = [
           updatedAt: new Date().toISOString()
         }
       }
+    ],
+    cards: [
+      {
+        id: "card-agent-skills",
+        type: "skills",
+        title: "Agent skills",
+        contentMd: "TypeScript MCP agent workflows",
+        dataJson: { skills: ["TypeScript", "MCP"] }
+      }
+    ],
+    claims: [
+      {
+        id: "claim-agent",
+        type: "skill",
+        text: "AI agent workflows",
+        confidence: 0.8,
+        evidence: [{ id: "repo-agent", type: "artifact", title: "agent-ts/mcp-tools", reason: "Repo supports claim." }]
+      }
     ]
   },
   {
@@ -98,6 +116,18 @@ describe("rule-based people search", () => {
         reason: expect.stringContaining("Matched")
       })
     );
+  });
+
+  it("returns matched claims and cards for full-text matches", async () => {
+    const results = await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("agent workflows", documents));
+
+    expect(results[0]?.person.handle).toBe("agent-ts");
+    expect(results[0]?.matchedClaims).toEqual(expect.arrayContaining([expect.objectContaining({ id: "claim-agent" })]));
+    expect(results[0]?.matchedCards).toEqual(expect.arrayContaining([expect.objectContaining({ id: "card-agent-skills" })]));
+    expect(results[0]?.matchedArtifacts).toEqual(expect.arrayContaining([expect.objectContaining({ id: "repo-agent" })]));
+    expect(results[0]?.topSkills).toEqual(expect.arrayContaining(["TypeScript", "MCP"]));
+    expect(results[0]?.profileUrl).toBe("/u/agent-ts");
+    expect(results[0]?.evidence.length).toBeGreaterThan(0);
   });
 
   it("matches Rust systems engineer profiles", () => {

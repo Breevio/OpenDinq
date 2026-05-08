@@ -5,6 +5,7 @@ export const identitySourceTypeSchema = z.enum([
   "openalex",
   "arxiv",
   "website",
+  "orcid",
   "manual"
 ]);
 
@@ -21,13 +22,16 @@ export const cardTypeSchema = z.enum([
   "summary",
   "github",
   "skills",
+  "works",
+  "research",
+  "timeline",
   "trajectory",
   "note"
 ]);
 
 export const evidenceRefSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["identity_source", "artifact", "card", "external"]),
+  type: z.enum(["identity_source", "artifact", "card", "claim", "source", "external"]),
   title: z.string().min(1),
   url: z.string().url().optional(),
   reason: z.string().min(1)
@@ -78,6 +82,11 @@ export const cardSchema = z.object({
   contentMd: z.string().min(1),
   dataJson: z.record(z.unknown()).optional(),
   evidence: z.array(evidenceRefSchema).min(1),
+  sourceIds: z.array(z.string().min(1)).optional(),
+  claimIds: z.array(z.string().min(1)).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  visibility: z.enum(["public", "private", "hidden"]).default("public"),
+  order: z.number().int().optional(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional()
 });
@@ -122,4 +131,3 @@ export type SkillTag = z.infer<typeof skillTagSchema>;
 export type PersonSkill = z.infer<typeof personSkillSchema>;
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
-

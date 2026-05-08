@@ -1,5 +1,5 @@
 import { generateProfileCards } from "@opendinq/cards";
-import type { ArtifactRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import type { ArtifactRecord, CardRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
 import { hybridSearchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -44,6 +44,13 @@ const createNoteCardSchema = z.object({
   title: z.string().min(1),
   contentMd: z.string().min(1)
 });
+
+const patchCardSchema = z.object({
+  title: z.string().min(1).optional(),
+  contentMd: z.string().min(1).optional(),
+  visibility: z.enum(["public", "private", "hidden"]).optional(),
+  order: z.number().int().optional()
+}).strict();
 
 const manualArtifactSchema = z.object({
   type: z.enum(["repo", "paper", "project", "post", "note", "website"]),
@@ -149,14 +156,14 @@ export function createApiRoutes(options: ApiRouteOptions) {
       return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
     }
 
-    return context.json(profile);
+    return context.json(toPublicProfile(profile));
   });
 
   routes.get("/search", async (context) => {
     try {
       const query = z.string().min(1).parse(context.req.query("q"));
       const profiles = await options.store.listProfiles();
-      const documents: PersonSearchDocument[] = profiles.map((profile) => ({
+      const documents: PersonSearchDocument[] = profiles.map((profile) => toPublicProfile(profile)).map((profile) => ({
         person: profile.person,
         artifacts: profile.artifacts,
         cards: profile.cards,
@@ -180,29 +187,55 @@ export function createApiRoutes(options: ApiRouteOptions) {
       return context.json({ error: { code: "not_found", message: "Cards were not found." } }, 404);
     }
 
-    return context.json({ handle, cards });
+    return context.json({ handle, cards: publicCards(cards) });
+  });
+
+  routes.get("/people/:handle/cards", async (context) => {
+    const handle = context.req.param("handle");
+    const cards = await options.store.listCards(handle);
+
+    if (!cards) {
+      return context.json({ error: { code: "not_found", message: "Cards were not found." } }, 404);
+    }
+
+    return context.json({ handle, cards: publicCards(cards) });
+  });
+
+  routes.patch("/cards/:cardId", async (context) => {
+    try {
+      const body = patchCardSchema.parse(await context.req.json());
+      const card = await options.store.updateCard(context.req.param("cardId"), body);
+      if (!card) {
+        return context.json({ error: { code: "not_found", message: "Card was not found." } }, 404);
+      }
+
+      return context.json({ card });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
   });
 
   routes.post("/cards/:handle/note", async (context) => {
     try {
       const handle = context.req.param("handle");
       const body = createNoteCardSchema.parse(await context.req.json());
-      const card = await options.store.saveCard(handle, {
-        type: "note",
-        title: body.title,
-        contentMd: body.contentMd,
-        dataJson: {
-          source: "manual"
-        },
-        evidence: [
-          {
-            id: `manual-note-${handle}-${Date.now()}`,
-            type: "external",
-            title: body.title,
-            reason: "Manual note supplied through the OpenDinq API."
-          }
-        ]
-      });
+      const card = await createManualNoteCard(options.store, handle, body.title, body.contentMd);
+
+      if (!card) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json({ handle, card }, 201);
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/people/:handle/cards/manual-note", async (context) => {
+    try {
+      const handle = context.req.param("handle");
+      const body = createNoteCardSchema.parse(await context.req.json());
+      const card = await createManualNoteCard(options.store, handle, body.title, body.contentMd);
 
       if (!card) {
         return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
@@ -314,4 +347,41 @@ function importSummary(profile: PersonProfileRecord) {
     artifactCount: profile.artifacts.length,
     cardCount: profile.cards.length
   };
+}
+
+function toPublicProfile(profile: PersonProfileRecord): PersonProfileRecord {
+  return {
+    ...profile,
+    cards: publicCards(profile.cards)
+  };
+}
+
+function publicCards(cards: CardRecord[]): CardRecord[] {
+  return cards
+    .filter((card) => card.visibility !== "hidden")
+    .toSorted((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.type.localeCompare(right.type) || left.title.localeCompare(right.title));
+}
+
+async function createManualNoteCard(store: OpenDinqStore, handle: string, title: string, contentMd: string): Promise<CardRecord | undefined> {
+  const noteId = `manual-note-${handle}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return store.saveCard(handle, {
+    id: `card-${noteId}`,
+    personId: handle,
+    type: "note",
+    title,
+    contentMd,
+    dataJson: {
+      source: "manual"
+    },
+    evidence: [
+      {
+        id: noteId,
+        type: "external",
+        title,
+        reason: "Manual note supplied through the OpenDinq API."
+      }
+    ],
+    visibility: "public",
+    order: 60
+  });
 }

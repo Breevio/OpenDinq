@@ -49,15 +49,36 @@ export function DiscoverSearch() {
       </form>
 
       {error ? <p className="status error">{error}</p> : null}
+      {!isLoading && results.length === 0 ? (
+        <div className="suggestion-list">
+          {[
+            "AI agent builders with TypeScript and MCP",
+            "researchers working on language models",
+            "open-source infrastructure engineers",
+            "people with manual notes about product design"
+          ].map((suggestion) => (
+            <button key={suggestion} type="button" onClick={() => setQuery(suggestion)}>
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="result-list">
         {results.map((result) => (
           <article className="result-card" key={result.person.handle}>
             <div>
-              <a className="result-title" href={`/u/${result.person.handle}`}>
+              <a className="result-title" href={result.profileUrl ?? `/u/${result.person.handle}`}>
                 {result.person.displayName}
               </a>
               <p>{result.explanation}</p>
+              {result.topSkills?.length ? (
+                <div className="skill-strip compact">
+                  {result.topSkills.slice(0, 6).map((skill) => (
+                    <span key={skill}>{skill}</span>
+                  ))}
+                </div>
+              ) : null}
               {result.matchedClaims?.length ? (
                 <div className="evidence-list">
                   {result.matchedClaims.slice(0, 3).map((claim) => (
@@ -65,13 +86,33 @@ export function DiscoverSearch() {
                   ))}
                 </div>
               ) : null}
+              {result.matchedCards?.length ? (
+                <div className="matched-block">
+                  <strong>Matched cards</strong>
+                  {result.matchedCards.slice(0, 2).map((card) => (
+                    <span key={card.id ?? card.title}>{card.title}</span>
+                  ))}
+                </div>
+              ) : null}
+              {result.matchedArtifacts?.length ? (
+                <div className="matched-block">
+                  <strong>Matched artifacts</strong>
+                  {result.matchedArtifacts.slice(0, 2).map((artifact) => (
+                    artifact.url ? <a href={artifact.url} key={artifact.id ?? artifact.url}>{artifact.title}</a> : <span key={artifact.id ?? artifact.title}>{artifact.title}</span>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <span className="score">{Math.round(result.score * 100)}%</span>
             <div className="evidence-list">
               {result.evidence.slice(0, 3).map((evidence) => (
-                <a href={evidence.url} key={`${result.person.handle}-${evidence.id}-${evidence.reason}`}>
-                  {evidence.title}
-                </a>
+                evidence.url ? (
+                  <a href={evidence.url} key={`${result.person.handle}-${evidence.id}-${evidence.reason}`}>
+                    {evidence.title}
+                  </a>
+                ) : (
+                  <span key={`${result.person.handle}-${evidence.id}-${evidence.reason}`}>{evidence.title}</span>
+                )
               ))}
             </div>
           </article>

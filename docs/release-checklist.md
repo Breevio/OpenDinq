@@ -4,48 +4,19 @@ Before tagging a release:
 
 - [ ] `./scripts/check.sh` passes
 - [ ] `pnpm audit --audit-level high` passes
+- [ ] `pnpm db:generate` passes
+- [ ] `DATABASE_URL=... pnpm --filter @opendinq/db exec prisma validate --schema prisma/schema.prisma` passes
 - [ ] `/health` returns ok
-- [ ] `/import` returns 200
+- [ ] `/generate` returns 200
 - [ ] `/discover` returns 200
 - [ ] `/u/demo-agent-builder` returns 200
+- [ ] Manual-only profile generation works from `/generate`
 - [ ] Demo search returns `demo-agent-builder`
+- [ ] MemoryStore verification passes
+- [ ] PrismaStore/Postgres verification passes, or the release notes clearly say it was not manually verified
+- [ ] MCP package build and tests pass
 - [ ] `pnpm screenshots` succeeds
 - [ ] README screenshots are up to date
 - [ ] Known limitations are accurate
 - [ ] Docker/Postgres status is documented honestly
 - [ ] A `LICENSE` file exists before public open-source release
-
-Suggested v0.1-alpha tag:
-
-```bash
-git add .
-git commit -m "chore: prepare v0.1-alpha MVP release"
-git tag v0.1.0-alpha
-git push origin main --tags
-```
-
-Suggested release notes:
-
-```md
-# OpenDinq v0.1.0-alpha
-
-This is the first public MVP of OpenDinq.
-
-## What works
-
-- GitHub-first/demo people profiles
-- Evidence-backed cards
-- Rule-based natural-language people search
-- Search explanations with evidence
-- Minimal web UI
-- API health endpoint
-- Experimental MCP package builds
-
-## Limitations
-
-- In-memory runtime by default
-- Postgres runtime is experimental
-- Rule-based search only
-- GitHub-first only
-- Docker/Postgres path is experimental
-```

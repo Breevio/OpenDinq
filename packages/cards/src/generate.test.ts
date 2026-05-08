@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEvidenceRefs, generateGitHubCard, generateSkillsCard, generateSummaryCard } from "./index.js";
+import { buildEvidenceRefs, generateGitHubCard, generateProfileCards, generateSkillsCard, generateSummaryCard } from "./index.js";
 import type { CardArtifact, CardPerson } from "./types.js";
 
 const person: CardPerson = {
@@ -66,6 +66,22 @@ describe("deterministic card generation", () => {
   it("is stable between runs", () => {
     expect(generateSkillsCard(person, artifacts)).toEqual(generateSkillsCard(person, artifacts));
     expect(generateGitHubCard(person, artifacts)).toEqual(generateGitHubCard(person, artifacts));
+  });
+
+  it("assigns stable ids, public visibility, and product card ordering", () => {
+    const cards = generateProfileCards(person, artifacts, [
+      {
+        id: "claim-skill",
+        type: "skill",
+        text: "TypeScript",
+        confidence: 0.8,
+        evidence: [{ id: "repo-1", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }]
+      }
+    ]);
+
+    expect(cards.map((card) => card.type)).toEqual(["summary", "skills", "works", "timeline"]);
+    expect(cards.every((card) => card.id && card.personId === "demo" && card.visibility === "public")).toBe(true);
+    expect(cards.every((card) => card.evidence.length > 0)).toBe(true);
   });
 
   it("builds fallback evidence ids", () => {

@@ -39,10 +39,10 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
       return extractEvidence(profile);
     },
     listCards(handle) {
-      return request(`${baseUrl}/api/cards/${encodeURIComponent(handle)}`);
+      return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}/cards`);
     },
     createNoteCard(handle, title, contentMd) {
-      return request(`${baseUrl}/api/cards/${encodeURIComponent(handle)}/note`, {
+      return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}/cards/manual-note`, {
         method: "POST",
         body: JSON.stringify({ title, contentMd })
       });

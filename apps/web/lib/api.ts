@@ -10,14 +10,18 @@ export type EvidenceRef = {
 };
 
 export type ProfileCard = {
+  id?: string;
+  personId?: string;
   type: string;
   title: string;
   contentMd: string;
   dataJson?: Record<string, unknown>;
   evidence: EvidenceRef[];
   confidence?: number;
-  visibility?: string;
+  visibility?: "public" | "private" | "hidden";
   order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type ProfileArtifact = {
@@ -61,6 +65,9 @@ export type SearchResult = {
   evidence: EvidenceRef[];
   matchedClaims?: PersonProfile["claims"];
   matchedCards?: ProfileCard[];
+  matchedArtifacts?: ProfileArtifact[];
+  topSkills?: string[];
+  profileUrl?: string;
 };
 
 export type ProfileGenerationResponse = {

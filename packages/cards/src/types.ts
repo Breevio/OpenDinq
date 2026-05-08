@@ -33,6 +33,8 @@ export type CardClaim = {
 };
 
 export type GeneratedCard = {
+  id?: string;
+  personId?: string;
   type: "summary" | "skills" | "works" | "research" | "timeline" | "note" | "github";
   title: string;
   contentMd: string;
@@ -41,6 +43,8 @@ export type GeneratedCard = {
   sourceIds?: string[];
   claimIds?: string[];
   confidence?: number;
-  visibility?: "public" | "private";
+  visibility?: "public" | "private" | "hidden";
   order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };

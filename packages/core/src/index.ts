@@ -4,6 +4,7 @@ export const OPEN_DINQ_MVP_GOAL =
 export { createMemoryStore } from "./stores/memory-store.js";
 export type {
   ArtifactRecord,
+  CardPatchRecord,
   CardRecord,
   EvidenceRecord,
   IdentitySourceRecord,

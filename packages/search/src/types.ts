@@ -16,10 +16,12 @@ export type SearchArtifact = {
 };
 
 export type SearchCard = {
+  id?: string;
   type: string;
   title: string;
   contentMd: string;
   dataJson?: Record<string, unknown>;
+  visibility?: "public" | "private" | "hidden";
 };
 
 export type SearchClaim = {
@@ -67,6 +69,9 @@ export type RankedSearchResult = {
   evidence: SearchEvidenceRef[];
   matchedClaims?: SearchClaim[];
   matchedCards?: SearchCard[];
+  matchedArtifacts?: SearchArtifact[];
+  topSkills?: string[];
+  profileUrl?: string;
 };
 
 export type SearchProviderMatch = {

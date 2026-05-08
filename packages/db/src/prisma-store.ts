@@ -1,5 +1,6 @@
 import type {
   ArtifactRecord,
+  CardPatchRecord,
   CardRecord,
   EvidenceRecord,
   IdentitySourceRecord,
@@ -28,6 +29,7 @@ export type PrismaStoreClient = {
   card: {
     create(args: unknown): Promise<unknown>;
     deleteMany(args: unknown): Promise<unknown>;
+    update(args: unknown): Promise<unknown>;
   };
   profileGenerationRun: {
     create(args: unknown): Promise<unknown>;
@@ -73,6 +75,8 @@ type DbArtifact = {
 };
 
 type DbCard = {
+  id: string;
+  personId: string;
   type: string;
   title: string;
   contentMd: string;
@@ -83,6 +87,8 @@ type DbCard = {
   confidence?: number | null;
   visibility?: string | null;
   order?: number | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 type DbPersonProfile = DbPerson & {
@@ -203,6 +209,17 @@ export function createPrismaStore(client: PrismaStoreClient): OpenDinqStore {
       });
 
       return toCard(savedCard as DbCard);
+    },
+    async updateCard(cardId: string, patch: CardPatchRecord) {
+      try {
+        const saved = await client.card.update({
+          where: { id: cardId },
+          data: toCardPatchInput(patch)
+        });
+        return toCard(saved as DbCard);
+      } catch {
+        return undefined;
+      }
     },
     async createProfileRun(run) {
       const saved = await client.profileGenerationRun.create({ data: toRunInput(run) });
@@ -332,6 +349,8 @@ function toArtifact(artifact: DbArtifact): ArtifactRecord {
 
 function toCard(card: DbCard): CardRecord {
   return compactRecord<CardRecord>({
+    id: card.id,
+    personId: card.personId,
     type: card.type,
     title: card.title,
     contentMd: card.contentMd,
@@ -340,8 +359,10 @@ function toCard(card: DbCard): CardRecord {
     sourceIds: stringArray(card.sourceIds),
     claimIds: stringArray(card.claimIds),
     confidence: card.confidence ?? undefined,
-    visibility: card.visibility === "private" ? "private" : "public",
-    order: card.order ?? undefined
+    visibility: isCardVisibility(card.visibility) ? card.visibility : "public",
+    order: card.order ?? undefined,
+    createdAt: card.createdAt?.toISOString(),
+    updatedAt: card.updatedAt?.toISOString()
   });
 }
 
@@ -368,7 +389,8 @@ function toArtifactInput(personId: string, artifact: ArtifactRecord) {
 }
 
 function toCardInput(personId: string, card: CardRecord) {
-  return {
+  return compactRecord({
+    id: card.id,
     personId,
     type: card.type,
     title: card.title,
@@ -380,7 +402,16 @@ function toCardInput(personId: string, card: CardRecord) {
     confidence: card.confidence,
     visibility: card.visibility ?? "public",
     order: card.order ?? 0
-  };
+  });
+}
+
+function toCardPatchInput(patch: CardPatchRecord) {
+  return compactRecord({
+    title: patch.title,
+    contentMd: patch.contentMd,
+    visibility: patch.visibility,
+    order: patch.order
+  });
 }
 
 type DbProfileGenerationRun = {
@@ -523,6 +554,10 @@ function isSourceType(value: string): value is ProfileSourceRecord["type"] {
 
 function isClaimType(value: string): value is ProfileClaimRecord["type"] {
   return ["skill", "role", "project", "research_area", "achievement", "affiliation", "link", "summary"].includes(value);
+}
+
+function isCardVisibility(value: unknown): value is CardRecord["visibility"] {
+  return value === "public" || value === "private" || value === "hidden";
 }
 
 function idFromRecord(value: unknown, label: string): string {

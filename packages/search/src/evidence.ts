@@ -12,7 +12,7 @@ export function artifactEvidence(artifact: SearchArtifact, reason: string, fallb
 
 export function cardEvidence(card: SearchCard, reason: string, fallbackIndex = 0): SearchEvidenceRef {
   return {
-    id: `card-${card.type}-${fallbackIndex}`,
+    id: card.id ?? `card-${card.type}-${fallbackIndex}`,
     type: "card",
     title: card.title,
     reason

@@ -183,6 +183,9 @@ packages/
 
 - [Profile Generator](./docs/profile-generator.md)
 - [Evidence Model](./docs/evidence-model.md)
+- [Card System](./docs/card-system.md)
+- [Discover](./docs/discover.md)
+- [DB Runtime](./docs/db-runtime.md)
 - [Architecture](./docs/architecture.md)
 
 ## Notes

@@ -38,11 +38,19 @@ packages/search
   Rule/full-text hybrid search
 ```
 
+## Product Flow
+
+```text
+Generate Profile -> Cards -> Public Profile -> Discover -> MCP/API automation
+```
+
 ## Runtime Modes
 
 MemoryStore is the default. It is used when `DATABASE_URL` is not set.
 
 PrismaStore is used when `DATABASE_URL` is set. It stores people, sources, artifacts, claims, cards, and generation runs.
+
+Both stores implement the same API-facing contract for profile generation runs, profile sources, people, artifacts, profile claims, cards, and evidence retrieval.
 
 ## Search
 
@@ -56,6 +64,8 @@ Search currently combines:
 - full-text scoring
 
 Vector search is not implemented as a production runtime yet.
+
+Search responses include matched claims, matched cards, matched artifacts, top skills, evidence, and the public profile URL.
 
 ## MCP
 

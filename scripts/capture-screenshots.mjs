@@ -14,7 +14,7 @@ await page.screenshot({ path: new URL("generate.png", outputDir).pathname, fullP
 
 await page.goto(`${webUrl}/discover`, { waitUntil: "networkidle" });
 await page.getByLabel("Natural-language people search").fill("AI agent developers using TypeScript and MCP");
-await page.getByRole("button", { name: "Search" }).click();
+await page.getByRole("button", { name: "Search", exact: true }).click();
 await page.waitForSelector(".result-card");
 await page.screenshot({ path: new URL("discover.png", outputDir).pathname, fullPage: true });
 

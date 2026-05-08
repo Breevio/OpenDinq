@@ -35,6 +35,7 @@ export type EvidenceRecord = {
 
 export type CardRecord = {
   id?: string;
+  personId?: string;
   type: string;
   title: string;
   contentMd: string;
@@ -43,9 +44,13 @@ export type CardRecord = {
   sourceIds?: string[];
   claimIds?: string[];
   confidence?: number;
-  visibility?: "public" | "private";
+  visibility?: "public" | "private" | "hidden";
   order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+export type CardPatchRecord = Pick<Partial<CardRecord>, "title" | "contentMd" | "visibility" | "order">;
 
 export type ProfileClaimRecord = {
   id?: string;
@@ -98,6 +103,7 @@ export type OpenDinqStore = {
   listProfiles(): Promise<PersonProfileRecord[]>;
   listCards(handle: string): Promise<CardRecord[] | undefined>;
   saveCard(handle: string, card: CardRecord): Promise<CardRecord | undefined>;
+  updateCard(cardId: string, patch: CardPatchRecord): Promise<CardRecord | undefined>;
   createProfileRun(run: ProfileGenerationRunRecord): Promise<ProfileGenerationRunRecord>;
   updateProfileRun(runId: string, patch: Partial<ProfileGenerationRunRecord>): Promise<ProfileGenerationRunRecord | undefined>;
   getProfileRun(runId: string): Promise<ProfileGenerationRunRecord | undefined>;

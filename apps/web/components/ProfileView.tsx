@@ -50,23 +50,36 @@ export function ProfileView({ handle }: { handle: string }) {
               ))}
             </div>
           ) : null}
+          <div className="result-strip profile-meta">
+            <span>{profileCompleteness(profile)}% complete</span>
+            {profile.sources.slice(0, 5).map((source) => (
+              <span key={`${source.type}-${source.url}`}>{source.type}</span>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="cards-grid">
-        {profile.cards.map((card) => (
-          <article className="profile-card" key={`${card.type}-${card.title}`}>
+        {profile.cards.filter((card) => card.visibility !== "hidden").map((card) => (
+          <article className="profile-card" key={card.id ?? `${card.type}-${card.title}`}>
             <p className="eyebrow">{card.type}</p>
             <h2>{card.title}</h2>
             <pre>{card.contentMd}</pre>
             {typeof card.confidence === "number" ? <small>{Math.round(card.confidence * 100)}% confidence</small> : null}
-            <div className="evidence-list">
-              {card.evidence.map((evidence, index) => (
-                <a href={evidence.url} key={`${card.title}-${evidence.id}-${index}`}>
-                  {evidence.title}
-                </a>
-              ))}
-            </div>
+            <details className="evidence-drawer">
+              <summary>Evidence ({card.evidence.length})</summary>
+              <div className="evidence-list">
+                {card.evidence.map((evidence, index) => (
+                  evidence.url ? (
+                    <a href={evidence.url} key={`${card.title}-${evidence.id}-${index}`}>
+                      {evidence.title}
+                    </a>
+                  ) : (
+                    <span key={`${card.title}-${evidence.id}-${index}`}>{evidence.title}</span>
+                  )
+                ))}
+              </div>
+            </details>
           </article>
         ))}
       </section>
@@ -135,4 +148,12 @@ function formatArtifactMeta(metadata: Record<string, unknown> | undefined) {
   const language = typeof metadata.language === "string" ? metadata.language : undefined;
   const stars = typeof metadata.stars === "number" ? `${metadata.stars} stars` : undefined;
   return [language, stars].filter(Boolean).join(" / ");
+}
+
+function profileCompleteness(profile: PersonProfile): number {
+  const sourceScore = Math.min(1, profile.sources.length / 3) * 25;
+  const claimScore = Math.min(1, (profile.claims?.length ?? 0) / 8) * 25;
+  const cardScore = Math.min(1, profile.cards.filter((card) => card.visibility !== "hidden").length / 4) * 25;
+  const artifactScore = Math.min(1, profile.artifacts.length / 6) * 25;
+  return Math.round(sourceScore + claimScore + cardScore + artifactScore);
 }

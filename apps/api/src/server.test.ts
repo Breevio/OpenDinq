@@ -104,6 +104,46 @@ describe("OpenDinq API", () => {
       }
     });
 
+    const manualNoteResponse = await app.request("/api/people/demo-agent-builder/cards/manual-note", {
+      method: "POST",
+      body: JSON.stringify({ title: "Product note", contentMd: "Manual evidence about product design." }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(manualNoteResponse.status).toBe(201);
+    const manualNoteJson = await manualNoteResponse.json();
+    expect(manualNoteJson.card).toMatchObject({
+      id: expect.any(String),
+      type: "note",
+      visibility: "public"
+    });
+
+    const patchResponse = await app.request(`/api/cards/${manualNoteJson.card.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Hidden product note", visibility: "hidden", ignored: true }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(patchResponse.status).toBe(400);
+
+    const validPatchResponse = await app.request(`/api/cards/${manualNoteJson.card.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Hidden product note", visibility: "hidden", order: 99 }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(validPatchResponse.status).toBe(200);
+    await expect(validPatchResponse.json()).resolves.toMatchObject({
+      card: {
+        id: manualNoteJson.card.id,
+        title: "Hidden product note",
+        visibility: "hidden",
+        order: 99
+      }
+    });
+
+    const publicCardsResponse = await app.request("/api/people/demo-agent-builder/cards");
+    expect(publicCardsResponse.status).toBe(200);
+    const publicCardsJson = await publicCardsResponse.json();
+    expect(publicCardsJson.cards.map((card: { id?: string }) => card.id)).not.toContain(manualNoteJson.card.id);
+
     const searchResponse = await app.request("/api/search?q=AI%20agent%20TypeScript%20MCP");
     expect(searchResponse.status).toBe(200);
     const searchJson = await searchResponse.json();
@@ -112,7 +152,10 @@ describe("OpenDinq API", () => {
         handle: "demo-agent-builder"
       },
       explanation: expect.stringContaining("MCP"),
-      evidence: expect.arrayContaining([expect.objectContaining({ id: expect.any(String) })])
+      evidence: expect.arrayContaining([expect.objectContaining({ id: expect.any(String) })]),
+      matchedArtifacts: expect.arrayContaining([expect.objectContaining({ title: expect.stringContaining("agent-tools") })]),
+      topSkills: expect.arrayContaining(["TypeScript"]),
+      profileUrl: "/u/demo-agent-builder"
     });
   });
 

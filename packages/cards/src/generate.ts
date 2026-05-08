@@ -11,11 +11,13 @@ export function generateProfileCards(person: CardPerson, artifacts: CardArtifact
     ...manualNoteCards(person, claims)
   ].filter((card): card is GeneratedCard => Boolean(card));
 
-  return cards.map((card, index) => ({
-    visibility: "public",
-    order: index + 1,
-    ...card
-  }));
+  return cards.map((card) => ({
+    ...card,
+    id: card.id ?? `card-${person.handle}-${card.type}`,
+    personId: card.personId ?? person.handle,
+    visibility: "public" as const,
+    order: card.order ?? defaultCardOrder(card.type),
+  })).toSorted((left, right) => (left.order ?? 0) - (right.order ?? 0) || left.type.localeCompare(right.type));
 }
 
 export function generateSummaryCard(person: CardPerson, artifacts: CardArtifact[]): GeneratedCard {
@@ -192,13 +194,29 @@ function manualNoteCards(person: CardPerson, claims: CardClaim[]): GeneratedCard
   return claims
     .filter((claim) => claim.type === "summary" && claim.sourceId?.startsWith("manual-note"))
     .map((claim, index) => ({
+      id: `card-${person.handle}-note-${index + 1}`,
+      personId: person.handle,
       type: "note",
       title: `${person.displayName} note ${index + 1}`,
       contentMd: claim.text,
       evidence: claim.evidence,
       claimIds: claimIds([claim]),
-      confidence: claim.confidence
+      confidence: claim.confidence,
+      order: defaultCardOrder("note") + index
     }));
+}
+
+function defaultCardOrder(type: GeneratedCard["type"]): number {
+  const order: Record<GeneratedCard["type"], number> = {
+    summary: 10,
+    skills: 20,
+    works: 30,
+    github: 35,
+    research: 40,
+    timeline: 50,
+    note: 60
+  };
+  return order[type] ?? 100;
 }
 
 function summarizeArtifactCount(artifacts: CardArtifact[]): string {

@@ -1,5 +1,6 @@
 import type {
   CardRecord,
+  CardPatchRecord,
   OpenDinqStore,
   PersonProfileRecord,
   ProfileClaimRecord,
@@ -8,7 +9,7 @@ import type {
 } from "../store.js";
 
 export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): OpenDinqStore {
-  const profiles = new Map(initialProfiles.map((profile) => [profile.person.handle, profile]));
+  const profiles = new Map(initialProfiles.map((profile) => [profile.person.handle, normalizeProfile(profile)]));
   const runs = new Map<string, ProfileGenerationRunRecord>();
   const sourcesByRun = new Map<string, ProfileSourceRecord[]>();
   const claimsByHandle = new Map<string, ProfileClaimRecord[]>();
@@ -17,7 +18,7 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
     async upsertProfile(record) {
       const existing = profiles.get(record.person.handle);
       const claims = record.claims ?? existing?.claims ?? claimsByHandle.get(record.person.handle);
-      const merged = claims ? { ...record, claims } : record;
+      const merged = normalizeProfile(claims ? { ...record, claims } : record);
       profiles.set(record.person.handle, merged);
       return merged;
     },
@@ -30,7 +31,7 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
       );
     },
     async listCards(handle) {
-      return profiles.get(handle)?.cards;
+      return sortedCards(profiles.get(handle)?.cards);
     },
     async saveCard(handle, card: CardRecord) {
       const profile = profiles.get(handle);
@@ -38,8 +39,33 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
         return undefined;
       }
 
-      profile.cards.push(card);
-      return card;
+      const saved = normalizeCard(handle, card, nextCardOrder(profile.cards));
+      profile.cards.push(saved);
+      profile.cards = sortedCards(profile.cards) ?? [];
+      return saved;
+    },
+    async updateCard(cardId: string, patch: CardPatchRecord) {
+      for (const profile of profiles.values()) {
+        const index = profile.cards.findIndex((card) => card.id === cardId);
+        if (index < 0) {
+          continue;
+        }
+
+        const existing = profile.cards[index];
+        if (!existing) {
+          continue;
+        }
+        const updated = normalizeCard(profile.person.handle, {
+          ...existing,
+          ...compactCardPatch(patch),
+          updatedAt: new Date().toISOString()
+        }, existing.order);
+        profile.cards[index] = updated;
+        profile.cards = sortedCards(profile.cards) ?? [];
+        return updated;
+      }
+
+      return undefined;
     },
     async createProfileRun(run) {
       runs.set(run.id, run);
@@ -98,4 +124,42 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
       return claimsByHandle.get(handle) ?? profiles.get(handle)?.claims ?? [];
     }
   };
+}
+
+function normalizeProfile(profile: PersonProfileRecord): PersonProfileRecord {
+  return {
+    ...profile,
+    cards: sortedCards(profile.cards.map((card, index) => normalizeCard(profile.person.handle, card, index + 1))) ?? []
+  };
+}
+
+function normalizeCard(handle: string, card: CardRecord, fallbackOrder = 0): CardRecord {
+  const now = new Date().toISOString();
+  return {
+    ...card,
+    id: card.id ?? `card-${handle}-${slugify(card.type)}-${slugify(card.title)}`,
+    personId: card.personId ?? handle,
+    visibility: card.visibility ?? "public",
+    order: card.order ?? fallbackOrder,
+    createdAt: card.createdAt ?? now,
+    updatedAt: card.updatedAt ?? card.createdAt ?? now
+  };
+}
+
+function sortedCards(cards: CardRecord[] | undefined): CardRecord[] | undefined {
+  return cards?.toSorted((left, right) =>
+    (left.order ?? 0) - (right.order ?? 0) || left.type.localeCompare(right.type) || left.title.localeCompare(right.title)
+  );
+}
+
+function nextCardOrder(cards: CardRecord[]): number {
+  return Math.max(0, ...cards.map((card) => card.order ?? 0)) + 10;
+}
+
+function compactCardPatch(patch: CardPatchRecord): CardPatchRecord {
+  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)) as CardPatchRecord;
+}
+
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "card";
 }

@@ -209,6 +209,10 @@ button:disabled {
   text-decoration: none;
 }
 
+.profile-meta {
+  margin-top: 14px;
+}
+
 .result-list {
   display: grid;
   gap: 12px;
@@ -246,11 +250,55 @@ button:disabled {
   text-decoration: none;
 }
 
+.evidence-drawer {
+  display: grid;
+  gap: 10px;
+}
+
+.evidence-drawer summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.suggestion-list,
+.matched-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion-list button {
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 10px;
+}
+
+.matched-block {
+  margin-top: 10px;
+}
+
+.matched-block strong,
+.matched-block a,
+.matched-block span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  padding: 6px 9px;
+  text-decoration: none;
+}
+
 .skill-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.skill-strip.compact {
+  margin-top: 10px;
 }
 
 .skill-strip span {

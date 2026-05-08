@@ -44,9 +44,15 @@ describe("MemoryStore", () => {
   it("upserts, reads, lists, and appends cards", async () => {
     const store = createMemoryStore();
 
-    await expect(store.upsertProfile(demoProfile)).resolves.toEqual(demoProfile);
-    await expect(store.getProfile("demo")).resolves.toEqual(demoProfile);
-    await expect(store.listProfiles()).resolves.toEqual([demoProfile]);
+    await expect(store.upsertProfile(demoProfile)).resolves.toMatchObject({
+      person: demoProfile.person,
+      cards: [expect.objectContaining({ id: expect.any(String), visibility: "public", order: 1 })]
+    });
+    await expect(store.getProfile("demo")).resolves.toMatchObject({
+      person: demoProfile.person,
+      cards: [expect.objectContaining({ type: "summary", visibility: "public" })]
+    });
+    await expect(store.listProfiles()).resolves.toHaveLength(1);
     await expect(store.listCards("demo")).resolves.toHaveLength(1);
 
     await expect(
@@ -66,6 +72,13 @@ describe("MemoryStore", () => {
     ).resolves.toMatchObject({ type: "note" });
 
     await expect(store.listCards("demo")).resolves.toHaveLength(2);
+    const cards = await store.listCards("demo");
+    const note = cards?.find((card) => card.type === "note");
+    expect(note).toMatchObject({ id: expect.any(String), personId: "demo", visibility: "public" });
+    await expect(store.updateCard(note?.id ?? "missing", { title: "Hidden note", visibility: "hidden" })).resolves.toMatchObject({
+      title: "Hidden note",
+      visibility: "hidden"
+    });
   });
 
   it("returns undefined for missing profiles", async () => {
@@ -81,5 +94,6 @@ describe("MemoryStore", () => {
         evidence: [{ id: "note", type: "external", title: "Missing", reason: "Manual note." }]
       })
     ).resolves.toBeUndefined();
+    await expect(store.updateCard("missing", { title: "Missing" })).resolves.toBeUndefined();
   });
 });

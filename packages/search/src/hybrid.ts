@@ -11,8 +11,8 @@ import type {
 } from "./types.js";
 
 const DEFAULT_WEIGHTS = {
-  rule: 0.7,
-  fullText: 0.3,
+  rule: 0.55,
+  fullText: 0.45,
   provider: 0
 } as const;
 
@@ -67,7 +67,10 @@ export async function hybridSearchPeople(
         explanation: mergeExplanations(document.person.displayName, result.explanations),
         evidence: dedupeEvidence(result.evidence),
         matchedClaims: matchedClaims(document, result.evidence),
-        matchedCards: matchedCards(document, result.evidence)
+        matchedCards: matchedCards(document, result.evidence),
+        matchedArtifacts: matchedArtifacts(document, result.evidence),
+        topSkills: topSkills(document),
+        profileUrl: `/u/${document.person.handle}`
       };
 
       if (ranked.score > 0 && ranked.evidence.length > 0) {
@@ -135,6 +138,56 @@ function matchedClaims(document: PersonSearchDocument, evidence: SearchEvidenceR
 }
 
 function matchedCards(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
+  const ids = new Set(evidence.filter((item) => item.type === "card").map((item) => item.id));
   const titles = new Set(evidence.filter((item) => item.type === "card").map((item) => item.title));
-  return document.cards?.filter((card) => titles.has(card.title)).slice(0, 3);
+  return document.cards?.filter((card) => (card.id && ids.has(card.id)) || titles.has(card.title)).slice(0, 3);
+}
+
+function matchedArtifacts(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
+  const ids = new Set(evidence.filter((item) => item.type === "artifact").map((item) => item.id));
+  const titles = new Set(evidence.filter((item) => item.type === "artifact").map((item) => item.title));
+  return document.artifacts.filter((artifact) => (artifact.id && ids.has(artifact.id)) || (artifact.url && ids.has(artifact.url)) || titles.has(artifact.title)).slice(0, 4);
+}
+
+function topSkills(document: PersonSearchDocument): string[] {
+  const skills = new Set<string>();
+  for (const claim of document.claims ?? []) {
+    if (claim.type === "skill") {
+      skills.add(claim.text);
+    }
+  }
+  for (const card of document.cards ?? []) {
+    const cardSkills = card.dataJson?.skills;
+    if (Array.isArray(cardSkills)) {
+      for (const skill of cardSkills) {
+        if (typeof skill === "string") {
+          skills.add(skill);
+        }
+      }
+    }
+  }
+  for (const artifact of document.artifacts) {
+    const language = artifact.metadata?.language;
+    if (typeof language === "string") {
+      skills.add(language);
+    }
+    const topics = artifact.metadata?.topics;
+    if (Array.isArray(topics)) {
+      for (const topic of topics) {
+        if (typeof topic === "string") {
+          skills.add(formatSkill(topic));
+        }
+      }
+    }
+  }
+
+  return [...skills].slice(0, 8);
+}
+
+function formatSkill(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
