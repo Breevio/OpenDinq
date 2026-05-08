@@ -62,7 +62,7 @@ Current limitations:
 apps/
   web/      Next.js UI for import, discover, and public profile pages
   api/      Hono API for import, people, search, cards, and demo seed
-  mcp/      stdio MCP server that calls the OpenDINQ API
+  mcp/      stdio MCP server that calls the OpenDinq API
   worker/   reserved for background ingestion/indexing jobs
 
 packages/
@@ -287,7 +287,7 @@ The MCP server exposes:
 
 ## Data And Compliance Boundaries
 
-OpenDINQ is built around public or user-authorized data.
+OpenDinq is built around public or user-authorized data.
 
 The MVP intentionally does not include:
 

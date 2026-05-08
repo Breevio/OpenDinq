@@ -1,7 +1,7 @@
-# OpenDINQ Agent Instructions
+# OpenDinq Agent Instructions
 
 ASSUMPTIONS I'M MAKING:
-1. OpenDINQ is a clean-room implementation inspired by public product patterns, not a fork of any reference codebase.
+1. OpenDinq is a clean-room implementation inspired by public product patterns, not a fork of any reference codebase.
 2. The MVP is evidence-backed profile generation and natural-language people search from public or authorized sources.
 3. GitHub is the first ingestion source; LinkedIn/X/browser scraping are out of scope for the MVP.
 

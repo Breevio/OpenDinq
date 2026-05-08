@@ -2,10 +2,10 @@
 
 ## 0001 - Clean-room repository
 
-OpenDINQ starts as a new repository instead of a fork.
+OpenDinq starts as a new repository instead of a fork.
 
 Reason:
-- The closest product references depend on assumptions OpenDINQ should not inherit, especially scraping-heavy ingestion.
+- The closest product references depend on assumptions OpenDinq should not inherit, especially scraping-heavy ingestion.
 - The MVP needs a small, auditable object model more than a copied application shell.
 
 ## 0002 - GitHub first

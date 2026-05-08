@@ -16,7 +16,7 @@ const evidence = {
   reason: "Repository topic includes mcp"
 } as const;
 
-describe("OpenDINQ domain schemas", () => {
+describe("OpenDinq domain schemas", () => {
   it("validates a person profile", () => {
     expect(
       personSchema.parse({

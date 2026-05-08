@@ -16,7 +16,7 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   server.registerTool(
     "import_github_profile",
     {
-      description: "Import a public GitHub profile into OpenDINQ and generate deterministic cards.",
+      description: "Import a public GitHub profile into OpenDinq and generate deterministic cards.",
       inputSchema: {
         input: z.string().min(1).describe("GitHub username or profile URL")
       }
@@ -27,7 +27,7 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   server.registerTool(
     "search_people",
     {
-      description: "Search OpenDINQ people with a natural-language query and return explanations plus evidence.",
+      description: "Search OpenDinq people with a natural-language query and return explanations plus evidence.",
       inputSchema: {
         query: z.string().min(1).describe("Natural-language people search query")
       }
@@ -38,9 +38,9 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   server.registerTool(
     "get_person_profile",
     {
-      description: "Get an OpenDINQ profile, including sources, artifacts, and cards.",
+      description: "Get an OpenDinq profile, including sources, artifacts, and cards.",
       inputSchema: {
-        handle: z.string().min(1).describe("OpenDINQ person handle")
+        handle: z.string().min(1).describe("OpenDinq person handle")
       }
     },
     async (input) => textResult(await tools.get_person_profile(input))
@@ -49,9 +49,9 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   server.registerTool(
     "list_cards",
     {
-      description: "List generated and manual cards for an OpenDINQ person.",
+      description: "List generated and manual cards for an OpenDinq person.",
       inputSchema: {
-        handle: z.string().min(1).describe("OpenDINQ person handle")
+        handle: z.string().min(1).describe("OpenDinq person handle")
       }
     },
     async (input) => textResult(await tools.list_cards(input))
@@ -60,9 +60,9 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   server.registerTool(
     "create_note_card",
     {
-      description: "Create a manual note card for an existing OpenDINQ person.",
+      description: "Create a manual note card for an existing OpenDinq person.",
       inputSchema: {
-        handle: z.string().min(1).describe("OpenDINQ person handle"),
+        handle: z.string().min(1).describe("OpenDinq person handle"),
         title: z.string().min(1).describe("Note card title"),
         contentMd: z.string().min(1).describe("Markdown note content")
       }

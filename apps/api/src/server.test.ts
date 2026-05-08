@@ -51,7 +51,7 @@ const githubRepos = [
   }
 ];
 
-describe("OpenDINQ API", () => {
+describe("OpenDinq API", () => {
   it("imports a GitHub profile and exposes profile, cards, and search", async () => {
     const app = createApp({ fetchImpl: fixtureFetch });
 

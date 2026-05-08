@@ -1,4 +1,4 @@
--- OpenDINQ initial schema.
+-- OpenDinq initial schema.
 -- Generated from packages/db/prisma/schema.prisma for local PostgreSQL.
 
 CREATE TABLE "Person" (

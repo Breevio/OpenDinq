@@ -122,7 +122,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
             id: `manual-note-${handle}-${Date.now()}`,
             type: "external",
             title: body.title,
-            reason: "Manual note supplied through the OpenDINQ API."
+            reason: "Manual note supplied through the OpenDinq API."
           }
         ]
       });

@@ -63,7 +63,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   const json = await response.json();
 
   if (!response.ok) {
-    throw new Error(json?.error?.message ?? "OpenDINQ API request failed.");
+    throw new Error(json?.error?.message ?? "OpenDinq API request failed.");
   }
 
   return json as T;

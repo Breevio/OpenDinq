@@ -1,6 +1,6 @@
-# OpenDINQ Project Spec
+# OpenDinq Project Spec
 
-OpenDINQ is an evidence-backed public profile and people-search system.
+OpenDinq is an evidence-backed public profile and people-search system.
 
 MVP goal:
 

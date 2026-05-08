@@ -46,7 +46,7 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
   const body = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    const message = body?.error?.message ?? `OpenDINQ API request failed with ${response.status}.`;
+    const message = body?.error?.message ?? `OpenDinq API request failed with ${response.status}.`;
     throw new Error(message);
   }
 
@@ -56,7 +56,7 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
 function requiredApiUrl(): string {
   const apiUrl = process.env.OPENDINQ_API_URL;
   if (!apiUrl) {
-    throw new Error("OPENDINQ_API_URL is required for the OpenDINQ MCP server.");
+    throw new Error("OPENDINQ_API_URL is required for the OpenDinq MCP server.");
   }
 
   return apiUrl;

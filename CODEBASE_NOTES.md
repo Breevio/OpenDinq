@@ -36,7 +36,7 @@ Useful:
 
 Do not copy:
 - CRM, invoicing, email, and project-management modules.
-- Full application complexity before OpenDINQ has a working MVP.
+- Full application complexity before OpenDinq has a working MVP.
 
 OpenDinq equivalent:
 - `apps/web` for profile/search UI.
@@ -46,7 +46,7 @@ OpenDinq equivalent:
 - `apps/mcp` for agent-facing tools in v0.2.
 
 Risks:
-- Importing a CRM architecture too early would overfit OpenDINQ to enterprise workflows.
+- Importing a CRM architecture too early would overfit OpenDinq to enterprise workflows.
 
 TODOs generated:
 - Keep package boundaries explicit.
@@ -74,7 +74,7 @@ Risks:
 
 TODOs generated:
 - Implement MCP only after HTTP API and cards exist.
-- Make MCP talk to OpenDINQ API instead of direct DB access.
+- Make MCP talk to OpenDinq API instead of direct DB access.
 
 ## Twenty
 

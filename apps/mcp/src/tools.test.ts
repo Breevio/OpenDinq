@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createToolHandlers, MCP_TOOL_PLAN, textResult } from "./tools.js";
 import type { OpenDinqApiClient } from "./api-client.js";
 
-describe("OpenDINQ MCP tools", () => {
+describe("OpenDinq MCP tools", () => {
   it("exposes the planned tool names", () => {
     expect(MCP_TOOL_PLAN).toEqual([
       "import_github_profile",
@@ -13,7 +13,7 @@ describe("OpenDINQ MCP tools", () => {
     ]);
   });
 
-  it("forwards tool calls to the OpenDINQ API client", async () => {
+  it("forwards tool calls to the OpenDinq API client", async () => {
     const client = mockClient();
     const tools = createToolHandlers(client);
 

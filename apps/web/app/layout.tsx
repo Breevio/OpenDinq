@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "OpenDINQ",
+  title: "OpenDinq",
   description: "Evidence-backed profile cards and people search"
 };
 
