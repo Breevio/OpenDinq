@@ -1,0 +1,141 @@
+import { describe, expect, it } from "vitest";
+import {
+  fetchArxivPaper,
+  fetchWebsiteMetadata,
+  normalizeArxivPaperToArtifact,
+  normalizeOpenAlexAuthorToIdentitySource,
+  normalizeOpenAlexWorksToArtifacts,
+  normalizeOrcidRecordToArtifacts,
+  normalizeOrcidRecordToIdentitySource,
+  normalizeWebsiteToArtifact,
+  parseArxivId,
+  parseOpenAlexAuthorInput,
+  parseOrcidId
+} from "./index.js";
+
+describe("website connector", () => {
+  it("extracts metadata and normalizes it to a website artifact", async () => {
+    const metadata = await fetchWebsiteMetadata("example.com", {
+      fetchImpl: async () =>
+        new Response(`
+          <html>
+            <head>
+              <title>Fallback title</title>
+              <meta property="og:title" content="Example Builder" />
+              <meta name="description" content="Public portfolio and project notes." />
+            </head>
+          </html>
+        `)
+    });
+
+    expect(normalizeWebsiteToArtifact(metadata)).toMatchObject({
+      type: "website",
+      title: "Example Builder",
+      description: "Public portfolio and project notes.",
+      url: "https://example.com/"
+    });
+  });
+});
+
+describe("OpenAlex connector", () => {
+  it("parses author IDs and normalizes works", () => {
+    expect(parseOpenAlexAuthorInput("https://openalex.org/A123456789")).toBe("A123456789");
+    expect(normalizeOpenAlexAuthorToIdentitySource({ id: "https://openalex.org/A123456789", display_name: "Ada" })).toMatchObject({
+      type: "openalex",
+      externalId: "A123456789"
+    });
+    expect(
+      normalizeOpenAlexWorksToArtifacts([
+        {
+          id: "https://openalex.org/W1",
+          display_name: "Agent systems paper",
+          publication_year: 2026,
+          cited_by_count: 42,
+          primary_location: { landing_page_url: "https://doi.org/10.1/example" },
+          concepts: [{ display_name: "Artificial intelligence" }]
+        }
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        type: "paper",
+        title: "Agent systems paper",
+        metadata: expect.objectContaining({
+          citations: 42,
+          concepts: ["Artificial intelligence"]
+        })
+      })
+    ]);
+  });
+});
+
+describe("arXiv connector", () => {
+  it("parses arXiv IDs and Atom responses", async () => {
+    expect(parseArxivId("https://arxiv.org/abs/2601.01234v2")).toBe("2601.01234v2");
+
+    const paper = await fetchArxivPaper("2601.01234", {
+      fetchImpl: async () =>
+        new Response(`
+          <feed>
+            <entry>
+              <id>https://arxiv.org/abs/2601.01234</id>
+              <title>Agent Search Systems</title>
+              <summary>Evidence-backed people search.</summary>
+              <published>2026-01-02T00:00:00Z</published>
+              <updated>2026-01-03T00:00:00Z</updated>
+              <author><name>Ethan Shi</name></author>
+              <category term="cs.AI" />
+            </entry>
+          </feed>
+        `)
+    });
+
+    expect(normalizeArxivPaperToArtifact(paper)).toMatchObject({
+      type: "paper",
+      title: "Agent Search Systems",
+      metadata: expect.objectContaining({
+        arxivId: "2601.01234",
+        categories: ["cs.AI"]
+      })
+    });
+  });
+});
+
+describe("ORCID connector", () => {
+  it("parses ORCID IDs and normalizes record works", () => {
+    expect(parseOrcidId("https://orcid.org/0000-0002-1825-0097")).toBe("0000-0002-1825-0097");
+
+    const record = {
+      "orcid-identifier": {
+        path: "0000-0002-1825-0097",
+        uri: "https://orcid.org/0000-0002-1825-0097"
+      },
+      "activities-summary": {
+        works: {
+          group: [
+            {
+              "work-summary": [
+                {
+                  title: { title: { value: "Open profile indexing" } },
+                  "publication-date": { year: { value: "2026" } },
+                  url: { value: "https://example.com/paper" }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    };
+
+    expect(normalizeOrcidRecordToIdentitySource(record)).toMatchObject({
+      type: "orcid",
+      externalId: "0000-0002-1825-0097"
+    });
+    expect(normalizeOrcidRecordToArtifacts(record)).toEqual([
+      expect.objectContaining({
+        type: "paper",
+        title: "Open profile indexing",
+        url: "https://example.com/paper"
+      })
+    ]);
+  });
+});

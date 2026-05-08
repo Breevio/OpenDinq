@@ -152,10 +152,149 @@ describe("OpenDinq API", () => {
     expect(searchJson.results[0].person.handle).toBe("demo-systems-maintainer");
     expect(searchJson.results[0].evidence.length).toBeGreaterThan(0);
   });
+
+  it("adds public multi-source artifacts to an existing profile", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    await app.request("/api/seed/demo", { method: "POST" });
+
+    const manualResponse = await app.request("/api/people/demo-agent-builder/artifacts", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "project",
+        title: "Agent evaluation dashboard",
+        description: "Manual evidence for MCP and AI agent evaluation.",
+        url: "https://example.com/agent-eval"
+      }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(manualResponse.status).toBe(201);
+
+    const websiteResponse = await app.request("/api/import/website", {
+      method: "POST",
+      body: JSON.stringify({ handle: "demo-agent-builder", url: "https://example.com" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(websiteResponse.status).toBe(200);
+
+    const openAlexResponse = await app.request("/api/import/openalex", {
+      method: "POST",
+      body: JSON.stringify({ handle: "demo-agent-builder", input: "A123456789" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(openAlexResponse.status).toBe(200);
+
+    const arxivResponse = await app.request("/api/import/arxiv", {
+      method: "POST",
+      body: JSON.stringify({ handle: "demo-agent-builder", input: "2601.01234" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(arxivResponse.status).toBe(200);
+
+    const orcidResponse = await app.request("/api/import/orcid", {
+      method: "POST",
+      body: JSON.stringify({ handle: "demo-agent-builder", input: "0000-0002-1825-0097" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(orcidResponse.status).toBe(200);
+
+    const profileResponse = await app.request("/api/people/demo-agent-builder");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "website" }),
+        expect.objectContaining({ type: "openalex" }),
+        expect.objectContaining({ type: "arxiv" }),
+        expect.objectContaining({ type: "orcid" })
+      ])
+    );
+    expect(profileJson.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "project", title: "Agent evaluation dashboard" }),
+        expect.objectContaining({ type: "website", title: "Example Portfolio" }),
+        expect.objectContaining({ type: "paper", title: "Agent systems paper" }),
+        expect.objectContaining({ type: "paper", title: "Agent Search Systems" }),
+        expect.objectContaining({ type: "paper", title: "Open profile indexing" })
+      ])
+    );
+  });
 });
 
 async function fixtureFetch(url: string | URL | Request) {
   const textUrl = String(url);
+
+  if (textUrl === "https://example.com/") {
+    return new Response(`
+      <html>
+        <head>
+          <meta property="og:title" content="Example Portfolio" />
+          <meta name="description" content="Public project notes." />
+        </head>
+      </html>
+    `);
+  }
+
+  if (textUrl.endsWith("/authors/A123456789")) {
+    return Response.json({
+      id: "https://openalex.org/A123456789",
+      display_name: "Demo Agent Builder"
+    });
+  }
+
+  if (textUrl.startsWith("https://api.openalex.org/works")) {
+    return Response.json({
+      results: [
+        {
+          id: "https://openalex.org/W1",
+          display_name: "Agent systems paper",
+          publication_year: 2026,
+          cited_by_count: 42,
+          primary_location: { landing_page_url: "https://doi.org/10.1/example" },
+          concepts: [{ display_name: "AI agents" }]
+        }
+      ]
+    });
+  }
+
+  if (textUrl.startsWith("https://export.arxiv.org/api/query")) {
+    return new Response(`
+      <feed>
+        <entry>
+          <id>https://arxiv.org/abs/2601.01234</id>
+          <title>Agent Search Systems</title>
+          <summary>Evidence-backed people search.</summary>
+          <published>2026-01-02T00:00:00Z</published>
+          <updated>2026-01-03T00:00:00Z</updated>
+          <author><name>Ethan Shi</name></author>
+          <category term="cs.AI" />
+        </entry>
+      </feed>
+    `);
+  }
+
+  if (textUrl.endsWith("/0000-0002-1825-0097/record")) {
+    return Response.json({
+      "orcid-identifier": {
+        path: "0000-0002-1825-0097",
+        uri: "https://orcid.org/0000-0002-1825-0097"
+      },
+      "activities-summary": {
+        works: {
+          group: [
+            {
+              "work-summary": [
+                {
+                  title: { title: { value: "Open profile indexing" } },
+                  "publication-date": { year: { value: "2026" } },
+                  url: { value: "https://example.com/paper" }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    });
+  }
 
   if (textUrl.endsWith("/repos?per_page=100&sort=updated&type=owner")) {
     return Response.json(githubRepos);

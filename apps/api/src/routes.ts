@@ -1,13 +1,25 @@
 import {
+  fetchArxivPaper,
   fetchGitHubRepos,
   fetchGitHubUser,
+  fetchOpenAlexAuthor,
+  fetchOpenAlexWorks,
+  fetchOrcidRecord,
+  fetchWebsiteMetadata,
+  normalizeArxivPaperToArtifact,
   normalizeGitHubReposToArtifacts,
   normalizeGitHubUserToIdentitySource,
   normalizeGitHubUserToPerson,
+  normalizeOpenAlexAuthorToIdentitySource,
+  normalizeOpenAlexWorksToArtifacts,
+  normalizeOrcidRecordToArtifacts,
+  normalizeOrcidRecordToIdentitySource,
+  normalizeWebsiteToArtifact,
+  parseArxivId,
   parseGitHubProfileUrl
 } from "@opendinq/connectors";
 import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
-import type { OpenDinqStore } from "@opendinq/core";
+import type { ArtifactRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord } from "@opendinq/core";
 import { hybridSearchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -26,6 +38,24 @@ const importGitHubSchema = z.object({
 const createNoteCardSchema = z.object({
   title: z.string().min(1),
   contentMd: z.string().min(1)
+});
+
+const manualArtifactSchema = z.object({
+  type: z.enum(["repo", "paper", "project", "post", "note", "website"]),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  url: z.string().url().optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+
+const importForHandleSchema = z.object({
+  handle: z.string().min(1),
+  input: z.string().min(1)
+});
+
+const importWebsiteSchema = z.object({
+  handle: z.string().min(1),
+  url: z.string().min(1)
 });
 
 export function createApiRoutes(options: ApiRouteOptions) {
@@ -62,6 +92,94 @@ export function createApiRoutes(options: ApiRouteOptions) {
         cardCount: cards.length,
         artifactCount: artifacts.length
       });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/import/website", async (context) => {
+    try {
+      const body = importWebsiteSchema.parse(await context.req.json());
+      const metadata = await fetchWebsiteMetadata(body.url, { fetchImpl: options.fetchImpl });
+      const source = {
+        type: "website",
+        url: metadata.url,
+        rawJson: metadata
+      };
+      const profile = await appendProfileData(options.store, body.handle, [source], [normalizeWebsiteToArtifact(metadata)]);
+
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json(importSummary(profile));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/import/openalex", async (context) => {
+    try {
+      const body = importForHandleSchema.parse(await context.req.json());
+      const fetchOptions = { fetchImpl: options.fetchImpl };
+      const author = await fetchOpenAlexAuthor(body.input, fetchOptions);
+      const works = await fetchOpenAlexWorks(author.id, fetchOptions);
+      const profile = await appendProfileData(
+        options.store,
+        body.handle,
+        [normalizeOpenAlexAuthorToIdentitySource(author)],
+        normalizeOpenAlexWorksToArtifacts(works)
+      );
+
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json(importSummary(profile));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/import/arxiv", async (context) => {
+    try {
+      const body = importForHandleSchema.parse(await context.req.json());
+      const paper = await fetchArxivPaper(body.input, { fetchImpl: options.fetchImpl });
+      const artifact = normalizeArxivPaperToArtifact(paper);
+      const source = {
+        type: "arxiv",
+        url: paper.url,
+        externalId: parseArxivId(body.input),
+        rawJson: paper
+      };
+      const profile = await appendProfileData(options.store, body.handle, [source], [artifact]);
+
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json(importSummary(profile));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/import/orcid", async (context) => {
+    try {
+      const body = importForHandleSchema.parse(await context.req.json());
+      const record = await fetchOrcidRecord(body.input, { fetchImpl: options.fetchImpl });
+      const profile = await appendProfileData(
+        options.store,
+        body.handle,
+        [normalizeOrcidRecordToIdentitySource(record)],
+        normalizeOrcidRecordToArtifacts(record)
+      );
+
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json(importSummary(profile));
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -138,6 +256,28 @@ export function createApiRoutes(options: ApiRouteOptions) {
     }
   });
 
+  routes.post("/people/:handle/artifacts", async (context) => {
+    try {
+      const artifact = manualArtifactSchema.parse(await context.req.json());
+      const profile = await appendProfileData(options.store, context.req.param("handle"), [], [
+        {
+          ...artifact,
+          evidenceRaw: {
+            source: "manual"
+          }
+        }
+      ]);
+
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json(importSummary(profile), 201);
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
   routes.post("/seed/demo", async (context) => {
     const profiles = createDemoProfiles();
     await Promise.all(profiles.map((profile) => options.store.upsertProfile(profile)));
@@ -149,4 +289,59 @@ export function createApiRoutes(options: ApiRouteOptions) {
   });
 
   return routes;
+}
+
+async function appendProfileData(
+  store: OpenDinqStore,
+  handle: string,
+  sources: IdentitySourceRecord[],
+  artifacts: ArtifactRecord[]
+): Promise<PersonProfileRecord | undefined> {
+  const profile = await store.getProfile(handle);
+  if (!profile) {
+    return undefined;
+  }
+
+  const mergedArtifacts = dedupeArtifacts([...profile.artifacts, ...artifacts]);
+  const noteCards = profile.cards.filter((card) => card.type === "note");
+  const cards = [
+    generateSummaryCard(profile.person, mergedArtifacts),
+    generateGitHubCard(profile.person, mergedArtifacts),
+    generateSkillsCard(profile.person, mergedArtifacts),
+    ...noteCards
+  ];
+
+  return store.upsertProfile({
+    person: profile.person,
+    sources: dedupeSources([...profile.sources, ...sources]),
+    artifacts: mergedArtifacts,
+    cards
+  });
+}
+
+function dedupeSources(sources: IdentitySourceRecord[]): IdentitySourceRecord[] {
+  const byKey = new Map<string, IdentitySourceRecord>();
+  for (const source of sources) {
+    byKey.set(`${source.type}:${source.url}`, source);
+  }
+
+  return [...byKey.values()];
+}
+
+function dedupeArtifacts(artifacts: ArtifactRecord[]): ArtifactRecord[] {
+  const byKey = new Map<string, ArtifactRecord>();
+  for (const artifact of artifacts) {
+    byKey.set(`${artifact.type}:${artifact.url ?? artifact.title}`, artifact);
+  }
+
+  return [...byKey.values()];
+}
+
+function importSummary(profile: PersonProfileRecord) {
+  return {
+    handle: profile.person.handle,
+    sourceCount: profile.sources.length,
+    artifactCount: profile.artifacts.length,
+    cardCount: profile.cards.length
+  };
 }

@@ -117,12 +117,12 @@
 - [x] Add search evaluation fixtures
 
 ## Milestone 13 - v0.4 multi-source ingestion
-- [ ] Add manual artifact import
-- [ ] Add personal website import
-- [ ] Add OpenAlex connector
-- [ ] Add arXiv connector
-- [ ] Add ORCID connector
-- [ ] Keep LinkedIn/X scraping out of scope
+- [x] Add manual artifact import
+- [x] Add personal website import
+- [x] Add OpenAlex connector
+- [x] Add arXiv connector
+- [x] Add ORCID connector
+- [x] Keep LinkedIn/X scraping out of scope
 
 ## Milestone 14 - v0.5 MCP-native workflow
 - [ ] Harden MCP tool schemas

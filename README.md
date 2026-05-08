@@ -17,11 +17,12 @@ OpenDinq is not a DINQ fork. It does not copy DINQ code, branding, private APIs,
 
 ## Current Status
 
-OpenDinq is currently a local MVP. The main branch includes the `v0.1-alpha` release baseline plus early `v0.2`/`v0.3` hardening work.
+OpenDinq is currently a local MVP. The main branch includes the `v0.1-alpha` release baseline plus early `v0.2`/`v0.3`/`v0.4` hardening work.
 
 What works today:
 
 - GitHub/demo profile ingestion
+- Public source artifact imports for website, OpenAlex, arXiv, ORCID, and manual artifacts
 - Person, artifact, card, and evidence data model
 - Hybrid deterministic people search with rule-based and full-text signals
 - Match explanations with evidence
@@ -38,7 +39,7 @@ Current limitations:
 - Search has a hybrid lexical layer, but not a production pgvector/embedding runtime yet
 - Postgres runtime is available when `DATABASE_URL` is set, but still experimental
 - Docker/Postgres setup is experimental
-- GitHub-first only
+- GitHub remains the only full profile bootstrap source; other sources attach to an existing profile
 - No auth, inbox, credits, or team workspace
 - No LinkedIn/X scraping
 
@@ -198,6 +199,34 @@ curl -X POST http://localhost:3001/api/import/github \
   -d '{"input":"torvalds"}'
 ```
 
+Attach public source evidence to an existing profile:
+
+```bash
+curl -X POST http://localhost:3001/api/import/website \
+  -H "content-type: application/json" \
+  -d '{"handle":"demo-agent-builder","url":"https://example.com"}'
+
+curl -X POST http://localhost:3001/api/import/openalex \
+  -H "content-type: application/json" \
+  -d '{"handle":"demo-agent-builder","input":"A123456789"}'
+
+curl -X POST http://localhost:3001/api/import/arxiv \
+  -H "content-type: application/json" \
+  -d '{"handle":"demo-agent-builder","input":"2601.01234"}'
+
+curl -X POST http://localhost:3001/api/import/orcid \
+  -H "content-type: application/json" \
+  -d '{"handle":"demo-agent-builder","input":"0000-0002-1825-0097"}'
+```
+
+Attach a manual artifact:
+
+```bash
+curl -X POST http://localhost:3001/api/people/demo-agent-builder/artifacts \
+  -H "content-type: application/json" \
+  -d '{"type":"project","title":"Agent evaluation dashboard","url":"https://example.com/agent-eval"}'
+```
+
 Get a profile:
 
 ```bash
@@ -346,6 +375,7 @@ Known limitations:
 - Postgres runtime is implemented but still experimental.
 - Docker must be running before local Postgres migrations can be applied.
 - Hybrid search is deterministic lexical search today; pgvector/embedding-backed search is still planned.
+- Website/OpenAlex/arXiv/ORCID imports attach to existing profiles; they do not create new profiles by themselves yet.
 - `pnpm audit --audit-level high` passes.
 
 ## License

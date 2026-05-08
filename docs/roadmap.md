@@ -38,7 +38,7 @@ Still planned after this baseline:
 
 ## v0.4 - Multi-Source Ingestion
 
-Planned.
+Status: complete for attach-to-existing-profile imports.
 
 - Manual artifact import
 - Personal website import
@@ -47,6 +47,8 @@ Planned.
 - ORCID
 
 LinkedIn/X scraping remains out of scope.
+
+Current limitation: these sources add evidence to an existing profile. GitHub remains the full profile bootstrap path.
 
 ## v0.5 - MCP-Native Workflow
 
