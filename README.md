@@ -334,11 +334,8 @@ Known limitations:
 
 - API runtime is still in-memory.
 - Docker must be running before local Postgres migrations can be applied.
-- The repository does not yet declare an open-source license.
 - `pnpm audit --audit-level high` passes.
 
 ## License
 
-No license has been selected yet.
-
-Before publishing this repository as open source, add a `LICENSE` file and update this section. Without a license, others do not have clear permission to use, modify, or redistribute the code.
+MIT. See `LICENSE`.
