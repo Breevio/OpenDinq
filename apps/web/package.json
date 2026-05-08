@@ -1,0 +1,23 @@
+{
+  "name": "@opendinq/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "node -e \"console.log('web lint: covered by next build')\"",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "node -e \"console.log('web typecheck: covered by next build')\""
+  },
+  "dependencies": {
+    "@opendinq/shared": "workspace:*",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2"
+  }
+}

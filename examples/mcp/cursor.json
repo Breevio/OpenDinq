@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "opendinq": {
+      "command": "pnpm",
+      "args": ["--filter", "@opendinq/mcp", "start"],
+      "env": {
+        "OPENDINQ_API_URL": "http://localhost:3001"
+      }
+    }
+  }
+}

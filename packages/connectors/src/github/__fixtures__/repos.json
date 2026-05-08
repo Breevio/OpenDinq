@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1001,
+    "name": "agent-tools",
+    "full_name": "demo-agent-builder/agent-tools",
+    "html_url": "https://github.com/demo-agent-builder/agent-tools",
+    "description": "TypeScript tools for AI agents and MCP workflows",
+    "fork": false,
+    "stargazers_count": 320,
+    "forks_count": 24,
+    "language": "TypeScript",
+    "topics": ["ai-agents", "mcp", "typescript"],
+    "pushed_at": "2026-04-20T12:00:00Z",
+    "updated_at": "2026-04-21T12:00:00Z",
+    "created_at": "2025-11-01T12:00:00Z",
+    "archived": false,
+    "disabled": false
+  },
+  {
+    "id": 1002,
+    "name": "profile-index",
+    "full_name": "demo-agent-builder/profile-index",
+    "html_url": "https://github.com/demo-agent-builder/profile-index",
+    "description": "Evidence-backed profile indexing experiments",
+    "fork": false,
+    "stargazers_count": 87,
+    "forks_count": 7,
+    "language": "Python",
+    "topics": ["profiles", "search"],
+    "pushed_at": "2026-03-15T12:00:00Z",
+    "updated_at": "2026-03-16T12:00:00Z",
+    "created_at": "2025-08-10T12:00:00Z",
+    "archived": false,
+    "disabled": false
+  }
+]
+

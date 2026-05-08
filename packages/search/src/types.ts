@@ -1,0 +1,60 @@
+export type SearchPerson = {
+  handle: string;
+  displayName: string;
+  headline?: string;
+  bio?: string;
+  location?: string;
+};
+
+export type SearchArtifact = {
+  id?: string;
+  type: string;
+  title: string;
+  description?: string;
+  url?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type SearchCard = {
+  type: string;
+  title: string;
+  contentMd: string;
+  dataJson?: Record<string, unknown>;
+};
+
+export type PersonSearchDocument = {
+  person: SearchPerson;
+  artifacts: SearchArtifact[];
+  cards?: SearchCard[];
+};
+
+export type ParsedSearchQuery = {
+  queryText: string;
+  terms: string[];
+  phrases: string[];
+};
+
+export type SearchEvidenceRef = {
+  id: string;
+  type: "artifact";
+  title: string;
+  url?: string;
+  reason: string;
+};
+
+export type MatchedSignals = {
+  skillMatches: string[];
+  artifactTextMatches: string[];
+  impactSignal: number;
+  recencySignal: number;
+  profileCompleteness: number;
+  evidence: SearchEvidenceRef[];
+};
+
+export type RankedSearchResult = {
+  person: SearchPerson;
+  score: number;
+  explanation: string;
+  evidence: SearchEvidenceRef[];
+};
+

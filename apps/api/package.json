@@ -1,0 +1,25 @@
+{
+  "name": "@opendinq/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.1",
+    "@opendinq/cards": "workspace:*",
+    "@opendinq/connectors": "workspace:*",
+    "@opendinq/search": "workspace:*",
+    "@opendinq/shared": "workspace:*",
+    "hono": "^4.7.7",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4"
+  }
+}

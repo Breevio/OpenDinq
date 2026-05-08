@@ -1,0 +1,33 @@
+{
+  "name": "opendinq",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "check": "./scripts/check.sh",
+    "db:generate": "pnpm --filter @opendinq/db db:generate",
+    "db:migrate": "pnpm --filter @opendinq/db db:migrate",
+    "db:migrate:dev": "pnpm --filter @opendinq/db db:migrate:dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "pnpm --filter @opendinq/api dev",
+    "dev:web": "NEXT_PUBLIC_OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/web dev",
+    "lint": "node -e \"console.log('lint: covered by pnpm typecheck for initial scaffold')\"",
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "typecheck": "pnpm -r --workspace-concurrency=1 typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "playwright": "1.58.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.10"
+    }
+  },
+  "packageManager": "pnpm@10.10.0"
+}
