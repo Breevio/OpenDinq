@@ -1,4 +1,6 @@
 export type OpenDinqApiClient = {
+  generateProfile(input: unknown): Promise<unknown>;
+  getProfileRun(runId: string): Promise<unknown>;
   importGitHubProfile(input: string): Promise<unknown>;
   searchPeople(query: string): Promise<unknown>;
   getPersonProfile(handle: string): Promise<unknown>;
@@ -11,6 +13,15 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
   const baseUrl = apiUrl.replace(/\/$/, "");
 
   return {
+    generateProfile(input) {
+      return request(`${baseUrl}/api/profiles/generate`, {
+        method: "POST",
+        body: JSON.stringify(input)
+      });
+    },
+    getProfileRun(runId) {
+      return request(`${baseUrl}/api/profile-runs/${encodeURIComponent(runId)}`);
+    },
     importGitHubProfile(input) {
       return request(`${baseUrl}/api/import/github`, {
         method: "POST",
@@ -64,13 +75,16 @@ function extractEvidence(profile: unknown) {
     sources?: unknown[];
     artifacts?: unknown[];
     cards?: Array<{ evidence?: unknown[] }>;
+    claims?: Array<{ evidence?: unknown[] }>;
   };
 
   return {
     person: record.person,
     sources: record.sources ?? [],
     artifacts: record.artifacts ?? [],
-    cardEvidence: (record.cards ?? []).flatMap((card) => card.evidence ?? [])
+    claims: record.claims ?? [],
+    cardEvidence: (record.cards ?? []).flatMap((card) => card.evidence ?? []),
+    claimEvidence: (record.claims ?? []).flatMap((claim) => claim.evidence ?? [])
   };
 }
 

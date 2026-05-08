@@ -1,4 +1,4 @@
-import { artifactEvidence, cardEvidence, dedupeEvidence, personEvidence } from "./evidence.js";
+import { artifactEvidence, cardEvidence, claimEvidence, dedupeEvidence, personEvidence } from "./evidence.js";
 import { tokenize } from "./query.js";
 import type { ParsedSearchQuery, PersonSearchDocument, SearchProviderMatch } from "./types.js";
 
@@ -43,6 +43,17 @@ function scoreDocument(query: ParsedSearchQuery, document: PersonSearchDocument)
       matchedFields += 1;
       weightedMatches += cardScore * 0.2;
       evidence.push(cardEvidence(card, "Matched generated card content.", index));
+    }
+  });
+
+  document.claims?.forEach((claim, index) => {
+    const claimTokens = tokenize(`${claim.type} ${claim.text}`);
+    const claimScore = scoreTokens(query, claimTokens);
+    if (claimScore > 0) {
+      matchedFields += 1;
+      weightedMatches += claimScore * 0.35;
+      evidence.push(claimEvidence(claim, "Matched profile claim.", index));
+      evidence.push(...(claim.evidence ?? []));
     }
   });
 

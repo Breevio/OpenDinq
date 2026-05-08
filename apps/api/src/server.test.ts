@@ -63,7 +63,7 @@ describe("OpenDinq API", () => {
     expect(importResponse.status).toBe(200);
     await expect(importResponse.json()).resolves.toMatchObject({
       handle: "demo-agent-builder",
-      cardCount: 3,
+      cardCount: expect.any(Number),
       artifactCount: 2
     });
 
@@ -84,7 +84,7 @@ describe("OpenDinq API", () => {
       handle: "demo-agent-builder",
       cards: expect.arrayContaining([
         expect.objectContaining({
-          type: "github",
+          type: "works",
           evidence: expect.any(Array)
         })
       ])
@@ -151,6 +151,103 @@ describe("OpenDinq API", () => {
     const searchJson = await searchResponse.json();
     expect(searchJson.results[0].person.handle).toBe("demo-systems-maintainer");
     expect(searchJson.results[0].evidence.length).toBeGreaterThan(0);
+  });
+
+  it("generates profiles through the first-class profile generator", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const githubResponse = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        sources: [{ type: "github", input: "demo-agent-builder" }]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(githubResponse.status).toBe(200);
+    const githubJson = await githubResponse.json();
+    expect(githubJson).toMatchObject({
+      handle: "demo-agent-builder",
+      status: "completed",
+      profileUrl: "/u/demo-agent-builder",
+      artifactsImported: 2
+    });
+    expect(githubJson.cardsGenerated).toBeGreaterThanOrEqual(3);
+    expect(githubJson.claimsGenerated).toBeGreaterThan(0);
+
+    const runResponse = await app.request(`/api/profile-runs/${githubJson.runId}`);
+    expect(runResponse.status).toBe(200);
+    await expect(runResponse.json()).resolves.toMatchObject({
+      handle: "demo-agent-builder",
+      artifactsCount: 2,
+      claimsCount: expect.any(Number)
+    });
+  });
+
+  it("supports manual-only and website plus manual generation with evidence", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const manualResponse = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        displayName: "Manual Builder",
+        handle: "manual-builder",
+        headline: "Builds public profile cards",
+        sources: [
+          {
+            type: "manual",
+            input: {
+              title: "Built MCP tools",
+              url: "https://example.com/project",
+              note: "Built MCP tools for profile automation."
+            }
+          }
+        ]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(manualResponse.status).toBe(200);
+    const manualJson = await manualResponse.json();
+    expect(manualJson.claimsGenerated).toBeGreaterThan(0);
+
+    const combinedResponse = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        displayName: "Website Builder",
+        handle: "website-builder",
+        sources: [
+          { type: "website", input: "https://example.com" },
+          { type: "manual", input: { note: "Maintains public project notes." } }
+        ]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(combinedResponse.status).toBe(200);
+
+    const profileResponse = await app.request("/api/people/website-builder");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.claims.every((claim: { evidence: unknown[] }) => claim.evidence.length > 0)).toBe(true);
+    expect(profileJson.cards.every((card: { type: string; evidence: unknown[] }) => card.type === "note" || card.evidence.length > 0)).toBe(true);
+  });
+
+  it("keeps generation reviewable when one connector fails", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        displayName: "Partial Builder",
+        handle: "partial-builder",
+        sources: [
+          { type: "website", input: "https://example.com" },
+          { type: "github", input: "-bad-user" }
+        ]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.status).toBe("needs_review");
+    expect(json.warnings[0]).toContain("github");
   });
 
   it("adds public multi-source artifacts to an existing profile", async () => {

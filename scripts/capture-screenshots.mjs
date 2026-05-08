@@ -9,8 +9,8 @@ await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
-await page.goto(`${webUrl}/import`, { waitUntil: "networkidle" });
-await page.screenshot({ path: new URL("import.png", outputDir).pathname, fullPage: true });
+await page.goto(`${webUrl}/generate`, { waitUntil: "networkidle" });
+await page.screenshot({ path: new URL("generate.png", outputDir).pathname, fullPage: true });
 
 await page.goto(`${webUrl}/discover`, { waitUntil: "networkidle" });
 await page.getByLabel("Natural-language people search").fill("AI agent developers using TypeScript and MCP");

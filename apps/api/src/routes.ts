@@ -1,30 +1,11 @@
-import {
-  fetchArxivPaper,
-  fetchGitHubRepos,
-  fetchGitHubUser,
-  fetchOpenAlexAuthor,
-  fetchOpenAlexWorks,
-  fetchOrcidRecord,
-  fetchWebsiteMetadata,
-  normalizeArxivPaperToArtifact,
-  normalizeGitHubReposToArtifacts,
-  normalizeGitHubUserToIdentitySource,
-  normalizeGitHubUserToPerson,
-  normalizeOpenAlexAuthorToIdentitySource,
-  normalizeOpenAlexWorksToArtifacts,
-  normalizeOrcidRecordToArtifacts,
-  normalizeOrcidRecordToIdentitySource,
-  normalizeWebsiteToArtifact,
-  parseArxivId,
-  parseGitHubProfileUrl
-} from "@opendinq/connectors";
-import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
-import type { ArtifactRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord } from "@opendinq/core";
+import { generateProfileCards } from "@opendinq/cards";
+import type { ArtifactRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
 import { hybridSearchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
 import { errorResponse } from "./errors.js";
+import { createProfileGenerator, getProfileRunSummary } from "./profile-generator.js";
 
 export type ApiRouteOptions = {
   store: OpenDinqStore;
@@ -33,6 +14,30 @@ export type ApiRouteOptions = {
 
 const importGitHubSchema = z.object({
   input: z.string().min(1)
+});
+
+const profileGenerationSchema = z.object({
+  displayName: z.string().min(1).optional(),
+  handle: z.string().min(1).optional(),
+  headline: z.string().optional(),
+  sources: z.array(
+    z.discriminatedUnion("type", [
+      z.object({ type: z.literal("github"), input: z.string().min(1) }),
+      z.object({ type: z.literal("website"), input: z.string().min(1) }),
+      z.object({ type: z.literal("openalex"), input: z.string().min(1) }),
+      z.object({ type: z.literal("arxiv"), input: z.string().min(1) }),
+      z.object({ type: z.literal("orcid"), input: z.string().min(1) }),
+      z.object({
+        type: z.literal("manual"),
+        input: z.object({
+          title: z.string().optional(),
+          url: z.string().url().optional(),
+          note: z.string().optional(),
+          description: z.string().optional()
+        })
+      })
+    ])
+  ).min(1)
 });
 
 const createNoteCardSchema = z.object({
@@ -60,37 +65,41 @@ const importWebsiteSchema = z.object({
 
 export function createApiRoutes(options: ApiRouteOptions) {
   const routes = new Hono();
+  const generator = createProfileGenerator({
+    store: options.store,
+    fetchImpl: options.fetchImpl,
+    githubToken: process.env.GITHUB_TOKEN || undefined
+  });
+
+  routes.post("/profiles/generate", async (context) => {
+    try {
+      const body = profileGenerationSchema.parse(await context.req.json());
+      return context.json(await generator.generate(body));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.get("/profile-runs/:runId", async (context) => {
+    const summary = await getProfileRunSummary(options.store, context.req.param("runId"));
+    if (!summary) {
+      return context.json({ error: { code: "not_found", message: "Profile generation run was not found." } }, 404);
+    }
+
+    return context.json(summary);
+  });
 
   routes.post("/import/github", async (context) => {
     try {
       const body = importGitHubSchema.parse(await context.req.json());
-      const username = parseGitHubProfileUrl(body.input);
-      const fetchOptions = {
-        fetchImpl: options.fetchImpl,
-        token: process.env.GITHUB_TOKEN || undefined
-      };
-      const user = await fetchGitHubUser(username, fetchOptions);
-      const repos = await fetchGitHubRepos(username, fetchOptions);
-      const person = normalizeGitHubUserToPerson(user);
-      const source = normalizeGitHubUserToIdentitySource(user);
-      const artifacts = normalizeGitHubReposToArtifacts(repos) as SearchArtifact[];
-      const cards = [
-        generateSummaryCard(person, artifacts),
-        generateGitHubCard(person, artifacts),
-        generateSkillsCard(person, artifacts)
-      ];
-
-      await options.store.upsertProfile({
-        person,
-        sources: [source],
-        artifacts,
-        cards
+      const generated = await generator.generate({
+        sources: [{ type: "github", input: body.input }]
       });
 
       return context.json({
-        handle: person.handle,
-        cardCount: cards.length,
-        artifactCount: artifacts.length
+        handle: generated.handle,
+        cardCount: generated.cardsGenerated,
+        artifactCount: generated.artifactsImported
       });
     } catch (error) {
       return errorResponse(context, error);
@@ -100,19 +109,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/import/website", async (context) => {
     try {
       const body = importWebsiteSchema.parse(await context.req.json());
-      const metadata = await fetchWebsiteMetadata(body.url, { fetchImpl: options.fetchImpl });
-      const source = {
-        type: "website",
-        url: metadata.url,
-        rawJson: metadata
-      };
-      const profile = await appendProfileData(options.store, body.handle, [source], [normalizeWebsiteToArtifact(metadata)]);
-
-      if (!profile) {
-        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
-      }
-
-      return context.json(importSummary(profile));
+      return context.json(await appendViaGenerator(generator, options.store, body.handle, { type: "website", input: body.url }));
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -121,21 +118,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/import/openalex", async (context) => {
     try {
       const body = importForHandleSchema.parse(await context.req.json());
-      const fetchOptions = { fetchImpl: options.fetchImpl };
-      const author = await fetchOpenAlexAuthor(body.input, fetchOptions);
-      const works = await fetchOpenAlexWorks(author.id, fetchOptions);
-      const profile = await appendProfileData(
-        options.store,
-        body.handle,
-        [normalizeOpenAlexAuthorToIdentitySource(author)],
-        normalizeOpenAlexWorksToArtifacts(works)
-      );
-
-      if (!profile) {
-        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
-      }
-
-      return context.json(importSummary(profile));
+      return context.json(await appendViaGenerator(generator, options.store, body.handle, { type: "openalex", input: body.input }));
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -144,21 +127,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/import/arxiv", async (context) => {
     try {
       const body = importForHandleSchema.parse(await context.req.json());
-      const paper = await fetchArxivPaper(body.input, { fetchImpl: options.fetchImpl });
-      const artifact = normalizeArxivPaperToArtifact(paper);
-      const source = {
-        type: "arxiv",
-        url: paper.url,
-        externalId: parseArxivId(body.input),
-        rawJson: paper
-      };
-      const profile = await appendProfileData(options.store, body.handle, [source], [artifact]);
-
-      if (!profile) {
-        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
-      }
-
-      return context.json(importSummary(profile));
+      return context.json(await appendViaGenerator(generator, options.store, body.handle, { type: "arxiv", input: body.input }));
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -167,19 +136,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/import/orcid", async (context) => {
     try {
       const body = importForHandleSchema.parse(await context.req.json());
-      const record = await fetchOrcidRecord(body.input, { fetchImpl: options.fetchImpl });
-      const profile = await appendProfileData(
-        options.store,
-        body.handle,
-        [normalizeOrcidRecordToIdentitySource(record)],
-        normalizeOrcidRecordToArtifacts(record)
-      );
-
-      if (!profile) {
-        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
-      }
-
-      return context.json(importSummary(profile));
+      return context.json(await appendViaGenerator(generator, options.store, body.handle, { type: "orcid", input: body.input }));
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -202,7 +159,8 @@ export function createApiRoutes(options: ApiRouteOptions) {
       const documents: PersonSearchDocument[] = profiles.map((profile) => ({
         person: profile.person,
         artifacts: profile.artifacts,
-        cards: profile.cards
+        cards: profile.cards,
+        claims: profile.claims
       }));
 
       return context.json({
@@ -259,20 +217,16 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/people/:handle/artifacts", async (context) => {
     try {
       const artifact = manualArtifactSchema.parse(await context.req.json());
-      const profile = await appendProfileData(options.store, context.req.param("handle"), [], [
-        {
-          ...artifact,
-          evidenceRaw: {
-            source: "manual"
-          }
+      const summary = await appendViaGenerator(generator, options.store, context.req.param("handle"), {
+        type: "manual",
+        input: {
+          title: artifact.title,
+          url: artifact.url,
+          description: artifact.description
         }
-      ]);
+      });
 
-      if (!profile) {
-        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
-      }
-
-      return context.json(importSummary(profile), 201);
+      return context.json(summary, 201);
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -304,12 +258,7 @@ async function appendProfileData(
 
   const mergedArtifacts = dedupeArtifacts([...profile.artifacts, ...artifacts]);
   const noteCards = profile.cards.filter((card) => card.type === "note");
-  const cards = [
-    generateSummaryCard(profile.person, mergedArtifacts),
-    generateGitHubCard(profile.person, mergedArtifacts),
-    generateSkillsCard(profile.person, mergedArtifacts),
-    ...noteCards
-  ];
+  const cards = [...generateProfileCards(profile.person, mergedArtifacts, (profile.claims ?? []) as ProfileClaimRecord[]), ...noteCards];
 
   return store.upsertProfile({
     person: profile.person,
@@ -317,6 +266,27 @@ async function appendProfileData(
     artifacts: mergedArtifacts,
     cards
   });
+}
+
+async function appendViaGenerator(
+  generator: ReturnType<typeof createProfileGenerator>,
+  store: OpenDinqStore,
+  handle: string,
+  source: z.infer<typeof profileGenerationSchema>["sources"][number]
+) {
+  const existing = await store.getProfile(handle);
+  if (!existing) {
+    throw new Error("Person was not found.");
+  }
+
+  const summary = await generator.generate({
+    displayName: existing.person.displayName,
+    handle,
+    headline: existing.person.headline,
+    sources: [source]
+  });
+  const profile = await store.getProfile(handle);
+  return profile ? importSummary(profile) : summary;
 }
 
 function dedupeSources(sources: IdentitySourceRecord[]): IdentitySourceRecord[] {

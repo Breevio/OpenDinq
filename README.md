@@ -1,33 +1,30 @@
 # OpenDinq
 
-OpenDinq turns public work signals into evidence-backed people profiles and searchable profile cards.
+OpenDinq is an open-source profile generator for evidence-backed AI-native profiles, cards, and people search.
 
-You can import a GitHub profile, attach public artifacts from sources like websites, OpenAlex, arXiv, and ORCID, then search people with natural-language queries. Search results include explanations and evidence links.
+Primary flow:
+
+```text
+Generate Profile -> Cards -> Public Profile -> Discover
+```
+
+GitHub is one connector. Profiles can also use websites, OpenAlex, arXiv, ORCID, and manual links or notes.
 
 ## Features
 
-- GitHub profile import
-- Website, OpenAlex, arXiv, ORCID, and manual artifact imports
-- Deterministic profile cards backed by evidence
-- Natural-language people search
-- Search explanations with evidence refs
-- Local web UI
-- Hono API
-- MCP server for coding agents
-- Optional Postgres persistence through Prisma
+- Multi-source profile generation
+- Evidence-backed claims
+- DINQ-style profile cards
+- Public profile pages
+- Natural-language discover search
+- Local API
+- MCP tools for coding agents
+- MemoryStore by default, Prisma/Postgres when configured
 
 ## Screenshots
 
-### Import
-
-![Import](./docs/screenshots/import.png)
-
-### Discover
-
+![Generate](./docs/screenshots/generate.png)
 ![Discover](./docs/screenshots/discover.png)
-
-### Profile
-
 ![Profile](./docs/screenshots/profile.png)
 
 ## Requirements
@@ -46,38 +43,66 @@ pnpm dev
 
 Open:
 
-- http://localhost:3000/import
+- http://localhost:3000/generate
 - http://localhost:3000/discover
 - http://localhost:3000/u/demo-agent-builder
 
-The API starts with demo profiles, so search works without any API keys.
+The API starts with demo profiles, so discover works without external keys.
 
-Useful demo searches:
-
-```text
-AI agent developers using TypeScript and MCP
-systems programming open source maintainers
-machine learning researchers with Python projects
-```
-
-## Configuration
-
-Create a local env file if needed:
+## Generate A Profile
 
 ```bash
-cp .env.example .env
+curl -X POST http://localhost:3001/api/profiles/generate \
+  -H "content-type: application/json" \
+  -d '{
+    "displayName": "Demo Agent Builder",
+    "handle": "demo-agent-builder",
+    "headline": "AI agent engineer",
+    "sources": [
+      { "type": "github", "input": "demo-agent-builder" },
+      { "type": "website", "input": "https://example.com" },
+      {
+        "type": "manual",
+        "input": {
+          "title": "Built MCP tools",
+          "url": "https://example.com/project",
+          "note": "Built MCP tools for profile automation."
+        }
+      }
+    ]
+  }'
 ```
 
-Common variables:
+Check a generation run:
 
 ```bash
-GITHUB_TOKEN=""
-DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq"
-OPENDINQ_API_URL="http://localhost:3001"
-NEXT_PUBLIC_OPENDINQ_API_URL="http://localhost:3001"
+curl http://localhost:3001/api/profile-runs/<runId>
 ```
 
-`GITHUB_TOKEN` is optional, but recommended for real GitHub imports. Anonymous GitHub API calls can hit rate limits quickly.
+Read the generated profile:
+
+```bash
+curl http://localhost:3001/api/people/demo-agent-builder
+```
+
+Search:
+
+```bash
+curl "http://localhost:3001/api/search?q=AI%20agent%20MCP%20profile%20automation"
+```
+
+## Sources
+
+Supported generator sources:
+
+- `github`
+- `website`
+- `openalex`
+- `arxiv`
+- `orcid`
+- `manual`
+
+Sources are optional. A profile can be generated from one source or many sources.
 
 ## Commands
 
@@ -93,81 +118,11 @@ pnpm build            # Build all workspaces
 pnpm check            # Install, type-check, test, lint, and build
 ```
 
-## API
+## Runtime Modes
 
-The local API runs at `http://localhost:3001`.
+OpenDinq uses MemoryStore by default. It is good for local demos and tests.
 
-Health check:
-
-```bash
-curl http://localhost:3001/health
-```
-
-Import a GitHub profile:
-
-```bash
-curl -X POST http://localhost:3001/api/import/github \
-  -H "content-type: application/json" \
-  -d '{"input":"torvalds"}'
-```
-
-Attach public evidence to an existing profile:
-
-```bash
-curl -X POST http://localhost:3001/api/import/website \
-  -H "content-type: application/json" \
-  -d '{"handle":"demo-agent-builder","url":"https://example.com"}'
-
-curl -X POST http://localhost:3001/api/import/openalex \
-  -H "content-type: application/json" \
-  -d '{"handle":"demo-agent-builder","input":"A123456789"}'
-
-curl -X POST http://localhost:3001/api/import/arxiv \
-  -H "content-type: application/json" \
-  -d '{"handle":"demo-agent-builder","input":"2601.01234"}'
-
-curl -X POST http://localhost:3001/api/import/orcid \
-  -H "content-type: application/json" \
-  -d '{"handle":"demo-agent-builder","input":"0000-0002-1825-0097"}'
-```
-
-Attach a manual artifact:
-
-```bash
-curl -X POST http://localhost:3001/api/people/demo-agent-builder/artifacts \
-  -H "content-type: application/json" \
-  -d '{"type":"project","title":"Agent evaluation dashboard","url":"https://example.com/agent-eval"}'
-```
-
-Search people:
-
-```bash
-curl "http://localhost:3001/api/search?q=AI%20agent%20developers%20using%20TypeScript%20and%20MCP"
-```
-
-Read a profile:
-
-```bash
-curl http://localhost:3001/api/people/demo-agent-builder
-```
-
-List cards:
-
-```bash
-curl http://localhost:3001/api/cards/demo-agent-builder
-```
-
-Create a note card:
-
-```bash
-curl -X POST http://localhost:3001/api/cards/demo-agent-builder/note \
-  -H "content-type: application/json" \
-  -d '{"title":"Availability note","contentMd":"Interested in AI agent tooling."}'
-```
-
-## Postgres
-
-OpenDinq uses the in-memory store by default. To persist imported profiles across API restarts, run Postgres and set `DATABASE_URL`.
+To persist data with Postgres:
 
 ```bash
 docker compose up -d postgres
@@ -176,36 +131,34 @@ pnpm db:migrate
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
-Without `DATABASE_URL`, the API falls back to the in-memory store.
+Without `DATABASE_URL`, the API uses MemoryStore.
 
 ## MCP
 
-Start the API first:
+Start the API:
 
 ```bash
 pnpm dev:api
 ```
 
-Then start the MCP server:
+Start the MCP server:
 
 ```bash
 OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/mcp start
 ```
 
-Config examples:
-
-- `examples/mcp/codex.json`
-- `examples/mcp/cursor.json`
-- `examples/mcp/claude-desktop.json`
-
 Tools:
 
-- `opendinq_import_github_profile`
+- `opendinq_generate_profile`
+- `opendinq_get_profile_run`
 - `opendinq_search_people`
-- `opendinq_get_person_profile`
+- `opendinq_get_profile`
 - `opendinq_get_evidence`
-- `opendinq_list_cards`
 - `opendinq_create_note_card`
+- `opendinq_import_github_profile`
+- `opendinq_list_cards`
+
+Config examples live in `examples/mcp/`.
 
 ## Project Structure
 
@@ -217,28 +170,26 @@ apps/
   worker/   background job placeholder
 
 packages/
-  core/        store contract and memory store
-  db/          Prisma schema and Postgres store
+  core/        store contract and MemoryStore
+  db/          Prisma schema and PrismaStore
   connectors/ GitHub, website, OpenAlex, arXiv, ORCID
-  cards/       deterministic card generation
+  cards/       evidence-backed card generation
   search/      query parsing, ranking, full-text scoring, hybrid merge
   shared/      Zod schemas and shared types
   llm/         LLM boundary placeholder
 ```
 
-## Development
+## Docs
 
-Run the full check before opening a PR:
+- [Profile Generator](./docs/profile-generator.md)
+- [Evidence Model](./docs/evidence-model.md)
+- [Architecture](./docs/architecture.md)
 
-```bash
-./scripts/check.sh
-```
+## Notes
 
-For UI changes, also run the app and refresh screenshots:
-
-```bash
-pnpm dev
-pnpm screenshots
-```
-
-OpenDinq only uses public or user-authorized data sources. LinkedIn/X scraping, private DINQ APIs, and login-gated scraping are intentionally not part of the project.
+- Not production-ready.
+- No auth, teams, billing, or permissions yet.
+- Semantic vector search is still a future layer; current search is rule/full-text hybrid.
+- Multi-source generation quality depends on source data quality.
+- Cards are generated from evidence-backed claims.
+- LinkedIn/X scraping, private DINQ APIs, browser automation, and login-gated scraping are intentionally out of scope.

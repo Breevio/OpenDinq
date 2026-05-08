@@ -10,6 +10,7 @@ export type {
   RankedSearchResult,
   SearchArtifact,
   SearchCard,
+  SearchClaim,
   SearchEvidenceRef,
   SearchPerson,
   SearchProvider,

@@ -4,15 +4,16 @@ export default function HomePage() {
   return (
     <main className="page-shell">
       <section className="hero">
-        <p className="eyebrow">OpenDinq MVP</p>
-        <h1>Evidence-backed profiles and people search</h1>
+        <p className="eyebrow">OpenDinq</p>
+        <h1>Generate profiles, cards, and evidence-backed search</h1>
         <p>
-          Import public work, generate profile cards, and search people with
-          explanations tied to source artifacts.
+          Turn public sources and manual notes into AI-native profile cards,
+          public profiles, and discoverable evidence.
         </p>
         <div className="actions">
-          <Link href="/import">Import</Link>
+          <Link href="/generate">Generate</Link>
           <Link href="/discover">Discover</Link>
+          <Link href="/import">Legacy GitHub import</Link>
         </div>
       </section>
     </main>

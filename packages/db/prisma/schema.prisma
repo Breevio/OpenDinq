@@ -21,6 +21,9 @@ model Person {
   artifacts   Artifact[]
   cards       Card[]
   skills      PersonSkill[]
+  profileSources ProfileSource[]
+  claims      ProfileClaim[]
+  runs        ProfileGenerationRun[]
 }
 
 model IdentitySource {
@@ -38,6 +41,47 @@ model IdentitySource {
   @@index([personId])
 }
 
+model ProfileGenerationRun {
+  id                String   @id
+  personId          String?
+  targetHandle      String
+  displayName       String
+  status            String
+  inputJson         Json
+  sourceSummaryJson Json?
+  warningsJson      Json?
+  errorJson         Json?
+  generatedProfileHandle String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  person            Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+  sources           ProfileSource[]
+
+  @@index([targetHandle])
+  @@index([status])
+}
+
+model ProfileSource {
+  id             String   @id @default(cuid())
+  personId       String?
+  runId          String?
+  type           String
+  url            String?
+  status         String
+  rawJson        Json?
+  normalizedJson Json?
+  warningsJson   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  person         Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  run            ProfileGenerationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  claims         ProfileClaim[]
+
+  @@index([personId])
+  @@index([runId])
+  @@index([type])
+}
+
 model Artifact {
   id          String   @id @default(cuid())
   personId    String
@@ -51,9 +95,30 @@ model Artifact {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  claims      ProfileClaim[]
 
   @@unique([personId, type, url])
   @@index([personId])
+}
+
+model ProfileClaim {
+  id           String   @id @default(cuid())
+  personId     String
+  sourceId     String?
+  artifactId   String?
+  type         String
+  text         String
+  confidence   Float
+  evidenceJson Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  source       ProfileSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  artifact     Artifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  @@index([personId])
+  @@index([sourceId])
+  @@index([artifactId])
 }
 
 model Card {
@@ -64,6 +129,11 @@ model Card {
   contentMd    String
   dataJson     Json?
   evidenceJson Json
+  sourceIds    Json?
+  claimIds     Json?
+  confidence   Float?
+  visibility   String   @default("public")
+  order        Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)

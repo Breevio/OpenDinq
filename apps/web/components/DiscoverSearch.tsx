@@ -4,7 +4,12 @@ import { useState } from "react";
 import { apiRequest, type SearchResult } from "../lib/api";
 
 export function DiscoverSearch() {
-  const [query, setQuery] = useState("AI agent TypeScript MCP");
+  const [query, setQuery] = useState(() => {
+    if (typeof window === "undefined") {
+      return "AI agent TypeScript MCP";
+    }
+    return new URLSearchParams(window.location.search).get("q") ?? "AI agent TypeScript MCP";
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -53,6 +58,13 @@ export function DiscoverSearch() {
                 {result.person.displayName}
               </a>
               <p>{result.explanation}</p>
+              {result.matchedClaims?.length ? (
+                <div className="evidence-list">
+                  {result.matchedClaims.slice(0, 3).map((claim) => (
+                    <span key={claim.id ?? claim.text}>{claim.text}</span>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <span className="score">{Math.round(result.score * 100)}%</span>
             <div className="evidence-list">
@@ -68,4 +80,3 @@ export function DiscoverSearch() {
     </section>
   );
 }
-

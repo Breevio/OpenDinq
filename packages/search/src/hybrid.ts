@@ -54,22 +54,28 @@ export async function hybridSearchPeople(
     }
   }
 
-  return [...merged.entries()]
-    .map(([handle, result]) => {
+  const results: RankedSearchResult[] = [];
+  for (const [handle, result] of merged.entries()) {
       const document = byHandle.get(handle);
       if (!document) {
-        return undefined;
+        continue;
       }
 
-      return {
+      const ranked: RankedSearchResult = {
         person: document.person,
         score: roundScore(Math.min(1, result.score)),
         explanation: mergeExplanations(document.person.displayName, result.explanations),
-        evidence: dedupeEvidence(result.evidence)
+        evidence: dedupeEvidence(result.evidence),
+        matchedClaims: matchedClaims(document, result.evidence),
+        matchedCards: matchedCards(document, result.evidence)
       };
-    })
-    .filter((result): result is RankedSearchResult => Boolean(result && result.score > 0 && result.evidence.length > 0))
-    .sort((left, right) => right.score - left.score || left.person.handle.localeCompare(right.person.handle));
+
+      if (ranked.score > 0 && ranked.evidence.length > 0) {
+        results.push(ranked);
+      }
+  }
+
+  return results.sort((left, right) => right.score - left.score || left.person.handle.localeCompare(right.person.handle));
 }
 
 function addWeightedMatch(
@@ -121,3 +127,14 @@ type MergedSearchResult = {
   explanations: string[];
   evidence: SearchProviderMatch["evidence"];
 };
+
+function matchedClaims(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
+  const ids = new Set(evidence.filter((item) => item.type === "claim").map((item) => item.id));
+  const titles = new Set(evidence.filter((item) => item.type === "claim").map((item) => item.title));
+  return document.claims?.filter((claim) => (claim.id && ids.has(claim.id)) || titles.has(claim.text)).slice(0, 5);
+}
+
+function matchedCards(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
+  const titles = new Set(evidence.filter((item) => item.type === "card").map((item) => item.title));
+  return document.cards?.filter((card) => titles.has(card.title)).slice(0, 3);
+}

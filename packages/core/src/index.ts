@@ -9,5 +9,8 @@ export type {
   IdentitySourceRecord,
   OpenDinqStore,
   PersonProfileRecord,
-  PersonRecord
+  PersonRecord,
+  ProfileClaimRecord,
+  ProfileGenerationRunRecord,
+  ProfileSourceRecord
 } from "./store.js";

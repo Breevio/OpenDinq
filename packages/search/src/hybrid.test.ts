@@ -64,6 +64,22 @@ const documents: PersonSearchDocument[] = [
         title: "Research Summary",
         contentMd: "Maintains semantic scholar ingestion notes and citation workflows."
       }
+    ],
+    claims: [
+      {
+        id: "claim-citation",
+        type: "research_area",
+        text: "Citation graph indexing",
+        evidence: [
+          {
+            id: "repo-paper",
+            type: "artifact",
+            title: "paper-builder/index",
+            url: "https://github.com/paper-builder/index",
+            reason: "Repository supports the claim."
+          }
+        ]
+      }
     ]
   }
 ];
@@ -140,6 +156,31 @@ describe("hybridSearchPeople", () => {
       evidence: expect.arrayContaining([
         expect.objectContaining({
           reason: "Fixture semantic match."
+        })
+      ])
+    });
+  });
+
+  it("matches claim and card content with evidence", async () => {
+    const results = await hybridSearchPeople("citation graph", documents);
+
+    expect(results[0]).toMatchObject({
+      person: {
+        handle: "paper-builder"
+      },
+      matchedClaims: expect.arrayContaining([
+        expect.objectContaining({
+          id: "claim-citation"
+        })
+      ]),
+      matchedCards: expect.arrayContaining([
+        expect.objectContaining({
+          title: "Research Summary"
+        })
+      ]),
+      evidence: expect.arrayContaining([
+        expect.objectContaining({
+          id: "repo-paper"
         })
       ])
     });

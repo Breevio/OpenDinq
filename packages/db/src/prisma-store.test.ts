@@ -101,7 +101,8 @@ function createMockClient() {
         dataJson: null,
         evidenceJson: [{ id: "artifact-0", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }]
       }
-    ]
+    ],
+    claims: []
   };
 
   return {
@@ -129,6 +130,20 @@ function createMockClient() {
       }),
       findMany: vi.fn().mockResolvedValue(profile.cards),
       deleteMany: vi.fn().mockResolvedValue({ count: 1 })
+    },
+    profileGenerationRun: {
+      create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ ...data, createdAt: new Date(), updatedAt: new Date() })),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "run-1", targetHandle: "demo", displayName: "Demo", inputJson: {}, ...data, createdAt: new Date(), updatedAt: new Date() })),
+      findUnique: vi.fn().mockResolvedValue(null)
+    },
+    profileSource: {
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([])
+    },
+    profileClaim: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([])
     }
   };
 }

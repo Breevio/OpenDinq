@@ -22,10 +22,19 @@ export type SearchCard = {
   dataJson?: Record<string, unknown>;
 };
 
+export type SearchClaim = {
+  id?: string;
+  type: string;
+  text: string;
+  confidence?: number;
+  evidence?: SearchEvidenceRef[];
+};
+
 export type PersonSearchDocument = {
   person: SearchPerson;
   artifacts: SearchArtifact[];
   cards?: SearchCard[];
+  claims?: SearchClaim[];
 };
 
 export type ParsedSearchQuery = {
@@ -36,7 +45,7 @@ export type ParsedSearchQuery = {
 
 export type SearchEvidenceRef = {
   id: string;
-  type: "artifact" | "card" | "person";
+  type: "artifact" | "card" | "person" | "claim" | "source" | "external";
   title: string;
   url?: string;
   reason: string;
@@ -56,6 +65,8 @@ export type RankedSearchResult = {
   score: number;
   explanation: string;
   evidence: SearchEvidenceRef[];
+  matchedClaims?: SearchClaim[];
+  matchedCards?: SearchCard[];
 };
 
 export type SearchProviderMatch = {

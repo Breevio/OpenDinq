@@ -14,6 +14,48 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   const tools = createToolHandlers(client);
 
   server.registerTool(
+    "opendinq_generate_profile",
+    {
+      description: "Generate an OpenDinq profile from one or more public/user-provided sources.",
+      inputSchema: {
+        displayName: z.string().optional().describe("Person display name"),
+        handle: z.string().optional().describe("OpenDinq profile handle"),
+        headline: z.string().optional().describe("Optional profile headline"),
+        sources: z.array(
+          z.union([
+            z.object({ type: z.literal("github"), input: z.string().min(1) }),
+            z.object({ type: z.literal("website"), input: z.string().min(1) }),
+            z.object({ type: z.literal("openalex"), input: z.string().min(1) }),
+            z.object({ type: z.literal("arxiv"), input: z.string().min(1) }),
+            z.object({ type: z.literal("orcid"), input: z.string().min(1) }),
+            z.object({
+              type: z.literal("manual"),
+              input: z.object({
+                title: z.string().optional(),
+                url: z.string().optional(),
+                note: z.string().optional(),
+                description: z.string().optional()
+              })
+            })
+          ])
+        ).min(1)
+      }
+    },
+    async (input) => textResult(await tools.opendinq_generate_profile(input))
+  );
+
+  server.registerTool(
+    "opendinq_get_profile_run",
+    {
+      description: "Get status and counts for a profile generation run.",
+      inputSchema: {
+        runId: z.string().min(1).describe("Profile generation run id")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_get_profile_run(input))
+  );
+
+  server.registerTool(
     "opendinq_import_github_profile",
     {
       description: "Import a public GitHub profile into OpenDinq and generate deterministic cards.",
@@ -33,6 +75,17 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
       }
     },
     async (input) => textResult(await tools.opendinq_search_people(input))
+  );
+
+  server.registerTool(
+    "opendinq_get_profile",
+    {
+      description: "Get an OpenDinq profile, including sources, artifacts, claims, and cards.",
+      inputSchema: {
+        handle: z.string().min(1).describe("OpenDinq person handle")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_get_profile(input))
   );
 
   server.registerTool(

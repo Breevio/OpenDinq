@@ -1,4 +1,4 @@
-import type { SearchArtifact, SearchCard, SearchEvidenceRef, SearchPerson } from "./types.js";
+import type { SearchArtifact, SearchCard, SearchClaim, SearchEvidenceRef, SearchPerson } from "./types.js";
 
 export function artifactEvidence(artifact: SearchArtifact, reason: string, fallbackIndex = 0): SearchEvidenceRef {
   return {
@@ -24,6 +24,15 @@ export function personEvidence(person: SearchPerson, reason: string): SearchEvid
     id: `person-${person.handle}`,
     type: "person",
     title: person.displayName,
+    reason
+  };
+}
+
+export function claimEvidence(claim: SearchClaim, reason: string, fallbackIndex = 0): SearchEvidenceRef {
+  return {
+    id: claim.id ?? `claim-${fallbackIndex}`,
+    type: "claim",
+    title: claim.text,
     reason
   };
 }

@@ -15,6 +15,9 @@ export type ProfileCard = {
   contentMd: string;
   dataJson?: Record<string, unknown>;
   evidence: EvidenceRef[];
+  confidence?: number;
+  visibility?: string;
+  order?: number;
 };
 
 export type ProfileArtifact = {
@@ -42,6 +45,13 @@ export type PersonProfile = {
   }>;
   artifacts: ProfileArtifact[];
   cards: ProfileCard[];
+  claims?: Array<{
+    id?: string;
+    type: string;
+    text: string;
+    confidence: number;
+    evidence: EvidenceRef[];
+  }>;
 };
 
 export type SearchResult = {
@@ -49,6 +59,19 @@ export type SearchResult = {
   score: number;
   explanation: string;
   evidence: EvidenceRef[];
+  matchedClaims?: PersonProfile["claims"];
+  matchedCards?: ProfileCard[];
+};
+
+export type ProfileGenerationResponse = {
+  runId: string;
+  handle: string;
+  status: string;
+  profileUrl: string;
+  cardsGenerated: number;
+  artifactsImported: number;
+  claimsGenerated: number;
+  warnings: string[];
 };
 
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -68,4 +91,3 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
 
   return json as T;
 }
-

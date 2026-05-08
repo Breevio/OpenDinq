@@ -132,6 +132,39 @@ input {
   padding: 13px 14px;
 }
 
+textarea {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 96px;
+  padding: 13px 14px;
+  resize: vertical;
+}
+
+.generator-form,
+.field-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-grid label {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 7px;
+}
+
+.span-2 {
+  grid-column: 1 / -1;
+}
+
 button {
   background: var(--ink);
   border: 1px solid var(--ink);
@@ -203,13 +236,29 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
-.evidence-list a {
+.evidence-list a,
+.evidence-list span {
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
   font-size: 0.78rem;
   padding: 6px 9px;
   text-decoration: none;
+}
+
+.skill-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.skill-strip span {
+  background: var(--accent-soft);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 10px;
 }
 
 .profile-grid {
@@ -255,13 +304,16 @@ pre {
   white-space: pre-wrap;
 }
 
-.artifact-table {
+.artifact-table,
+.claim-panel,
+.source-panel {
   display: grid;
   overflow: hidden;
 }
 
 .section-title,
-.artifact-row {
+.artifact-row,
+.claim-row {
   align-items: center;
   display: grid;
   gap: 12px;
@@ -274,13 +326,16 @@ pre {
   color: var(--paper);
 }
 
-.artifact-row {
+.artifact-row,
+.claim-row {
   border-top: 1px solid var(--line);
   text-decoration: none;
 }
 
 .artifact-row span,
-.artifact-row small {
+.artifact-row small,
+.claim-row span,
+.claim-row small {
   color: var(--muted);
 }
 
@@ -293,8 +348,10 @@ pre {
   .result-card,
   .profile-header,
   .cards-grid,
+  .field-grid,
   .section-title,
-  .artifact-row {
+  .artifact-row,
+  .claim-row {
     grid-template-columns: 1fr;
   }
 
