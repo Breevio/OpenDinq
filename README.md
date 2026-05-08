@@ -1,47 +1,20 @@
 # OpenDinq
 
-OpenDinq is an open-source, GitHub-first MVP for evidence-backed AI-native people profiles and natural-language talent search.
+OpenDinq turns public work signals into evidence-backed people profiles and searchable profile cards.
 
-It turns public profile signals into structured people profiles, cards, and searchable evidence-backed results.
+You can import a GitHub profile, attach public artifacts from sources like websites, OpenAlex, arXiv, and ORCID, then search people with natural-language queries. Search results include explanations and evidence links.
 
-## What It Does
+## Features
 
-- Import a public GitHub profile.
-- Normalize repositories into evidence artifacts.
-- Generate deterministic profile cards backed by evidence.
-- Search people with natural-language queries.
-- Return ranked results with explanations and evidence.
-- Expose a local MCP server so coding agents can import profiles, search people, read profiles, list cards, and create note cards.
-
-OpenDinq is not a DINQ fork. It does not copy DINQ code, branding, private APIs, layouts, or assets.
-
-## Current Status
-
-OpenDinq is currently a local MVP. The main branch includes the `v0.1-alpha` release baseline plus early `v0.2`/`v0.3`/`v0.4` hardening work.
-
-What works today:
-
-- GitHub/demo profile ingestion
-- Public source artifact imports for website, OpenAlex, arXiv, ORCID, and manual artifacts
-- Person, artifact, card, and evidence data model
-- Hybrid deterministic people search with rule-based and full-text signals
-- Match explanations with evidence
-- Minimal web UI
-- API health endpoint
-- Experimental MCP package
-- Screenshots generated from the running app
-- Evidence refs for every card and search result
-
-Current limitations:
-
-- Runtime is in-memory by default
-- Imported data is not persisted after restart
-- Search has a hybrid lexical layer, but not a production pgvector/embedding runtime yet
-- Postgres runtime is available when `DATABASE_URL` is set, but still experimental
-- Docker/Postgres setup is experimental
-- GitHub remains the only full profile bootstrap source; other sources attach to an existing profile
-- No auth, inbox, credits, or team workspace
-- No LinkedIn/X scraping
+- GitHub profile import
+- Website, OpenAlex, arXiv, ORCID, and manual artifact imports
+- Deterministic profile cards backed by evidence
+- Natural-language people search
+- Search explanations with evidence refs
+- Local web UI
+- Hono API
+- MCP server for coding agents
+- Optional Postgres persistence through Prisma
 
 ## Screenshots
 
@@ -57,58 +30,14 @@ Current limitations:
 
 ![Profile](./docs/screenshots/profile.png)
 
-## Architecture
-
-```text
-apps/
-  web/      Next.js UI for import, discover, and public profile pages
-  api/      Hono API for import, people, search, cards, and demo seed
-  mcp/      stdio MCP server that calls the OpenDinq API
-  worker/   reserved for background ingestion/indexing jobs
-
-packages/
-  shared/      Zod schemas and shared domain types
-  core/        domain store contract and in-memory runtime store
-  connectors/ GitHub connector and normalization
-  cards/       deterministic evidence-backed card generation
-  search/      query parsing, rule ranking, full-text scoring, hybrid merge, evidence
-  db/          Prisma schema, migration, and repository boundaries
-  llm/         reserved LLM package boundary
-```
-
-Runtime flow:
-
-```text
-GitHub username or URL
-  -> GitHub connector
-  -> Person + Artifact normalization
-  -> deterministic cards
-  -> local API store
-  -> Web UI / Search API / MCP tools
-```
-
-Search flow:
-
-```text
-Natural-language query
-  -> query terms
-  -> rule ranking + full-text scoring
-  -> skills, artifact/card text, impact, recency, completeness signals
-  -> optional provider boundary for future vector search
-  -> ranked results
-  -> explanation + evidence refs
-```
-
 ## Requirements
 
 - Node.js 22+
 - pnpm 10+
-- Optional: Docker Desktop for local PostgreSQL
+- Optional: Docker Desktop for Postgres
 - Optional: `GITHUB_TOKEN` for higher GitHub API rate limits
 
 ## Quickstart
-
-Install dependencies and start the local MVP:
 
 ```bash
 pnpm install
@@ -121,71 +50,54 @@ Open:
 - http://localhost:3000/discover
 - http://localhost:3000/u/demo-agent-builder
 
-The API starts with three demo profiles by default, so `/discover` works without external API keys.
-
-For separate terminals:
-
-```bash
-pnpm dev:api
-pnpm dev:web
-```
-
-Run the full check:
-
-```bash
-./scripts/check.sh
-```
-
-To reseed a running API:
-
-```bash
-pnpm seed:demo
-```
+The API starts with demo profiles, so search works without any API keys.
 
 Useful demo searches:
 
-- `AI agent developers using TypeScript and MCP`
-- `systems programming open source maintainers`
-- `machine learning researchers with Python projects`
+```text
+AI agent developers using TypeScript and MCP
+systems programming open source maintainers
+machine learning researchers with Python projects
+```
 
-## Environment
+## Configuration
 
-Create `.env` from `.env.example` if you need local overrides:
+Create a local env file if needed:
 
 ```bash
 cp .env.example .env
 ```
 
-Supported variables:
+Common variables:
 
 ```bash
-DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq"
 GITHUB_TOKEN=""
+DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq"
 OPENDINQ_API_URL="http://localhost:3001"
+NEXT_PUBLIC_OPENDINQ_API_URL="http://localhost:3001"
 ```
 
-`GITHUB_TOKEN` is optional. Do not commit real tokens or API keys.
+`GITHUB_TOKEN` is optional, but recommended for real GitHub imports. Anonymous GitHub API calls can hit rate limits quickly.
 
 ## Commands
 
 ```bash
-pnpm dev              # Start local API and web app together
-pnpm dev:api          # Start only the Hono API on port 3001
-pnpm dev:web          # Start the Next.js web app on port 3000
+pnpm dev              # Start API and web app
+pnpm dev:api          # Start API on port 3001
+pnpm dev:web          # Start web app on port 3000
 pnpm seed:demo        # Seed demo profiles into the running API
-pnpm screenshots      # Capture MVP screenshots into docs/screenshots
-pnpm db:generate      # Generate Prisma Client
-pnpm db:migrate       # Apply committed Prisma migrations
-pnpm db:migrate:dev   # Create/apply migrations during development
+pnpm screenshots      # Capture screenshots into docs/screenshots
 pnpm typecheck        # Type-check all workspaces
-pnpm test             # Run all tests
+pnpm test             # Run tests
 pnpm build            # Build all workspaces
 pnpm check            # Install, type-check, test, lint, and build
 ```
 
 ## API
 
-The local API is unauthenticated for the MVP.
+The local API runs at `http://localhost:3001`.
+
+Health check:
 
 ```bash
 curl http://localhost:3001/health
@@ -199,7 +111,7 @@ curl -X POST http://localhost:3001/api/import/github \
   -d '{"input":"torvalds"}'
 ```
 
-Attach public source evidence to an existing profile:
+Attach public evidence to an existing profile:
 
 ```bash
 curl -X POST http://localhost:3001/api/import/website \
@@ -227,16 +139,16 @@ curl -X POST http://localhost:3001/api/people/demo-agent-builder/artifacts \
   -d '{"type":"project","title":"Agent evaluation dashboard","url":"https://example.com/agent-eval"}'
 ```
 
-Get a profile:
-
-```bash
-curl http://localhost:3001/api/people/demo-agent-builder
-```
-
 Search people:
 
 ```bash
 curl "http://localhost:3001/api/search?q=AI%20agent%20developers%20using%20TypeScript%20and%20MCP"
+```
+
+Read a profile:
+
+```bash
+curl http://localhost:3001/api/people/demo-agent-builder
 ```
 
 List cards:
@@ -245,7 +157,7 @@ List cards:
 curl http://localhost:3001/api/cards/demo-agent-builder
 ```
 
-Create a manual note card:
+Create a note card:
 
 ```bash
 curl -X POST http://localhost:3001/api/cards/demo-agent-builder/note \
@@ -253,69 +165,40 @@ curl -X POST http://localhost:3001/api/cards/demo-agent-builder/note \
   -d '{"title":"Availability note","contentMd":"Interested in AI agent tooling."}'
 ```
 
-Seed demo data:
+## Postgres
 
-```bash
-curl -X POST http://localhost:3001/api/seed/demo
-```
-
-## Runtime Modes
-
-### Default: In-Memory Mode
-
-No database is required. This is the default local demo path.
-
-The API starts with seed profiles and accepts GitHub imports, but imported data is not persisted after restart.
-
-### Experimental: Postgres Mode
-
-When `DATABASE_URL` is set, the API uses the Prisma/Postgres store instead of the in-memory store. Imported profiles, artifacts, and cards persist across API restarts.
-
-If `DATABASE_URL` is not set, the API falls back to in-memory mode.
-
-Start local Postgres:
+OpenDinq uses the in-memory store by default. To persist imported profiles across API restarts, run Postgres and set `DATABASE_URL`.
 
 ```bash
 docker compose up -d postgres
-```
-
-Generate Prisma Client and apply migrations:
-
-```bash
 pnpm db:generate
 pnpm db:migrate
-```
-
-Start the API in Postgres mode:
-
-```bash
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
-Validate the schema without Docker:
-
-```bash
-DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" \
-  pnpm --filter @opendinq/db exec prisma validate --schema prisma/schema.prisma
-```
+Without `DATABASE_URL`, the API falls back to the in-memory store.
 
 ## MCP
 
-Build the workspace, start the API, then point an MCP client at `@opendinq/mcp`:
+Start the API first:
 
 ```bash
-./scripts/check.sh
 pnpm dev:api
+```
+
+Then start the MCP server:
+
+```bash
 OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/mcp start
 ```
 
-Config examples live in `examples/mcp/`:
+Config examples:
 
 - `examples/mcp/codex.json`
 - `examples/mcp/cursor.json`
 - `examples/mcp/claude-desktop.json`
 
-The MCP server exposes prefixed tools to avoid collisions with other MCP servers:
+Tools:
 
 - `opendinq_import_github_profile`
 - `opendinq_search_people`
@@ -324,61 +207,38 @@ The MCP server exposes prefixed tools to avoid collisions with other MCP servers
 - `opendinq_list_cards`
 - `opendinq_create_note_card`
 
-## Data And Compliance Boundaries
+## Project Structure
 
-OpenDinq is built around public or user-authorized data.
+```text
+apps/
+  web/      Next.js app
+  api/      Hono API
+  mcp/      stdio MCP server
+  worker/   background job placeholder
 
-The MVP intentionally does not include:
+packages/
+  core/        store contract and memory store
+  db/          Prisma schema and Postgres store
+  connectors/ GitHub, website, OpenAlex, arXiv, ORCID
+  cards/       deterministic card generation
+  search/      query parsing, ranking, full-text scoring, hybrid merge
+  shared/      Zod schemas and shared types
+  llm/         LLM boundary placeholder
+```
 
-- LinkedIn scraping
-- X scraping
-- login-gated scholar scraping
-- private DINQ API integration
-- browser automation
-- automatic outreach
+## Development
 
-Every generated card and search result should preserve evidence refs. This is the main product distinction from generic AI people search.
-
-## Development Notes
-
-Read these files before making larger changes:
-
-- `AGENTS.md`
-- `PROJECT_SPEC.md`
-- `MVP_SLICE.md`
-- `CODEBASE_NOTES.md`
-- `DECISIONS.md`
-- `TASKS.md`
-- `docs/roadmap.md`
-- `docs/release-checklist.md`
-
-Run before claiming work is complete:
+Run the full check before opening a PR:
 
 ```bash
 ./scripts/check.sh
 ```
 
-For UI changes, also run:
+For UI changes, also run the app and refresh screenshots:
 
 ```bash
-pnpm dev:api
-pnpm dev:web
+pnpm dev
 pnpm screenshots
 ```
 
-## Project Status
-
-The current MVP checklist is complete through the local demo path, with v0.2/v0.3 work tracked in `TASKS.md`.
-
-Known limitations:
-
-- In-memory runtime remains the default local mode.
-- Postgres runtime is implemented but still experimental.
-- Docker must be running before local Postgres migrations can be applied.
-- Hybrid search is deterministic lexical search today; pgvector/embedding-backed search is still planned.
-- Website/OpenAlex/arXiv/ORCID imports attach to existing profiles; they do not create new profiles by themselves yet.
-- `pnpm audit --audit-level high` passes.
-
-## License
-
-MIT. See `LICENSE`.
+OpenDinq only uses public or user-authorized data sources. LinkedIn/X scraping, private DINQ APIs, and login-gated scraping are intentionally not part of the project.
