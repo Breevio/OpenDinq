@@ -1,4 +1,5 @@
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import { searchOpenAlexAuthors } from "@opendinq/connectors";
 import { publicRankedClaims } from "@opendinq/core";
 import type { ArtifactRecord, CardRecord, EvidenceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
 import {
@@ -109,7 +110,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/profiles/plan", async (context) => {
     try {
       const body = aiProfileInputSchema.pick({ input: true }).parse(await context.req.json());
-      const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
+      const plan = await enrichPlanWithDiscoveredSources(await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {}), options.fetchImpl);
       const warnings = plan.warnings;
       const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
       return context.json({
@@ -125,7 +126,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.post("/profiles/generate-ai", async (context) => {
     try {
       const body = aiProfileInputSchema.parse(await context.req.json());
-      const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
+      const plan = await enrichPlanWithDiscoveredSources(await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {}), options.fetchImpl);
       const warnings = [...plan.warnings];
       const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
       const aiGenerator = createProfileGenerator({
@@ -143,7 +144,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
         workspaceUrl: `/u/${generated.handle}/workspace`,
         llmUsed,
         plan,
-        warnings: [...new Set([...warnings, ...generated.warnings])]
+        warnings: mergeGenerationWarnings(plan, warnings, generated.warnings)
       });
     } catch (error) {
       return errorResponse(context, error);
@@ -444,6 +445,65 @@ function getConfiguredLlmClient(options: ApiRouteOptions): JsonLlmClient | undef
 
 function usedLocalFallback(warnings: string[]): boolean {
   return warnings.some((warning) => warning.includes("using local fallback planning"));
+}
+
+function mergeGenerationWarnings(plan: ProfileGenerationPlan, planWarnings: string[], generatedWarnings: string[]): string[] {
+  const hasPublicSource = plan.sources.some((source) => source.type !== "manual");
+  return [...new Set([...planWarnings, ...generatedWarnings])]
+    .filter((warning) => !(hasPublicSource && warning.includes("This profile was generated from user-provided information")));
+}
+
+async function enrichPlanWithDiscoveredSources(plan: ProfileGenerationPlan, fetchImpl?: typeof fetch): Promise<ProfileGenerationPlan> {
+  if (plan.sources.some((source) => source.evidenceStatus === "explicit" && source.type !== "manual")) {
+    return plan;
+  }
+
+  const query = plan.subject.displayName ?? personLikeInput(plan.rawInput);
+  if (!query) {
+    return plan;
+  }
+
+  try {
+    const authors = await searchOpenAlexAuthors(query, { fetchImpl });
+    const candidate = bestOpenAlexCandidate(query, authors);
+    if (!candidate) {
+      return plan;
+    }
+
+    return {
+      ...plan,
+      sources: [
+        {
+          type: "openalex",
+          input: candidate.id,
+          confidence: 0.72,
+          reason: `OpenDinq found a public OpenAlex author candidate for "${query}".`,
+          evidenceStatus: "inferred"
+        },
+        ...plan.sources
+      ],
+      warnings: [
+        `OpenDinq found an OpenAlex candidate for "${query}". Review the imported evidence before publishing.`,
+        ...plan.warnings.filter((warning) => !warning.includes("No public source URL or id was provided"))
+      ]
+    };
+  } catch {
+    return plan;
+  }
+}
+
+function bestOpenAlexCandidate(query: string, authors: Awaited<ReturnType<typeof searchOpenAlexAuthors>>) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const exact = authors.filter((author) => author.display_name.trim().toLowerCase() === normalizedQuery);
+  const candidates = exact.length > 0 ? exact : authors;
+  return candidates
+    .filter((author) => author.id && author.display_name)
+    .toSorted((left, right) => (right.cited_by_count ?? 0) - (left.cited_by_count ?? 0) || (right.works_count ?? 0) - (left.works_count ?? 0))[0];
+}
+
+function personLikeInput(input: string): string | undefined {
+  const normalized = input.replace(/^generate a profile (for|from)\s+/i, "").trim();
+  return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(normalized) ? normalized : undefined;
 }
 
 function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof profileGenerationSchema> {

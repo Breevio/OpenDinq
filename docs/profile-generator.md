@@ -67,6 +67,8 @@ OPEN_DINQ_LLM_MAX_TOKENS=1200 # optional
 
 The planner outputs strict JSON with intent, confidence, subject, explicit sources, user-provided claims, missing evidence, warnings, and questions. OpenDinq validates the JSON and rejects hallucinated URLs that were not present in the input.
 
+For person-name input without a URL or id, OpenDinq now attempts public source discovery using existing connectors before falling back to manual review. The first discovery path is OpenAlex author search. Discovered sources are imported as reviewable public evidence candidates; users should review them before publishing because names can be ambiguous.
+
 If no LLM is configured, the LLM times out, or the provider returns unusable JSON, OpenDinq returns `llmUsed: false` and uses local fallback planning. Natural-language-only input becomes a manual evidence seed and still creates a reviewable workspace. User-provided claims are not verified evidence.
 
 ## Output

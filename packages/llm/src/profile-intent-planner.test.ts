@@ -140,6 +140,27 @@ describe("LLM profile intent planner", () => {
     expect(plan.warnings.join(" ")).not.toContain("planning failed");
   });
 
+  it("does not surface unsupported organization facts in manual-only warnings", async () => {
+    const client: JsonLlmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        rawInput: "jiajun wu",
+        intent: "manual_profile",
+        confidence: 0.4,
+        subject: { displayName: "Jiajun Wu" },
+        sources: [],
+        userProvidedClaims: [{ text: "jiajun wu", type: "summary", confidence: 0.4, evidenceStatus: "user_provided" }],
+        missingEvidence: [],
+        questions: [],
+        warnings: ["The name may refer to researchers at MIT or Stanford."]
+      })
+    };
+
+    const plan = await planProfileGeneration("jiajun wu", { client });
+
+    expect(plan.warnings.join(" ")).not.toMatch(/MIT|Stanford/);
+    expect(plan.warnings.join(" ")).toContain("public source");
+  });
+
   it("does not allow invented URLs unless present in input", async () => {
     const client: JsonLlmClient = {
       completeJson: vi.fn().mockResolvedValue({

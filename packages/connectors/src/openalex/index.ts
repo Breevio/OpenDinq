@@ -48,6 +48,26 @@ export async function fetchOpenAlexAuthor(input: string, options: OpenAlexFetchO
   return response.json() as Promise<OpenAlexAuthor>;
 }
 
+export async function searchOpenAlexAuthors(query: string, options: OpenAlexFetchOptions = {}): Promise<OpenAlexAuthor[]> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const url = new URL("https://api.openalex.org/authors");
+  url.searchParams.set("search", trimmed);
+  url.searchParams.set("per-page", "5");
+
+  const response = await (options.fetchImpl ?? fetch)(url);
+
+  if (!response.ok) {
+    throw new Error(`OpenAlex author search failed with status ${response.status}.`);
+  }
+
+  const body = await response.json() as { results?: OpenAlexAuthor[] };
+  return body.results ?? [];
+}
+
 export async function fetchOpenAlexWorks(authorId: string, options: OpenAlexFetchOptions = {}): Promise<OpenAlexWork[]> {
   const id = parseOpenAlexAuthorInput(authorId);
   const url = new URL("https://api.openalex.org/works");

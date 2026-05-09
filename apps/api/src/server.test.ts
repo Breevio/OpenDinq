@@ -497,6 +497,54 @@ describe("OpenDinq API", () => {
     expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).not.toContain("No evidence claim");
   });
 
+  it("researches public sources for person-name input before falling back to manual-only generation", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        rawInput: "jiajun wu",
+        intent: "manual_profile",
+        confidence: 0.4,
+        subject: { displayName: "Jiajun Wu", handle: "jiajun-wu" },
+        sources: [],
+        userProvidedClaims: [{ type: "summary", text: "jiajun wu", confidence: 0.4, evidenceStatus: "user_provided" }],
+        missingEvidence: [{ need: "Public source", reason: "A name alone is ambiguous." }],
+        warnings: ["A name alone is ambiguous."],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const planResponse = await app.request("/api/profiles/plan", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(planResponse.status).toBe(200);
+    const planJson = await planResponse.json();
+    expect(planJson.plan.sources).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "openalex", input: "https://openalex.org/A5018878364" })])
+    );
+
+    const generateResponse = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(generateResponse.status).toBe(200);
+    const generated = await generateResponse.json();
+    expect(generated).toMatchObject({
+      handle: "jiajun-wu",
+      llmUsed: true,
+      workspaceUrl: "/u/jiajun-wu/workspace"
+    });
+    expect(generated.artifactsImported).toBeGreaterThan(1);
+    expect(generated.warnings.join(" ")).not.toContain("This profile was generated from user-provided information");
+
+    const profileResponse = await app.request("/api/people/jiajun-wu");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.sources).toEqual(expect.arrayContaining([expect.objectContaining({ type: "openalex" })]));
+    expect(profileJson.artifacts).toEqual(expect.arrayContaining([expect.objectContaining({ type: "paper" })]));
+  });
+
   it("creates a reviewable workspace from natural language without treating user-provided claims as verified evidence", async () => {
     const llmClient = {
       completeJson: vi.fn().mockResolvedValueOnce({
@@ -610,6 +658,31 @@ async function fixtureFetch(url: string | URL | Request) {
     return Response.json({
       id: "https://openalex.org/A123456789",
       display_name: "Demo Agent Builder"
+    });
+  }
+
+  if (textUrl.endsWith("/authors/A5018878364")) {
+    return Response.json({
+      id: "https://openalex.org/A5018878364",
+      display_name: "Jiajun Wu",
+      works_count: 120,
+      cited_by_count: 9000
+    });
+  }
+
+  if (textUrl.startsWith("https://api.openalex.org/authors?")) {
+    if (!textUrl.includes("Jiajun")) {
+      return Response.json({ results: [] });
+    }
+    return Response.json({
+      results: [
+        {
+          id: "https://openalex.org/A5018878364",
+          display_name: "Jiajun Wu",
+          works_count: 120,
+          cited_by_count: 9000
+        }
+      ]
     });
   }
 

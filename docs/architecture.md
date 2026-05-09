@@ -97,7 +97,7 @@ LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=tru
 
 LLM rewrite is separately gated by `OPEN_DINQ_ENABLE_LLM_REWRITE=true`. Generated cards are still deterministic first; the helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
 
-OpenDinq does not invent sources and does not perform production web-wide entity search. Natural-language input becomes user-provided claims plus missing-evidence prompts. Connector failures should create a reviewable workspace instead of failing the whole run.
+OpenDinq does not invent sources and does not perform browser scraping or production web-wide entity search. Person-name input can trigger safe source discovery through existing public connectors, currently OpenAlex author search. Natural-language input still becomes user-provided claims plus missing-evidence prompts when discovery finds no usable public source. Connector failures should create a reviewable workspace instead of failing the whole run.
 
 ## MCP
 

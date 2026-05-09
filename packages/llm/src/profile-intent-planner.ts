@@ -224,6 +224,8 @@ function sanitizePlan(plan: ProfileGenerationPlan, rawInput: string): ProfileGen
       suggestedSource: "Add a GitHub, website, ORCID, arXiv, or OpenAlex source."
     });
   }
+  const manualOnly = !sources.some((source) => source.evidenceStatus === "explicit");
+  const safeWarnings = sanitizeUnsupportedWarningFacts(warnings);
 
   return {
     ...plan,
@@ -231,7 +233,7 @@ function sanitizePlan(plan: ProfileGenerationPlan, rawInput: string): ProfileGen
     intent: sources.some((source) => source.evidenceStatus === "explicit") ? plan.intent : "manual_profile",
     sources: sources.length > 0 ? sources : plan.sources.filter((source) => source.type === "manual"),
     missingEvidence,
-    warnings
+    warnings: manualOnly ? sanitizeManualOnlyWarnings(safeWarnings) : safeWarnings
   };
 }
 
@@ -317,6 +319,20 @@ function coerceMissingEvidence(value: unknown, sources: ProfileGenerationPlan["s
 
 function withWarning(plan: ProfileGenerationPlan, warning: string): ProfileGenerationPlan {
   return { ...plan, warnings: [...new Set([warning, ...plan.warnings])] };
+}
+
+function sanitizeManualOnlyWarnings(warnings: string[]): string[] {
+  const fallback = "No public source URL or id was provided. OpenDinq created a review workspace from user-provided information.";
+  const actionable = warnings.filter((warning) => /source|evidence|url|id|identifier/i.test(warning));
+  return [...new Set(actionable.length > 0 ? actionable : [fallback])];
+}
+
+function sanitizeUnsupportedWarningFacts(warnings: string[]): string[] {
+  return warnings.map((warning) =>
+    /\b(MIT|Stanford|Google|Microsoft|OpenAI|Anthropic|Meta|Apple|Amazon)\b/i.test(warning)
+      ? "This name may match multiple people. Add a public source URL or identifier to disambiguate the profile."
+      : warning
+  );
 }
 
 function sourceWasExplicit(type: string, input: string, rawInput: string): boolean {

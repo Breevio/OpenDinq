@@ -254,7 +254,7 @@ OPEN_DINQ_LLM_TIMEOUT_MS=90000
 OPEN_DINQ_LLM_MAX_TOKENS=1200
 ```
 
-When enabled, OpenDinq is LLM-first for planning: raw input becomes one `ProfileGenerationPlan`, then OpenDinq executes explicit sources and opens a review workspace. User-provided descriptions become user-provided claims, not verified evidence. OpenDinq does not invent sources, does not run web-wide entity search, and never pretends missing evidence exists.
+When enabled, OpenDinq is LLM-first for planning: raw input becomes one `ProfileGenerationPlan`, then OpenDinq executes explicit sources and opens a review workspace. If the user enters only a person name, OpenDinq attempts safe public source discovery with existing connectors, currently OpenAlex author search, before falling back to manual review. User-provided descriptions become user-provided claims, not verified evidence. OpenDinq does not invent sources, does not run browser scraping or production web-wide entity search, and never pretends missing evidence exists.
 
 If LLM config is missing, times out, or returns unusable JSON, `/generate` and `/api/profiles/plan` use local fallback planning and return `llmUsed: false`. Natural-language-only input still creates a reviewable workspace. Connector failures, including GitHub rate limits, should not block workspace creation; a GitHub token is still recommended for real imports.
 
