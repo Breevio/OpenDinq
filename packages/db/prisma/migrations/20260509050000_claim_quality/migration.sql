@@ -1,0 +1,1 @@
+ALTER TABLE "ProfileClaim" ADD COLUMN "qualityScore" DOUBLE PRECISION;

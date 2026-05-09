@@ -1,4 +1,4 @@
-import { artifactEvidence, dedupeEvidence } from "./evidence.js";
+import { artifactEvidence, cardEvidence, claimEvidence, dedupeEvidence } from "./evidence.js";
 import { parseSearchQuery, tokenize } from "./query.js";
 import type {
   MatchedSignals,
@@ -6,6 +6,8 @@ import type {
   PersonSearchDocument,
   RankedSearchResult,
   SearchArtifact,
+  SearchCard,
+  SearchClaim,
   SearchPerson
 } from "./types.js";
 
@@ -33,11 +35,13 @@ export function rankPeople(
 
   return documents.map((document) => {
     const matchedSignals = collectMatchedSignals(parsedQuery, document);
-    const score = scoreSignals(matchedSignals);
+    const baseScore = scoreSignals(matchedSignals);
+    const breakdown = scoreBreakdown(baseScore, matchedSignals, document);
 
     return {
       person: document.person,
-      score,
+      score: breakdown.finalScore,
+      scoreBreakdown: breakdown,
       explanation: explainMatch(document.person, matchedSignals),
       evidence: matchedSignals.evidence
     };
@@ -99,6 +103,28 @@ function collectMatchedSignals(query: ParsedSearchQuery, document: PersonSearchD
     }
   });
 
+  visibleCards(document.cards).forEach((card, index) => {
+    const cardText = tokenize(`${card.type} ${card.title} ${card.contentMd}`).join(" ");
+    if (matchesQueryText(query, cardText)) {
+      artifactTextMatches.add("card");
+      evidence.push(cardEvidence(card, "Matched visible card content.", index));
+      evidence.push(...(card.evidence ?? []));
+    }
+  });
+
+  approvedClaims(document.claims).forEach((claim, index) => {
+    const claimText = tokenize(`${claim.type} ${claim.text}`).join(" ");
+    if (matchesQueryText(query, claimText)) {
+      if (claim.type === "skill") {
+        skillMatches.add(formatMatchedTerm(claim.text.toLowerCase()));
+      } else {
+        artifactTextMatches.add(formatMatchedTerm(claim.type.replace("_", " ")));
+      }
+      evidence.push(claimEvidence(claim, "Matched approved profile claim.", index));
+      evidence.push(...(claim.evidence ?? []));
+    }
+  });
+
   return {
     skillMatches: [...skillMatches].sort(),
     artifactTextMatches: [...artifactTextMatches].sort(),
@@ -121,6 +147,28 @@ function scoreSignals(signals: MatchedSignals): number {
     SEARCH_RANKING_WEIGHTS.profileCompleteness * signals.profileCompleteness;
 
   return roundScore(score);
+}
+
+function scoreBreakdown(score: number, signals: MatchedSignals, document: PersonSearchDocument) {
+  const evidence = dedupeEvidence(signals.evidence);
+  const claimScore = clamp(evidence.filter((item) => item.type === "claim").length / 3);
+  const cardScore = clamp(evidence.filter((item) => item.type === "card").length / 3);
+  const artifactScore = clamp(evidence.filter((item) => item.type === "artifact").length / 4);
+  const skillScore = clamp(signals.skillMatches.length / 4);
+  const evidenceScore = clamp(evidence.length / 6);
+  const publishBoost = document.person.publicStatus === "published" ? 0.04 : 0;
+  const finalScore = roundScore(clamp(score + publishBoost));
+
+  return {
+    claimScore: roundScore(claimScore),
+    cardScore: roundScore(cardScore),
+    artifactScore: roundScore(artifactScore),
+    skillScore: roundScore(skillScore),
+    evidenceScore: roundScore(evidenceScore),
+    publishBoost,
+    recencyScore: roundScore(signals.recencySignal),
+    finalScore
+  };
 }
 
 function artifactSkills(artifact: SearchArtifact): string[] {
@@ -176,6 +224,18 @@ function stringMetadata(artifact: SearchArtifact, key: string): string {
 function stringArrayMetadata(artifact: SearchArtifact, key: string): string[] {
   const value = artifact.metadata?.[key];
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function visibleCards(cards: SearchCard[] | undefined): SearchCard[] {
+  return (cards ?? []).filter((card) => card.visibility !== "hidden");
+}
+
+function approvedClaims(claims: SearchClaim[] | undefined): SearchClaim[] {
+  return (claims ?? []).filter((claim) => claim.status !== "rejected");
+}
+
+function matchesQueryText(query: ParsedSearchQuery, text: string): boolean {
+  return query.terms.some((term) => text.includes(term)) || query.phrases.some((phrase) => text.includes(phrase));
 }
 
 function normalizeSkill(skill: string): string {

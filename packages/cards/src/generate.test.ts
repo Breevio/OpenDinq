@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildEvidenceRefs, generateGitHubCard, generateProfileCards, generateSkillsCard, generateSummaryCard } from "./index.js";
-import type { CardArtifact, CardPerson } from "./types.js";
+import type { CardArtifact, CardClaim, CardPerson } from "./types.js";
 
 const person: CardPerson = {
   handle: "demo",
@@ -84,6 +84,58 @@ describe("deterministic card generation", () => {
     expect(cards.every((card) => card.evidence.length > 0)).toBe(true);
   });
 
+  it("does not generate unsupported claims from low evidence", () => {
+    const cards = generateProfileCards(person, artifacts, [
+      {
+        id: "claim-unsupported",
+        type: "skill",
+        text: "Kubernetes",
+        confidence: 1,
+        status: "rejected",
+        evidence: [{ id: "repo-1", type: "artifact", title: "demo/agent-tools", reason: "Rejected by reviewer." }]
+      }
+    ]);
+
+    expect(cards.map((card) => card.contentMd).join("\n")).not.toContain("Kubernetes");
+  });
+
+  it("keeps low-data profiles honest and useful", () => {
+    const cards = generateProfileCards(person, [artifacts[0] as CardArtifact], []);
+
+    expect(cards.find((card) => card.type === "summary")?.contentMd).toContain("AI agent engineer");
+    expect(cards.every((card) => card.evidence.length > 0)).toBe(true);
+  });
+
+  it("does not create a fake research card without research data", () => {
+    const cards = generateProfileCards(person, artifacts, []);
+
+    expect(cards.some((card) => card.type === "research")).toBe(false);
+  });
+
+  it("ranks stronger works higher", () => {
+    const weak: CardArtifact = {
+      id: "repo-weak",
+      type: "repo",
+      title: "demo/weak",
+      description: "Older small repo",
+      metadata: { stars: 1, forks: 0, updatedAt: "2020-01-01T00:00:00Z" }
+    };
+    const card = generateProfileCards(person, [weak, ...artifacts], [projectClaim("repo-1")]).find((item) => item.type === "works");
+
+    expect(card?.contentMd.indexOf("demo/agent-tools")).toBeLessThan(card?.contentMd.indexOf("demo/weak") ?? Number.MAX_SAFE_INTEGER);
+  });
+
+  it("regenerated cards preserve evidence metadata", () => {
+    const claim: CardClaim = projectClaim("repo-1");
+    const card = generateProfileCards(person, artifacts, [claim]).find((item) => item.type === "works");
+
+    expect(card?.evidence).toEqual(expect.arrayContaining([expect.objectContaining({ id: "repo-1" })]));
+    expect(card?.dataJson).toEqual(expect.objectContaining({
+      evidenceCount: expect.any(Number),
+      generatedFromClaimIds: ["claim-project"]
+    }));
+  });
+
   it("builds fallback evidence ids", () => {
     expect(buildEvidenceRefs([{ type: "note", title: "Manual note" }])).toEqual([
       {
@@ -107,3 +159,15 @@ describe("deterministic card generation", () => {
     );
   });
 });
+
+function projectClaim(artifactId: string): CardClaim {
+  return {
+    id: "claim-project",
+    type: "project",
+    text: "Built TypeScript tools for AI agent workflows",
+    artifactId,
+    confidence: 0.9,
+    qualityScore: 0.9,
+    evidence: [{ id: artifactId, type: "artifact", title: "demo/agent-tools", reason: "Repo supports project claim." }]
+  };
+}

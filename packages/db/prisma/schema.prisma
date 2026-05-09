@@ -115,6 +115,7 @@ model ProfileClaim {
   type         String
   text         String
   confidence   Float
+  qualityScore Float?
   status       String   @default("approved")
   evidenceJson Json
   createdAt    DateTime @default(now())

@@ -232,8 +232,8 @@ describe("OpenDinq API", () => {
     const seedResponse = await app.request("/api/seed/demo", { method: "POST" });
     expect(seedResponse.status).toBe(200);
     await expect(seedResponse.json()).resolves.toMatchObject({
-      profileCount: 3,
-      handles: expect.arrayContaining(["demo-agent-builder", "demo-systems-maintainer", "demo-ml-researcher"])
+      profileCount: 4,
+      handles: expect.arrayContaining(["demo-agent-builder", "demo-product-designer", "demo-systems-maintainer", "demo-ml-researcher"])
     });
 
     const searchResponse = await app.request("/api/search?q=systems%20programming%20open%20source%20maintainers");

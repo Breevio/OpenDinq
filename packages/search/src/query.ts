@@ -28,7 +28,8 @@ export function parseSearchQuery(queryText: string): ParsedSearchQuery {
   return {
     queryText: normalizedQuery,
     terms: [...new Set(terms)],
-    phrases: extractPhrases(normalizedQuery)
+    phrases: extractPhrases(normalizedQuery),
+    intent: parseIntent(terms)
   };
 }
 
@@ -45,3 +46,19 @@ function extractPhrases(queryText: string): string[] {
   return phrases.map((phrase) => phrase.replaceAll('"', "").toLowerCase()).filter(Boolean);
 }
 
+function parseIntent(terms: string[]): ParsedSearchQuery["intent"] {
+  const termSet = new Set(terms);
+  return {
+    skills: terms.filter((term) => SKILL_TERMS.has(term)),
+    projectTerms: terms.filter((term) => PROJECT_TERMS.has(term)),
+    researchTerms: terms.filter((term) => RESEARCH_TERMS.has(term)),
+    sourceHints: terms.filter((term) => SOURCE_HINTS.has(term)),
+    roleTerms: terms.filter((term) => ROLE_TERMS.has(term) || termSet.has("senior") && term === "senior")
+  };
+}
+
+const SKILL_TERMS = new Set(["typescript", "python", "rust", "mcp", "react", "next.js", "llm", "rag", "design", "evaluation"]);
+const PROJECT_TERMS = new Set(["project", "projects", "builder", "builders", "maintainer", "maintainers", "startup", "onboarding"]);
+const RESEARCH_TERMS = new Set(["research", "researcher", "paper", "papers", "arxiv", "evaluation", "benchmark", "model", "language"]);
+const SOURCE_HINTS = new Set(["github", "arxiv", "openalex", "orcid", "website"]);
+const ROLE_TERMS = new Set(["engineer", "designer", "researcher", "maintainer", "founder", "senior"]);

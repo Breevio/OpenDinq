@@ -29,7 +29,7 @@ A claim inferred from sources and artifacts. Examples:
 - link
 - summary
 
-Every claim has confidence and evidence refs.
+Every claim has confidence and evidence refs. Claims may also have `qualityScore`, a deterministic score based on evidence count, source quality, artifact quality, confidence, specificity, generic-claim penalties, and manual-source signals.
 
 Claims also have a review status:
 
@@ -38,6 +38,8 @@ Claims also have a review status:
 - `rejected`
 
 Approved claims are preferred in public profile and Discover output. Rejected claims remain stored for review history, but should not be shown as public approved claims or used prominently in search.
+
+Before claims reach cards or public search, OpenDinq normalizes text/type/confidence/evidence, removes unsupported claims, merges duplicates, preserves evidence refs, and ranks approved high-quality claims first.
 
 `Card`
 
@@ -68,7 +70,7 @@ Generated cards include:
 - `visibility`
 - `order`
 
-Cards should support claims. Artifacts support cards.
+Cards should support claims. Artifacts support cards. Generated cards also store lightweight quality metadata in `dataJson` when available: `qualityScore`, `evidenceCount`, `generatedFromClaimIds`, and `generatedFromArtifactIds`.
 
 ## Evidence UX
 

@@ -11,11 +11,11 @@ Generate Profile -> Workspace -> Claim Review -> Card Curation -> Public Profile
 ## What It Does
 
 - Generates profiles from GitHub, websites, OpenAlex, arXiv, ORCID, manual links, and notes.
-- Turns source data into evidence-backed claims.
-- Builds DINQ-style profile cards from claims, artifacts, and evidence.
+- Turns source data into normalized, deduped, quality-scored evidence-backed claims.
+- Builds evidence-backed profile cards from claims, artifacts, and evidence.
 - Provides a local workspace for reviewing claims and editing cards.
 - Publishes a card-first public profile page.
-- Searches people by skills, claims, cards, artifacts, and evidence.
+- Searches people by skills, claims, cards, artifacts, and evidence with score breakdowns.
 - Exposes API and MCP tools for automation.
 
 ## Screenshots
@@ -118,6 +118,7 @@ researchers working on language models
 open-source infrastructure engineers
 people with strong evidence in product design
 profiles with manual notes about startups
+evidence-backed profile cards
 ```
 
 Search results show:
@@ -128,6 +129,7 @@ Search results show:
 - matched cards
 - matched artifacts
 - evidence snippets
+- score breakdown / why matched
 - link to the public profile
 
 ## Generate Through The API
@@ -216,6 +218,20 @@ Compatibility:
 ```text
 POST /api/import/github
 ```
+
+## Optional LLM Rewrite
+
+Card generation is deterministic by default. An experimental evidence-constrained rewrite path is available only when explicitly enabled:
+
+```bash
+OPEN_DINQ_ENABLE_LLM_REWRITE=true
+OPENAI_API_KEY=...
+# optional:
+OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1
+OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
+```
+
+The rewrite receives only the draft card, allowed claims, and evidence refs. If the model fails or returns unsupported content, OpenDinq falls back to the deterministic card.
 
 ## Runtime Modes
 

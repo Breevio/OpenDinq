@@ -7,7 +7,8 @@ import type {
   PersonSearchDocument,
   RankedSearchResult,
   SearchEvidenceRef,
-  SearchProviderMatch
+  SearchProviderMatch,
+  SearchScoreBreakdown
 } from "./types.js";
 
 const DEFAULT_WEIGHTS = {
@@ -61,9 +62,11 @@ export async function hybridSearchPeople(
         continue;
       }
 
+      const scoreBreakdown = buildScoreBreakdown(document, result.evidence, result.score);
       const ranked: RankedSearchResult = {
         person: document.person,
-        score: roundScore(Math.min(1, result.score)),
+        score: scoreBreakdown.finalScore,
+        scoreBreakdown,
         explanation: mergeExplanations(document.person.displayName, result.explanations),
         evidence: dedupeEvidence(result.evidence),
         matchedClaims: matchedClaims(document, result.evidence),
@@ -134,13 +137,13 @@ type MergedSearchResult = {
 function matchedClaims(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
   const ids = new Set(evidence.filter((item) => item.type === "claim").map((item) => item.id));
   const titles = new Set(evidence.filter((item) => item.type === "claim").map((item) => item.title));
-  return document.claims?.filter((claim) => (claim.id && ids.has(claim.id)) || titles.has(claim.text)).slice(0, 5);
+  return document.claims?.filter((claim) => claim.status !== "rejected" && ((claim.id && ids.has(claim.id)) || titles.has(claim.text))).slice(0, 5);
 }
 
 function matchedCards(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
   const ids = new Set(evidence.filter((item) => item.type === "card").map((item) => item.id));
   const titles = new Set(evidence.filter((item) => item.type === "card").map((item) => item.title));
-  return document.cards?.filter((card) => (card.id && ids.has(card.id)) || titles.has(card.title)).slice(0, 3);
+  return document.cards?.filter((card) => card.visibility !== "hidden" && ((card.id && ids.has(card.id)) || titles.has(card.title))).slice(0, 3);
 }
 
 function matchedArtifacts(document: PersonSearchDocument, evidence: SearchEvidenceRef[]) {
@@ -190,4 +193,48 @@ function formatSkill(value: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function buildScoreBreakdown(document: PersonSearchDocument, evidence: SearchEvidenceRef[], rawScore: number): SearchScoreBreakdown {
+  const deduped = dedupeEvidence(evidence);
+  const claimScore = clamp(deduped.filter((item) => item.type === "claim").length / 3);
+  const cardScore = clamp(deduped.filter((item) => item.type === "card").length / 3);
+  const artifactScore = clamp(deduped.filter((item) => item.type === "artifact").length / 4);
+  const skillScore = clamp(topSkills(document).filter((skill) => queryEvidenceContains(deduped, skill)).length / 4);
+  const evidenceScore = clamp(deduped.length / 6);
+  const publishBoost = document.person.publicStatus === "published" ? 0.04 : 0;
+  const recencyScore = calculateRecencyScore(document);
+  const finalScore = roundScore(clamp(rawScore + publishBoost + evidenceScore * 0.03));
+
+  return {
+    claimScore: roundScore(claimScore),
+    cardScore: roundScore(cardScore),
+    artifactScore: roundScore(artifactScore),
+    skillScore: roundScore(skillScore),
+    evidenceScore: roundScore(evidenceScore),
+    publishBoost,
+    recencyScore,
+    finalScore
+  };
+}
+
+function queryEvidenceContains(evidence: SearchEvidenceRef[], value: string): boolean {
+  const needle = value.toLowerCase();
+  return evidence.some((item) => `${item.title} ${item.reason}`.toLowerCase().includes(needle));
+}
+
+function calculateRecencyScore(document: PersonSearchDocument): number {
+  const latest = Math.max(0, ...document.artifacts.map((artifact) => {
+    const updated = artifact.metadata?.updatedAt ?? artifact.metadata?.pushedAt ?? artifact.metadata?.publishedAt;
+    return typeof updated === "string" ? Date.parse(updated) || 0 : 0;
+  }));
+  if (!latest) {
+    return 0;
+  }
+  const ageDays = (Date.now() - latest) / 86_400_000;
+  return roundScore(ageDays <= 90 ? 1 : ageDays <= 365 ? 0.6 : 0.2);
+}
+
+function clamp(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }

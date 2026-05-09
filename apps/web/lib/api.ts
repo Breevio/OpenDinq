@@ -82,6 +82,16 @@ export type ProfileWorkspace = {
 export type SearchResult = {
   person: PersonProfile["person"];
   score: number;
+  scoreBreakdown: {
+    claimScore: number;
+    cardScore: number;
+    artifactScore: number;
+    skillScore: number;
+    evidenceScore: number;
+    publishBoost: number;
+    recencyScore: number;
+    finalScore: number;
+  };
   explanation: string;
   evidence: EvidenceRef[];
   matchedClaims?: PersonProfile["claims"];

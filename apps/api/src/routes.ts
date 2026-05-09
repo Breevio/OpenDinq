@@ -1,4 +1,5 @@
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import { publicRankedClaims } from "@opendinq/core";
 import type { CardRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
 import { hybridSearchPeople, type PersonSearchDocument } from "@opendinq/search";
 import { Hono } from "hono";
@@ -442,7 +443,7 @@ async function createManualNoteCard(store: OpenDinqStore, handle: string, title:
 }
 
 function approvedClaims(profile: PersonProfileRecord): ProfileClaimRecord[] {
-  return (profile.claims ?? []).filter((claim) => claim.status !== "rejected");
+  return publicRankedClaims(profile.claims ?? []);
 }
 
 function profileReadiness(profile: PersonProfileRecord) {

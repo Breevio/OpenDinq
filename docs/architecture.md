@@ -21,6 +21,7 @@ apps/mcp
 packages/core
   Store contract
   MemoryStore
+  Claim quality pipeline
 
 packages/db
   Prisma schema
@@ -38,6 +39,9 @@ packages/cards
 
 packages/search
   Rule/full-text hybrid search
+
+packages/llm
+  Optional evidence-constrained card rewrite helper
 ```
 
 ## Product Flow
@@ -64,7 +68,9 @@ Profile claims have a review status:
 - `approved`
 - `rejected`
 
-Rejected claims are excluded from public profile output and are not emphasized in Discover. Public profiles have alpha-level `draft` or `published` status. This is product state only; it is not an authorization system.
+Raw connector claims pass through normalization, dedupe, ranking, and quality scoring before card generation. The quality score uses evidence count, source/artifact quality, confidence, specificity, generic-claim penalties, and manual-source signals.
+
+Rejected claims are excluded from public profile output and Discover ranking. Public profiles have alpha-level `draft` or `published` status. This is product state only; it is not an authorization system.
 
 ## Search
 
@@ -79,7 +85,13 @@ Search currently combines:
 
 Vector search is not implemented as a production runtime yet.
 
-Search responses include matched claims, matched cards, matched artifacts, top skills, evidence, and the public profile URL.
+Search responses include matched claims, matched cards, matched artifacts, top skills, evidence, score breakdown, and the public profile URL.
+
+The score breakdown includes claim, card, artifact, skill, evidence, publish boost, recency, and final score.
+
+## Optional LLM Layer
+
+LLM rewrite is disabled by default. When `OPEN_DINQ_ENABLE_LLM_REWRITE=true` and an OpenAI-compatible key is present, generated cards can be passed through an evidence-constrained rewrite helper. The helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
 
 ## MCP
 

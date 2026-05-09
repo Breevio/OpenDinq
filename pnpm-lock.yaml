@@ -41,6 +41,9 @@ importers:
       '@opendinq/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@opendinq/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@opendinq/search':
         specifier: workspace:*
         version: link:../../packages/search

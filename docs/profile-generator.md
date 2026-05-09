@@ -47,6 +47,16 @@ Warnings do not always fail the run. If at least one source produces useful evid
 
 After generation, the web flow sends users to `/u/:handle/workspace` first. The workspace shows sources, generated claims, cards, readiness, publish status, and links to the public profile and Discover.
 
+## Claim Quality Pipeline
+
+Connector and manual claims pass through:
+
+```text
+raw claims -> normalized claims -> deduped claims -> ranked claims -> quality-scored claims
+```
+
+The pipeline trims claim text, rejects empty or unsupported claim types, clamps confidence, normalizes evidence refs, dedupes exact/case-insensitive/same-evidence claims, merges evidence refs, prefers higher confidence, computes `qualityScore`, and ranks approved claims first. Rejected claims are excluded from public and Discover use.
+
 ## Next Steps After Generation
 
 Recommended product path:
@@ -69,3 +79,7 @@ Recommended product path:
 ```
 
 GitHub is a connector, not the product spine.
+
+## Optional Rewrite
+
+If `OPEN_DINQ_ENABLE_LLM_REWRITE=true` and an OpenAI-compatible API key is configured, generated cards may be rewritten with only approved claims and evidence refs. Rewrite failure never blocks profile generation.

@@ -110,6 +110,7 @@ type DbProfileClaim = {
   type: string;
   text: string;
   confidence: number;
+  qualityScore?: number | null;
   status?: string | null;
   evidenceJson: unknown;
 };
@@ -565,6 +566,7 @@ function toClaimInput(personId: string, claim: ProfileClaimRecord, preserveRefer
     type: claim.type,
     text: claim.text,
     confidence: claim.confidence,
+    qualityScore: claim.qualityScore,
     status: claim.status ?? "approved",
     evidenceJson: claim.evidence
   };
@@ -578,6 +580,7 @@ function toClaim(claim: DbProfileClaim): ProfileClaimRecord {
     type: isClaimType(claim.type) ? claim.type : "summary",
     text: claim.text,
     confidence: claim.confidence,
+    qualityScore: claim.qualityScore ?? undefined,
     status: isClaimStatus(claim.status) ? claim.status : "approved",
     evidence: parseEvidence(claim.evidenceJson)
   });

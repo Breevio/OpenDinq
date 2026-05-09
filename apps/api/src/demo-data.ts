@@ -1,10 +1,11 @@
-import { generateGitHubCard, generateSkillsCard, generateSummaryCard } from "@opendinq/cards";
-import type { PersonProfileRecord } from "@opendinq/core";
+import { generateProfileCards } from "@opendinq/cards";
+import { normalizeClaims, type PersonProfileRecord, type ProfileClaimRecord } from "@opendinq/core";
 import type { SearchArtifact, SearchPerson } from "@opendinq/search";
 
 type DemoProfileInput = {
   person: SearchPerson;
   artifacts: SearchArtifact[];
+  claims: ProfileClaimRecord[];
 };
 
 const demoProfiles: DemoProfileInput[] = [
@@ -27,6 +28,27 @@ const demoProfiles: DemoProfileInput[] = [
         "search",
         "rag"
       ], 87, 7, "2026-02-10T12:00:00Z")
+    ],
+    claims: [
+      demoClaim("skill", "TypeScript MCP agent workflows", "demo-agent-builder/agent-tools", 0.9),
+      demoClaim("project", "Builds evidence-backed profile automation for AI agents", "demo-agent-builder/profile-index", 0.84)
+    ]
+  },
+  {
+    person: {
+      handle: "demo-product-designer",
+      displayName: "Demo Product Designer",
+      headline: "Product designer focused on startup onboarding",
+      bio: "Designs activation flows, evidence-backed profile cards, and low-friction workspace experiences.",
+      location: "New York"
+    },
+    artifacts: [
+      project("startup-onboarding-system", "Onboarding design system for startup activation and profile setup", ["product-design", "onboarding", "startup"], 0.9, "2026-04-12T12:00:00Z"),
+      project("profile-card-studio", "Card curation prototypes for evidence-backed public profiles", ["cards", "ux-research", "profiles"], 0.82, "2026-02-22T12:00:00Z")
+    ],
+    claims: [
+      demoClaim("skill", "Startup product design onboarding", "startup-onboarding-system", 0.9),
+      demoClaim("achievement", "Designed profile card curation flows backed by user evidence", "profile-card-studio", 0.82)
     ]
   },
   {
@@ -48,6 +70,10 @@ const demoProfiles: DemoProfileInput[] = [
         "observability",
         "systems"
       ], 210, 19, "2025-12-05T12:00:00Z")
+    ],
+    claims: [
+      demoClaim("skill", "Rust open-source systems maintenance", "demo-systems-maintainer/runtime-kit", 0.91),
+      demoClaim("project", "Maintains runtime diagnostics for WebAssembly edge systems", "demo-systems-maintainer/wasm-edge-tools", 0.85)
     ]
   },
   {
@@ -68,14 +94,21 @@ const demoProfiles: DemoProfileInput[] = [
         "papers",
         "research",
         "profiles"
-      ], 96, 8, "2026-01-20T12:00:00Z")
+      ], 96, 8, "2026-01-20T12:00:00Z"),
+      paper("Language Model Evaluation Notes", "Paper-like benchmark notes for language model evaluation and retrieval quality", "https://example.com/lm-eval-notes", "2026-03-11T12:00:00Z")
+    ],
+    claims: [
+      demoClaim("research_area", "Language model evaluation researcher", "Language Model Evaluation Notes", 0.9),
+      demoClaim("skill", "Python retrieval evaluation", "demo-ml-researcher/retrieval-eval", 0.88)
     ]
   }
 ];
 
 export function createDemoProfiles(): PersonProfileRecord[] {
-  return demoProfiles.map(({ person, artifacts }) => ({
-    person,
+  return demoProfiles.map(({ person, artifacts, claims }) => {
+    const normalizedClaims = normalizeClaims(claims);
+    return {
+    person: { ...person, publicStatus: "published" },
     sources: [
       {
         type: "github",
@@ -84,12 +117,10 @@ export function createDemoProfiles(): PersonProfileRecord[] {
       }
     ],
     artifacts,
-    cards: [
-      generateSummaryCard(person, artifacts),
-      generateGitHubCard(person, artifacts),
-      generateSkillsCard(person, artifacts)
-    ]
-  }));
+    claims: normalizedClaims,
+    cards: generateProfileCards(person, artifacts, normalizedClaims)
+  };
+  });
 }
 
 function repo(
@@ -114,5 +145,48 @@ function repo(
       pushedAt: updatedAt,
       updatedAt
     }
+  };
+}
+
+function project(
+  title: string,
+  description: string,
+  topics: string[],
+  manualImportance: number,
+  updatedAt: string
+): SearchArtifact {
+  return {
+    id: title,
+    type: "project",
+    title,
+    description,
+    url: `https://example.com/${title}`,
+    metadata: { topics, manualImportance, updatedAt }
+  };
+}
+
+function paper(title: string, description: string, url: string, publishedAt: string): SearchArtifact {
+  return {
+    id: title,
+    type: "paper",
+    title,
+    description,
+    url,
+    metadata: { topics: ["language-models", "evaluation", "research"], publishedAt }
+  };
+}
+
+function demoClaim(type: ProfileClaimRecord["type"], text: string, artifactId: string, confidence: number): ProfileClaimRecord {
+  return {
+    type,
+    text,
+    confidence,
+    status: "approved",
+    evidence: [{
+      id: artifactId,
+      type: "artifact",
+      title: artifactId,
+      reason: "Demo artifact supports this evidence-backed claim."
+    }]
   };
 }

@@ -19,6 +19,13 @@ import {
   parseGitHubProfileUrl
 } from "@opendinq/connectors";
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import { normalizeClaims } from "@opendinq/core";
+import {
+  createOpenAICompatibleRewriteClient,
+  isLlmRewriteEnabled,
+  rewriteCardWithEvidence,
+  type RewriteEvidenceRef
+} from "@opendinq/llm";
 import type {
   ArtifactRecord,
   CardRecord,
@@ -101,7 +108,7 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
         const existing = await options.store.getProfile(person.handle);
         const sources = dedupeIdentitySources([...(existing?.sources ?? []), ...bundles.map((bundle) => toIdentitySource(bundle.source))]);
         const artifacts = dedupeArtifacts([...(existing?.artifacts ?? []), ...bundles.flatMap((bundle) => bundle.artifacts)]);
-        const claims = dedupeClaims([...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)]);
+        const claims = normalizeClaims([...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)]);
 
         if (artifacts.length === 0 && claims.length === 0) {
           throw new Error("Profile generation needs at least one artifact or claim.");
@@ -112,7 +119,11 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
           ...claim
         }));
         const manualCards = existing?.cards.filter((card) => card.type === "note") ?? [];
-        const cards = [...generateProfileCards(person, artifacts, claimsWithIds as CardClaim[]) as CardRecord[], ...manualCards];
+        const generatedCards = await maybeRewriteCards(
+          generateProfileCards(person, artifacts, claimsWithIds as CardClaim[]) as CardRecord[],
+          claimsWithIds
+        );
+        const cards = [...generatedCards, ...manualCards];
         const profile: PersonProfileRecord = {
           person,
           sources,
@@ -405,10 +416,45 @@ function dedupeArtifacts(artifacts: ArtifactRecord[]): ArtifactRecord[] {
   return [...new Map(artifacts.map((artifact) => [`${artifact.type}:${artifact.url ?? artifact.title}`, artifact])).values()];
 }
 
-function dedupeClaims(claims: ProfileClaimRecord[]): ProfileClaimRecord[] {
-  return [...new Map(claims.map((claim) => [`${claim.type}:${claim.text.toLowerCase()}`, claim])).values()];
-}
-
 function dedupeIdentitySources(sources: IdentitySourceRecord[]): IdentitySourceRecord[] {
   return [...new Map(sources.map((source) => [`${source.type}:${source.url}`, source])).values()];
+}
+
+async function maybeRewriteCards(cards: CardRecord[], claims: ProfileClaimRecord[]): Promise<CardRecord[]> {
+  if (!isLlmRewriteEnabled()) {
+    return cards;
+  }
+
+  const apiKey = process.env.OPEN_DINQ_LLM_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return cards;
+  }
+
+  const client = createOpenAICompatibleRewriteClient({
+    apiKey,
+    baseUrl: process.env.OPEN_DINQ_LLM_BASE_URL,
+    model: process.env.OPEN_DINQ_LLM_MODEL
+  });
+  const allowedClaims = claims.filter((claim) => claim.status !== "rejected");
+
+  return Promise.all(cards.map(async (card) => {
+    const relevantClaims = allowedClaims.filter((claim) => card.claimIds?.includes(claim.id ?? ""));
+    const rewritten = await rewriteCardWithEvidence({
+      draftCard: {
+        title: card.title,
+        contentMd: card.contentMd,
+        evidence: card.evidence as RewriteEvidenceRef[],
+        claimIds: card.claimIds
+      },
+      allowedClaims: relevantClaims,
+      evidence: card.evidence as RewriteEvidenceRef[]
+    }, client);
+
+    return {
+      ...card,
+      contentMd: rewritten.contentMd,
+      evidence: rewritten.evidence as EvidenceRecord[],
+      claimIds: rewritten.claimIds
+    };
+  }));
 }
