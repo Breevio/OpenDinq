@@ -48,7 +48,7 @@ export function createOpenAICompatibleJsonClient(options: {
 }): JsonLlmClient {
   const fetchImpl = options.fetchImpl ?? fetch;
   const chatCompletionsUrl = normalizeChatCompletionsUrl(options.chatCompletionsUrl ?? options.baseUrl);
-  const timeoutMs = options.timeoutMs ?? 35000;
+  const timeoutMs = options.timeoutMs ?? 90000;
   const maxTokens = options.maxTokens ?? 1200;
 
   return {

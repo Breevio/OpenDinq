@@ -136,23 +136,16 @@ export function deterministicFallbackPlan(input: string): ProfileGenerationPlan 
 }
 
 export const PROFILE_INTENT_SYSTEM_PROMPT = [
-  "You are an OpenDinq profile generation planner, not a web browser.",
-  "Output strict JSON only matching this exact schema: rawInput, intent, confidence, subject, sources, userProvidedClaims, missingEvidence, questions, warnings.",
-  "intent must be one of: generate_profile, enrich_existing_profile, manual_profile, unknown.",
-  "sources[].type must be one of: github, website, openalex, arxiv, orcid, manual.",
-  "sources[].evidenceStatus must be explicit, inferred, or user_provided.",
-  "userProvidedClaims[].evidenceStatus must be user_provided.",
-  "Do not invent URLs, repositories, papers, ORCID ids, OpenAlex ids, or arXiv ids.",
-  "Do not claim you searched the web.",
-  "Explicit URLs or ids from the user's input can become explicit sources.",
-  "User descriptions become userProvidedClaims, not verified evidence.",
-  "Anything without a public source belongs in missingEvidence.",
-  "If the input includes a GitHub URL or handle, include a github source.",
-  "If the input includes a website URL, include a website source unless it is clearly GitHub.",
-  "If the input includes ORCID, arXiv, or OpenAlex id, include the matching source.",
-  "If input is only natural language or a person name, produce a manual_profile plan with userProvidedClaims and missingEvidence suggestions.",
-  "Ask questions only if generation cannot proceed.",
-  "Prefer creating a reviewable workspace over blocking generation."
+  "Return JSON only for an OpenDinq ProfileGenerationPlan.",
+  "Use exactly these keys: rawInput, intent, confidence, subject, sources, userProvidedClaims, missingEvidence, questions, warnings.",
+  "Allowed intent values: generate_profile, enrich_existing_profile, manual_profile, unknown.",
+  "A source object is: {type,input,confidence,reason,evidenceStatus}.",
+  "Allowed source types: github, website, openalex, arxiv, orcid, manual.",
+  "Allowed evidenceStatus: explicit, inferred, user_provided.",
+  "Do not browse and do not invent URLs, ids, repos, papers, companies, roles, or skills.",
+  "Only user-provided URLs/ids/handles can be explicit sources.",
+  "Natural language without public source becomes manual_profile, userProvidedClaims, and missingEvidence.",
+  "Prefer a reviewable plan over blocking."
 ].join("\n");
 
 function parseProfileGenerationPlan(json: unknown, rawInput: string): ProfileGenerationPlan {
@@ -269,6 +262,12 @@ function source(type: ProfileIntentSource["type"], input: string, reason: string
 function coerceSources(value: unknown, rawInput: string): ProfileGenerationPlan["sources"] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
+    const explicit = stringValue(item);
+    if (explicit) {
+      const parsed = explicitSourceFromInput(explicit);
+      return parsed ? [parsed.source] : [];
+    }
+
     const record = objectValue(item);
     if (!record) return [];
     const type = stringValue(record.type);
@@ -301,6 +300,10 @@ function coerceUserProvidedClaims(value: unknown, rawInput: string, fallback: Pr
 function coerceMissingEvidence(value: unknown, sources: ProfileGenerationPlan["sources"], claims: ProfileGenerationPlan["userProvidedClaims"], fallback: ProfileGenerationPlan["missingEvidence"]): ProfileGenerationPlan["missingEvidence"] {
   if (Array.isArray(value)) {
     const missing = value.flatMap((item) => {
+      const text = stringValue(item);
+      if (text) {
+        return [{ need: text, reason: "The LLM marked this information as missing evidence." }];
+      }
       const record = objectValue(item);
       const need = stringValue(record?.need) ?? stringValue(record?.claim);
       const reason = stringValue(record?.reason) ?? stringValue(record?.suggestion);

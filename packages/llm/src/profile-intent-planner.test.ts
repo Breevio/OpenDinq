@@ -101,6 +101,30 @@ describe("LLM profile intent planner", () => {
     });
   });
 
+  it("coerces GLM string arrays into explicit sources and missing evidence", async () => {
+    const client: JsonLlmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        rawInput: "https://github.com/torvalds",
+        intent: "VerifyGitHubProfile",
+        confidence: 0.5,
+        subject: "torvalds",
+        sources: ["https://github.com/torvalds"],
+        userProvidedClaims: [],
+        missingEvidence: ["Specific claims need verification"],
+        questions: [],
+        warnings: []
+      })
+    };
+
+    const plan = await planProfileGeneration("https://github.com/torvalds", { client });
+
+    expect(plan).toMatchObject({
+      intent: "generate_profile",
+      sources: [expect.objectContaining({ type: "github", input: "torvalds", evidenceStatus: "explicit" })],
+      missingEvidence: [expect.objectContaining({ need: "Specific claims need verification" })]
+    });
+  });
+
   it("keeps person-only JSON as a manual plan", async () => {
     const client: JsonLlmClient = {
       completeJson: vi.fn().mockResolvedValue({ person: { names: [{ fullName: "Jiajun Wu" }] }, sources: [] })

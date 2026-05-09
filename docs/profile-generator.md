@@ -61,7 +61,7 @@ OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
 OPEN_DINQ_LLM_API_KEY=...
 OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL=https://api.openai.com/v1/chat/completions # optional
 OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1 # optional
-OPEN_DINQ_LLM_TIMEOUT_MS=35000 # optional
+OPEN_DINQ_LLM_TIMEOUT_MS=90000 # optional
 OPEN_DINQ_LLM_MAX_TOKENS=1200 # optional
 ```
 
