@@ -343,31 +343,6 @@ examples/      demo profiles and MCP configs
 scripts/       dev, screenshot, seed, and DB verification scripts
 ```
 
-## Troubleshooting
-
-If `pnpm dev` starts but the web app cannot call the API, check that the API is listening on port `3001`:
-
-```bash
-curl http://localhost:3001/health
-```
-
-If GitHub import rate limits, set a token:
-
-```bash
-export GITHUB_TOKEN="..."
-pnpm dev
-```
-
-If Postgres verification fails, confirm Docker is running and `DATABASE_URL` matches `docker-compose.yml`:
-
-```bash
-docker compose ps
-pnpm db:validate
-DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm verify:db
-```
-
-If generated data disappears, you are using MemoryStore. Set `DATABASE_URL` and run the Prisma setup above for persistence.
-
 ## More Docs
 
 - [Architecture](./docs/architecture.md)
