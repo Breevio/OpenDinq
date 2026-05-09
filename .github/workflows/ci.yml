@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://opendinq:opendinq@localhost:5432/opendinq
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     services:
       postgres:
         image: postgres:16
