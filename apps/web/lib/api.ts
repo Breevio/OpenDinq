@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? "http://localhost:3001";
+  process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? "http://localhost:3011";
 
 export type EvidenceRef = {
   id: string;

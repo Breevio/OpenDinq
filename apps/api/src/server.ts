@@ -52,6 +52,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   serve({
     fetch: runtimeApp.fetch,
-    port: Number(process.env.PORT ?? 3001)
+    port: Number(process.env.PORT ?? 3011)
   });
 }

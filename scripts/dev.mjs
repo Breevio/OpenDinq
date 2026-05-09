@@ -5,14 +5,17 @@ const commands = [
     name: "api",
     command: "pnpm",
     args: ["--filter", "@opendinq/api", "dev"],
-    env: {}
+    env: {
+      PORT: process.env.OPENDINQ_API_PORT ?? process.env.PORT ?? "3011"
+    }
   },
   {
     name: "web",
     command: "pnpm",
     args: ["--filter", "@opendinq/web", "dev"],
     env: {
-      NEXT_PUBLIC_OPENDINQ_API_URL: process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? "http://localhost:3001"
+      NEXT_PUBLIC_OPENDINQ_API_URL: process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? `http://localhost:${process.env.OPENDINQ_API_PORT ?? process.env.PORT ?? "3011"}`,
+      PORT: process.env.OPENDINQ_WEB_PORT ?? "3012"
     }
   }
 ];

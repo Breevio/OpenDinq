@@ -66,7 +66,7 @@ Open the app:
 - Generate: http://localhost:3000/generate
 - Discover: http://localhost:3000/discover
 - Demo profile: http://localhost:3000/u/demo-agent-builder
-- API health: http://localhost:3001/health
+- API health: http://localhost:3011/health
 
 The default runtime uses in-memory demo data, so you can try the product without setting up a database or API keys.
 
@@ -142,7 +142,7 @@ pnpm dev:api
 Plan a single-input profile generation:
 
 ```bash
-curl -X POST http://localhost:3001/api/profiles/plan \
+curl -X POST http://localhost:3011/api/profiles/plan \
   -H "content-type: application/json" \
   -d '{ "input": "https://github.com/torvalds" }'
 ```
@@ -150,7 +150,7 @@ curl -X POST http://localhost:3001/api/profiles/plan \
 Generate from one input:
 
 ```bash
-curl -X POST http://localhost:3001/api/profiles/generate-ai \
+curl -X POST http://localhost:3011/api/profiles/generate-ai \
   -H "content-type: application/json" \
   -d '{ "input": "AI product engineer who built an evidence-backed workflow" }'
 ```
@@ -158,7 +158,7 @@ curl -X POST http://localhost:3001/api/profiles/generate-ai \
 The deterministic advanced API still accepts explicit sources:
 
 ```bash
-curl -X POST http://localhost:3001/api/profiles/generate \
+curl -X POST http://localhost:3011/api/profiles/generate \
   -H "content-type: application/json" \
   -d '{
     "displayName": "Ada Builder",
@@ -180,13 +180,13 @@ curl -X POST http://localhost:3001/api/profiles/generate \
 Check the generated profile:
 
 ```bash
-curl http://localhost:3001/api/people/ada-builder
+curl http://localhost:3011/api/people/ada-builder
 ```
 
 Search:
 
 ```bash
-curl "http://localhost:3001/api/search?q=AI%20product%20engineer%20agent%20workflow"
+curl "http://localhost:3011/api/search?q=AI%20product%20engineer%20agent%20workflow"
 ```
 
 ## API Routes
@@ -332,7 +332,7 @@ pnpm dev:api
 Start the MCP server:
 
 ```bash
-OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/mcp start
+OPENDINQ_API_URL=http://localhost:3011 pnpm --filter @opendinq/mcp start
 ```
 
 Available tools include:
@@ -359,8 +359,8 @@ Example client configs are in [`examples/mcp`](./examples/mcp).
 
 ```bash
 pnpm dev              # Start API and web app
-pnpm dev:api          # Start API on port 3001
-pnpm dev:web          # Start web app on port 3000
+pnpm dev:api          # Start API on port 3011
+pnpm dev:web          # Start web app on port 3012
 pnpm seed:demo        # Seed demo profiles into the running API
 pnpm screenshots      # Capture screenshots into docs/screenshots
 pnpm db:generate      # Generate Prisma Client
