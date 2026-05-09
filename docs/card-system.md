@@ -77,7 +77,7 @@ POST  /api/cards/:cardId/regenerate
 - Timeline cards require dated artifacts.
 - Manual note cards preserve user-provided text and attach manual evidence.
 
-Optional LLM rewrite is experimental and evidence-constrained. If validation fails, deterministic card content is retained.
+Optional LLM rewrite is experimental and evidence-constrained. If validation fails, deterministic card content is retained. Summary, Skill, Works, Research, and Timeline cards can be rewritten when enabled; ManualNoteCard remains user-authored unless explicitly changed in a future workflow.
 
 ## Workspace Behavior
 

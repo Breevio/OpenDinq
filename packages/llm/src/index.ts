@@ -1,4 +1,4 @@
-export const LLM_FEATURE_STATUS = "optional-evidence-constrained-card-rewrite";
+export const LLM_FEATURE_STATUS = "optional-evidence-constrained-generation-and-card-rewrite";
 
 export type RewriteEvidenceRef = {
   id: string;
@@ -110,6 +110,30 @@ export function createOpenAICompatibleRewriteClient(options: {
     }
   };
 }
+
+export {
+  CLAIM_SYNTHESIS_SYSTEM_PROMPT,
+  synthesizeClaimsWithEvidence,
+  type ClaimSynthesisInput,
+  type SynthesisClaim,
+  type SynthesisEvidenceRef
+} from "./claim-synthesis.js";
+export {
+  createOpenAICompatibleJsonClient,
+  getLlmGenerationConfig,
+  isLlmGenerationEnabled,
+  type LlmRuntimeConfig
+} from "./openai-compatible.js";
+export {
+  deterministicFallbackPlan,
+  planProfileGeneration,
+  PROFILE_INTENT_SYSTEM_PROMPT,
+  profileGenerationPlanSchema,
+  type JsonLlmClient,
+  type PlanProfileGenerationOptions,
+  type ProfileGenerationPlan,
+  type ProfileIntentSource
+} from "./profile-intent-planner.js";
 
 function isValidRewrite(input: LlmRewriteInput, output: LlmRewriteOutput): boolean {
   if (!output.rewrittenMarkdown.trim() || output.rewrittenMarkdown.length > 4_000) {

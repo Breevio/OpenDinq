@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./server.js";
 
 const githubUser = {
@@ -404,6 +404,68 @@ describe("OpenDinq API", () => {
         expect.objectContaining({ type: "paper", title: "Open profile indexing" })
       ])
     );
+  });
+
+  it("plans profile generation with deterministic fallback when LLM is not configured", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/plan", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/torvalds" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      llmUsed: false,
+      plan: {
+        sources: [expect.objectContaining({ type: "github", input: "torvalds" })]
+      },
+      warnings: expect.arrayContaining([expect.stringContaining("LLM generation is not configured")])
+    });
+  });
+
+  it("generates an AI profile from a single input and synthesizes evidence-backed claims", async () => {
+    const llmClient = {
+      completeJson: vi.fn()
+        .mockResolvedValueOnce({
+          rawInput: "https://github.com/demo-agent-builder",
+          intent: "generate_profile",
+          confidence: 0.95,
+          inferredPerson: { handle: "demo-agent-builder" },
+          sources: [{ type: "github", input: "demo-agent-builder", reason: "GitHub URL provided.", confidence: 0.95 }],
+          manualNotes: [],
+          searchQueries: [],
+          warnings: [],
+          questions: []
+        })
+        .mockResolvedValueOnce([
+          { type: "project", text: "Builds TypeScript MCP tools for AI agent workflows", confidence: 0.92, evidenceRefs: [{ id: "https://github.com/demo-agent-builder/agent-tools" }] },
+          { type: "skill", text: "No evidence claim", confidence: 0.9, evidenceRefs: [{ id: "missing" }] }
+        ])
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/demo-agent-builder" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      handle: "demo-agent-builder",
+      llmUsed: true,
+      workspaceUrl: "/u/demo-agent-builder/workspace",
+      plan: { intent: "generate_profile" }
+    });
+    expect(json.claimsGenerated).toBeGreaterThan(0);
+
+    const claimsResponse = await app.request("/api/people/demo-agent-builder/claims");
+    const claimsJson = await claimsResponse.json();
+    expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).toContain("Builds TypeScript MCP tools for AI agent workflows");
+    expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).not.toContain("No evidence claim");
   });
 });
 

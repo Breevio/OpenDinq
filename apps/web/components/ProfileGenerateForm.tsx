@@ -1,9 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { apiRequest, type ProfileGenerationResponse } from "../lib/api";
+import { apiRequest, type ProfileGenerationResponse, type ProfilePlanResponse } from "../lib/api";
+
+const EXAMPLES = [
+  "https://github.com/torvalds",
+  "torvalds",
+  "0000-0002-1825-0097",
+  "https://example.com/about",
+  "AI product engineer who built an evidence-backed workflow"
+];
 
 export function ProfileGenerateForm() {
+  const [input, setInput] = useState("AI product engineer who built an evidence-backed workflow");
   const [displayName, setDisplayName] = useState("Ada Builder");
   const [handle, setHandle] = useState("ada-builder");
   const [headline, setHeadline] = useState("AI product engineer");
@@ -16,12 +25,54 @@ export function ProfileGenerateForm() {
   const [manualUrl, setManualUrl] = useState("https://example.com/agent-workflow");
   const [manualNote, setManualNote] = useState("Designed and shipped an evidence-backed AI workflow for profile generation.");
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<"plan" | "generate" | "advanced" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [planResult, setPlanResult] = useState<ProfilePlanResponse | null>(null);
   const [result, setResult] = useState<ProfileGenerationResponse | null>(null);
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function previewPlan() {
+    setIsLoading(true);
+    setMode("plan");
+    setError(null);
+    setResult(null);
+    try {
+      setPlanResult(await apiRequest<ProfilePlanResponse>("/api/profiles/plan", {
+        method: "POST",
+        body: JSON.stringify({ input })
+      }));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Profile planning failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function generateAi(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
+    setMode("generate");
+    setError(null);
+    setResult(null);
+    try {
+      const generated = await apiRequest<ProfileGenerationResponse>("/api/profiles/generate-ai", {
+        method: "POST",
+        body: JSON.stringify({ input, reviewPlan: false })
+      });
+      setResult(generated);
+      if (generated.plan) {
+        setPlanResult({ plan: generated.plan, llmUsed: Boolean(generated.llmUsed), warnings: generated.warnings });
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Profile generation failed.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function submitAdvanced(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsLoading(true);
+    setMode("advanced");
     setError(null);
     setResult(null);
 
@@ -44,16 +95,10 @@ export function ProfileGenerateForm() {
     ].filter(Boolean);
 
     try {
-      const generated = await apiRequest<ProfileGenerationResponse>("/api/profiles/generate", {
+      setResult(await apiRequest<ProfileGenerationResponse>("/api/profiles/generate", {
         method: "POST",
-        body: JSON.stringify({
-          displayName,
-          handle,
-          headline,
-          sources
-        })
-      });
-      setResult(generated);
+        body: JSON.stringify({ displayName, handle, headline, sources })
+      }));
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Profile generation failed.");
     } finally {
@@ -62,90 +107,147 @@ export function ProfileGenerateForm() {
   }
 
   return (
-    <section className="tool-panel">
-      <form className="generator-form" onSubmit={submit}>
-        <div className="field-grid">
-          <label>
-            Display name
-            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </label>
-          <label>
-            Handle
-            <input value={handle} onChange={(event) => setHandle(event.target.value)} />
-          </label>
-          <label className="span-2">
-            Headline
-            <input value={headline} onChange={(event) => setHeadline(event.target.value)} />
-          </label>
+    <section className="ai-generate-panel">
+      <form className="ai-generate-form" onSubmit={generateAi}>
+        <div className="ai-prompt-shell">
+          <textarea
+            aria-label="Profile generation input"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Paste a URL, GitHub username, ORCID, arXiv id, website, or describe the person..."
+          />
+          <div className="example-chips" aria-label="Examples">
+            {EXAMPLES.map((example) => (
+              <button key={example} type="button" onClick={() => setInput(example)}>
+                {example}
+              </button>
+            ))}
+          </div>
         </div>
-
-        <div className="field-grid">
-          <label>
-            GitHub
-            <input value={github} onChange={(event) => setGithub(event.target.value)} placeholder="username or URL" />
-          </label>
-          <label>
-            Website
-            <input value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://example.com" />
-          </label>
-          <label>
-            OpenAlex
-            <input value={openAlex} onChange={(event) => setOpenAlex(event.target.value)} placeholder="A123456789" />
-          </label>
-          <label>
-            arXiv
-            <input value={arxiv} onChange={(event) => setArxiv(event.target.value)} placeholder="2601.01234" />
-          </label>
-          <label>
-            ORCID
-            <input value={orcid} onChange={(event) => setOrcid(event.target.value)} placeholder="0000-0002-1825-0097" />
-          </label>
+        <div className="actions">
+          <button type="submit" disabled={isLoading || !input.trim()}>
+            {isLoading && mode === "generate" ? "Generating" : "Generate profile"}
+          </button>
+          <button className="secondary-button" type="button" disabled={isLoading || !input.trim()} onClick={previewPlan}>
+            {isLoading && mode === "plan" ? "Planning" : "Preview plan"}
+          </button>
         </div>
-
-        <div className="field-grid">
-          <label>
-            Manual link title
-            <input value={manualTitle} onChange={(event) => setManualTitle(event.target.value)} />
-          </label>
-          <label>
-            Manual link URL
-            <input value={manualUrl} onChange={(event) => setManualUrl(event.target.value)} />
-          </label>
-          <label className="span-2">
-            Manual note
-            <textarea value={manualNote} onChange={(event) => setManualNote(event.target.value)} />
-          </label>
-        </div>
-
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? "Generating" : "Generate profile"}
-        </button>
       </form>
 
       {error ? <p className="status error">{error}</p> : null}
-      {result ? (
-        <div className="completion-panel">
-          <p className="eyebrow">Generation completed</p>
-          <div className="result-strip">
-            <span>{result.status}</span>
-            <span>{result.artifactsImported} artifacts</span>
-            <span>{result.claimsGenerated} claims</span>
-            <span>{result.cardsGenerated} cards</span>
+      {planResult ? <PlanPreview response={planResult} /> : null}
+      {result ? <GenerationResult result={result} input={input} /> : null}
+
+      <details className="advanced-sources">
+        <summary>Advanced sources</summary>
+        <form className="generator-form" onSubmit={submitAdvanced}>
+          <div className="field-grid">
+            <label>
+              Display name
+              <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            </label>
+            <label>
+              Handle
+              <input value={handle} onChange={(event) => setHandle(event.target.value)} />
+            </label>
+            <label className="span-2">
+              Headline
+              <input value={headline} onChange={(event) => setHeadline(event.target.value)} />
+            </label>
           </div>
-          {result.warnings.length ? <p className="status error">{result.warnings.join(" ")}</p> : null}
-          <div className="next-steps">
-            <span>1. Review workspace</span>
-            <span>2. Edit cards</span>
-            <span>3. Publish profile</span>
-            <span>4. Try Discover</span>
+
+          <div className="field-grid">
+            <label>
+              GitHub
+              <input value={github} onChange={(event) => setGithub(event.target.value)} placeholder="username or URL" />
+            </label>
+            <label>
+              Website
+              <input value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://example.com" />
+            </label>
+            <label>
+              OpenAlex
+              <input value={openAlex} onChange={(event) => setOpenAlex(event.target.value)} placeholder="A123456789" />
+            </label>
+            <label>
+              arXiv
+              <input value={arxiv} onChange={(event) => setArxiv(event.target.value)} placeholder="2601.01234" />
+            </label>
+            <label>
+              ORCID
+              <input value={orcid} onChange={(event) => setOrcid(event.target.value)} placeholder="0000-0002-1825-0097" />
+            </label>
           </div>
-          <div className="actions">
-            <a href={`/u/${result.handle}/workspace`}>Open workspace</a>
-            <a href={result.profileUrl}>View public profile</a>
-            <a href={`/discover?q=${encodeURIComponent(`${displayName} ${headline}`)}`}>Search in Discover</a>
+
+          <div className="field-grid">
+            <label>
+              Manual link title
+              <input value={manualTitle} onChange={(event) => setManualTitle(event.target.value)} />
+            </label>
+            <label>
+              Manual link URL
+              <input value={manualUrl} onChange={(event) => setManualUrl(event.target.value)} />
+            </label>
+            <label className="span-2">
+              Manual note
+              <textarea value={manualNote} onChange={(event) => setManualNote(event.target.value)} />
+            </label>
           </div>
-        </div>
-      ) : null}
+
+          <button type="submit" disabled={isLoading}>
+            {isLoading && mode === "advanced" ? "Generating" : "Generate from advanced sources"}
+          </button>
+        </form>
+      </details>
     </section>
+  );
+}
+
+function PlanPreview({ response }: { response: ProfilePlanResponse }) {
+  const { plan } = response;
+  return (
+    <div className="plan-preview">
+      <div className="result-strip">
+        <span>{response.llmUsed ? "LLM used" : "Deterministic fallback"}</span>
+        <span>{plan.intent}</span>
+        <span>{Math.round(plan.confidence * 100)}% confidence</span>
+      </div>
+      {response.warnings.length ? <p className="status error">{response.warnings.join(" ")}</p> : null}
+      <div className="plan-grid">
+        <div>
+          <strong>Inferred person</strong>
+          <span>{plan.inferredPerson.displayName ?? "Unknown"}</span>
+          {plan.inferredPerson.handle ? <span>{plan.inferredPerson.handle}</span> : null}
+          {plan.inferredPerson.headline ? <span>{plan.inferredPerson.headline}</span> : null}
+        </div>
+        <div>
+          <strong>Sources to use</strong>
+          {plan.sources.length ? plan.sources.map((source) => (
+            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.type}: {typeof source.input === "string" ? source.input : JSON.stringify(source.input)}</span>
+          )) : <span>No reliable public source yet</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GenerationResult({ result, input }: { result: ProfileGenerationResponse; input: string }) {
+  return (
+    <div className="completion-panel">
+      <p className="eyebrow">Generation completed</p>
+      <div className="result-strip">
+        <span>{result.status}</span>
+        <span>{result.llmUsed ? "LLM used" : "Deterministic fallback"}</span>
+        <span>{result.artifactsImported} artifacts</span>
+        <span>{result.claimsGenerated} claims</span>
+        <span>{result.cardsGenerated} cards</span>
+      </div>
+      {result.warnings.length ? <p className="status error">{result.warnings.join(" ")}</p> : null}
+      <div className="actions">
+        <a href={result.workspaceUrl ?? `/u/${result.handle}/workspace`}>Open workspace</a>
+        <a href={result.profileUrl}>View public profile</a>
+        <a href={`/discover?q=${encodeURIComponent(input)}`}>Search in Discover</a>
+      </div>
+    </div>
   );
 }

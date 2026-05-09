@@ -41,6 +41,8 @@ packages/search
   Rule/full-text hybrid search
 
 packages/llm
+  Intent planner
+  Evidence-constrained claim synthesis
   Optional evidence-constrained card rewrite helper
 ```
 
@@ -91,7 +93,11 @@ The score breakdown includes claim, card, artifact, skill, evidence, publish boo
 
 ## Optional LLM Layer
 
-LLM rewrite is disabled by default. When `OPEN_DINQ_ENABLE_LLM_REWRITE=true` and an OpenAI-compatible key is present, generated cards can be passed through an evidence-constrained rewrite helper. The helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
+LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_PROVIDER=openai-compatible`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API can plan single-input generation and synthesize evidence-backed claims from connector outputs.
+
+LLM rewrite is separately gated by `OPEN_DINQ_ENABLE_LLM_REWRITE=true`. Generated cards are still deterministic first; the helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
+
+OpenDinq does not invent sources and does not perform production web-wide entity search. If natural-language input has no reliable public source, the generator creates a manual profile seed and warns that evidence is weak.
 
 ## MCP
 
@@ -100,6 +106,8 @@ The MCP server calls the API. It does not connect directly to the database.
 Primary tools:
 
 - `opendinq_generate_profile`
+- `opendinq_plan_profile_generation`
+- `opendinq_generate_profile_ai`
 - `opendinq_get_profile_run`
 - `opendinq_get_profile_workspace`
 - `opendinq_update_claim`

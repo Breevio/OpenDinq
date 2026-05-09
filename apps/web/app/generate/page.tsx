@@ -6,7 +6,7 @@ export default function GeneratePage() {
       <div className="page-heading">
         <p className="eyebrow">Generate</p>
         <h1>Generate a profile from public evidence</h1>
-        <p>Add one or more sources, generate cards, then publish a searchable profile page.</p>
+        <p>OpenDinq uses an LLM to plan sources, collect evidence, generate claims, and create cards you can review.</p>
       </div>
       <ProfileGenerateForm />
     </main>

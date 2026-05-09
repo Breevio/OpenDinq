@@ -6,6 +6,8 @@ describe("OpenDinq MCP tools", () => {
   it("exposes the planned tool names", () => {
     expect(MCP_TOOL_PLAN).toEqual([
       "opendinq_generate_profile",
+      "opendinq_plan_profile_generation",
+      "opendinq_generate_profile_ai",
       "opendinq_get_profile_run",
       "opendinq_import_github_profile",
       "opendinq_search_people",
@@ -27,6 +29,8 @@ describe("OpenDinq MCP tools", () => {
     const tools = createToolHandlers(client);
 
     await expect(tools.opendinq_generate_profile({ sources: [{ type: "manual", input: { note: "Built cards." } }] })).resolves.toMatchObject({ handle: "demo" });
+    await expect(tools.opendinq_plan_profile_generation({ input: "torvalds" })).resolves.toMatchObject({ llmUsed: false });
+    await expect(tools.opendinq_generate_profile_ai({ input: "torvalds", reviewPlan: false })).resolves.toMatchObject({ handle: "demo-ai" });
     await expect(tools.opendinq_get_profile_run({ runId: "run-1" })).resolves.toMatchObject({ run: { id: "run-1" } });
     await expect(tools.opendinq_search_people({ query: "AI agent TypeScript MCP" })).resolves.toMatchObject({ results: [] });
     await expect(tools.opendinq_get_profile_workspace({ handle: "demo" })).resolves.toMatchObject({ readiness: { score: 80 } });
@@ -41,6 +45,8 @@ describe("OpenDinq MCP tools", () => {
     await expect(tools.opendinq_publish_profile({ handle: "demo", publicStatus: "published" })).resolves.toMatchObject({ profile: { person: { handle: "demo" } } });
 
     expect(client.generateProfile).toHaveBeenCalled();
+    expect(client.planProfileGeneration).toHaveBeenCalledWith("torvalds");
+    expect(client.generateProfileAi).toHaveBeenCalledWith("torvalds", false);
     expect(client.getProfileRun).toHaveBeenCalledWith("run-1");
     expect(client.searchPeople).toHaveBeenCalledWith("AI agent TypeScript MCP");
     expect(client.getProfileWorkspace).toHaveBeenCalledWith("demo");
@@ -63,6 +69,8 @@ describe("OpenDinq MCP tools", () => {
 function mockClient(): OpenDinqApiClient {
   return {
     generateProfile: vi.fn().mockResolvedValue({ handle: "demo" }),
+    planProfileGeneration: vi.fn().mockResolvedValue({ llmUsed: false }),
+    generateProfileAi: vi.fn().mockResolvedValue({ handle: "demo-ai" }),
     getProfileRun: vi.fn().mockResolvedValue({ run: { id: "run-1" } }),
     importGitHubProfile: vi.fn().mockResolvedValue({ handle: "demo" }),
     searchPeople: vi.fn().mockResolvedValue({ results: [] }),

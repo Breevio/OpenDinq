@@ -73,20 +73,19 @@ The default runtime uses in-memory demo data, so you can try the product without
 ## Generate Your First Profile
 
 1. Open http://localhost:3000/generate.
-2. Fill in a display name and handle.
-3. Add at least one source.
+2. Paste one input: a URL, GitHub username, ORCID, arXiv/OpenAlex id, website, or natural-language request.
+3. Click **Preview plan** to see inferred intent and sources.
 4. Click **Generate profile**.
 5. Open the generated workspace.
 
-For the simplest first run, use only manual data:
+Examples:
 
 ```text
-Display name: Ada Builder
-Handle: ada-builder
-Headline: AI product engineer
-Manual link title: Built an agent workflow
-Manual link URL: https://example.com/agent-workflow
-Manual note: Designed and shipped an evidence-backed AI workflow for profile generation.
+https://github.com/torvalds
+torvalds
+0000-0002-1825-0097
+https://example.com/about
+AI product engineer who built an evidence-backed workflow
 ```
 
 After generation, open:
@@ -140,7 +139,23 @@ Start the API:
 pnpm dev:api
 ```
 
-Create a profile:
+Plan a single-input profile generation:
+
+```bash
+curl -X POST http://localhost:3001/api/profiles/plan \
+  -H "content-type: application/json" \
+  -d '{ "input": "https://github.com/torvalds" }'
+```
+
+Generate from one input:
+
+```bash
+curl -X POST http://localhost:3001/api/profiles/generate-ai \
+  -H "content-type: application/json" \
+  -d '{ "input": "AI product engineer who built an evidence-backed workflow" }'
+```
+
+The deterministic advanced API still accepts explicit sources:
 
 ```bash
 curl -X POST http://localhost:3001/api/profiles/generate \
@@ -179,6 +194,8 @@ curl "http://localhost:3001/api/search?q=AI%20product%20engineer%20agent%20workf
 Profile generation:
 
 ```text
+POST /api/profiles/plan
+POST /api/profiles/generate-ai
 POST /api/profiles/generate
 GET  /api/profile-runs/:runId
 ```
@@ -220,6 +237,23 @@ POST /api/import/github
 ```
 
 ## Optional LLM Rewrite
+
+## LLM-Powered Generation
+
+LLM generation is disabled by default. Enable OpenAI-compatible planning and claim synthesis with:
+
+```bash
+OPEN_DINQ_ENABLE_LLM_GENERATION=true
+OPEN_DINQ_LLM_PROVIDER=openai-compatible
+OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
+OPEN_DINQ_LLM_API_KEY=...
+# optional:
+OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1
+```
+
+When enabled, OpenDinq uses the LLM to interpret the single input, infer safe sources, plan generation, synthesize evidence-backed claims from connector outputs, and explain warnings. It does not invent sources, does not run web-wide entity search, and discards claims without valid evidence.
+
+If LLM config is missing, `/generate` and `/api/profiles/plan` clearly report deterministic fallback mode.
 
 Card generation is deterministic by default. An experimental evidence-constrained rewrite path is available only when explicitly enabled:
 

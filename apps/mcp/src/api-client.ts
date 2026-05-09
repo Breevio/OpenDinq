@@ -1,5 +1,7 @@
 export type OpenDinqApiClient = {
   generateProfile(input: unknown): Promise<unknown>;
+  planProfileGeneration(input: string): Promise<unknown>;
+  generateProfileAi(input: string, reviewPlan?: boolean): Promise<unknown>;
   getProfileRun(runId: string): Promise<unknown>;
   importGitHubProfile(input: string): Promise<unknown>;
   searchPeople(query: string): Promise<unknown>;
@@ -22,6 +24,18 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
       return request(`${baseUrl}/api/profiles/generate`, {
         method: "POST",
         body: JSON.stringify(input)
+      });
+    },
+    planProfileGeneration(input) {
+      return request(`${baseUrl}/api/profiles/plan`, {
+        method: "POST",
+        body: JSON.stringify({ input })
+      });
+    },
+    generateProfileAi(input, reviewPlan) {
+      return request(`${baseUrl}/api/profiles/generate-ai`, {
+        method: "POST",
+        body: JSON.stringify({ input, reviewPlan })
       });
     },
     getProfileRun(runId) {

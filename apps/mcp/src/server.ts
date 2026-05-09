@@ -45,6 +45,29 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   );
 
   server.registerTool(
+    "opendinq_plan_profile_generation",
+    {
+      description: "Plan AI-first OpenDinq profile generation from one URL, id, username, or natural-language request without persisting a profile.",
+      inputSchema: {
+        input: z.string().min(1).describe("Single profile generation input")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_plan_profile_generation(input))
+  );
+
+  server.registerTool(
+    "opendinq_generate_profile_ai",
+    {
+      description: "Generate an OpenDinq profile from one AI-planned input and return plan, run, workspace URL, profile URL, counts, and warnings.",
+      inputSchema: {
+        input: z.string().min(1).describe("Single profile generation input"),
+        reviewPlan: z.boolean().optional().describe("Whether the caller wants the plan returned for review")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_generate_profile_ai(input))
+  );
+
+  server.registerTool(
     "opendinq_get_profile_run",
     {
       description: "Get status and counts for a profile generation run.",

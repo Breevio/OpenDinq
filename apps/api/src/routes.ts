@@ -1,6 +1,15 @@
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
 import { publicRankedClaims } from "@opendinq/core";
-import type { CardRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import type { ArtifactRecord, CardRecord, EvidenceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import {
+  createOpenAICompatibleJsonClient,
+  getLlmGenerationConfig,
+  planProfileGeneration,
+  synthesizeClaimsWithEvidence,
+  type JsonLlmClient,
+  type ProfileGenerationPlan,
+  type SynthesisClaim
+} from "@opendinq/llm";
 import { hybridSearchPeople, type PersonSearchDocument } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -11,6 +20,7 @@ import { createProfileGenerator, getProfileRunSummary } from "./profile-generato
 export type ApiRouteOptions = {
   store: OpenDinqStore;
   fetchImpl?: typeof fetch;
+  llmClient?: JsonLlmClient;
 };
 
 const importGitHubSchema = z.object({
@@ -39,6 +49,11 @@ const profileGenerationSchema = z.object({
       })
     ])
   ).min(1)
+});
+
+const aiProfileInputSchema = z.object({
+  input: z.string().min(1),
+  reviewPlan: z.boolean().optional()
 });
 
 const createNoteCardSchema = z.object({
@@ -88,6 +103,49 @@ export function createApiRoutes(options: ApiRouteOptions) {
     store: options.store,
     fetchImpl: options.fetchImpl,
     githubToken: process.env.GITHUB_TOKEN || undefined
+  });
+  const llmClient = getConfiguredLlmClient(options);
+
+  routes.post("/profiles/plan", async (context) => {
+    try {
+      const body = aiProfileInputSchema.pick({ input: true }).parse(await context.req.json());
+      const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
+      const warnings = llmClient ? plan.warnings : ["LLM generation is not configured; using deterministic fallback.", ...plan.warnings];
+      return context.json({
+        plan: { ...plan, warnings },
+        llmUsed: Boolean(llmClient),
+        warnings
+      });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/profiles/generate-ai", async (context) => {
+    try {
+      const body = aiProfileInputSchema.parse(await context.req.json());
+      const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
+      const warnings = llmClient ? [...plan.warnings] : ["LLM generation is not configured; using deterministic fallback.", ...plan.warnings];
+      const aiGenerator = createProfileGenerator({
+        store: options.store,
+        fetchImpl: options.fetchImpl,
+        githubToken: process.env.GITHUB_TOKEN || undefined,
+        synthesizeClaims: llmClient
+          ? async ({ person, bundles, artifacts, deterministicClaims }) => synthesizeProfileClaims(llmClient, plan, person, bundles, artifacts, deterministicClaims)
+          : undefined
+      });
+      const generated = await aiGenerator.generate(planToGenerationInput(plan));
+
+      return context.json({
+        ...generated,
+        workspaceUrl: `/u/${generated.handle}/workspace`,
+        llmUsed: Boolean(llmClient),
+        plan,
+        warnings: [...new Set([...warnings, ...generated.warnings])]
+      });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
   });
 
   routes.post("/profiles/generate", async (context) => {
@@ -372,6 +430,106 @@ export function createApiRoutes(options: ApiRouteOptions) {
   });
 
   return routes;
+}
+
+function getConfiguredLlmClient(options: ApiRouteOptions): JsonLlmClient | undefined {
+  if (options.llmClient) {
+    return options.llmClient;
+  }
+  const config = getLlmGenerationConfig();
+  return config ? createOpenAICompatibleJsonClient({ ...config, fetchImpl: options.fetchImpl }) : undefined;
+}
+
+function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof profileGenerationSchema> {
+  const sources = plan.sources.map((source) => {
+    if (source.type === "manual") {
+      const input = typeof source.input === "string" ? { note: source.input } : source.input;
+      return {
+        type: "manual" as const,
+        input: {
+          title: stringValue(input.title) ?? plan.inferredPerson.displayName ?? "Manual profile evidence",
+          url: stringValue(input.url),
+          note: stringValue(input.note) ?? stringValue(input.text) ?? plan.rawInput,
+          description: stringValue(input.description)
+        }
+      };
+    }
+    return {
+      type: source.type,
+      input: String(source.input)
+    } as z.infer<typeof profileGenerationSchema>["sources"][number];
+  });
+
+  for (const note of plan.manualNotes) {
+    if (!sources.some((source) => source.type === "manual" && source.input.note === note.text)) {
+      sources.push({
+        type: "manual",
+        input: {
+          title: plan.inferredPerson.displayName ? `${plan.inferredPerson.displayName} note` : "Manual profile note",
+          note: note.text
+        }
+      });
+    }
+  }
+
+  if (sources.length === 0) {
+    sources.push({
+      type: "manual",
+      input: {
+        title: plan.inferredPerson.displayName ? `${plan.inferredPerson.displayName} profile request` : "Manual profile request",
+        note: plan.rawInput
+      }
+    });
+  }
+
+  return {
+    displayName: plan.inferredPerson.displayName,
+    handle: plan.inferredPerson.handle,
+    headline: plan.inferredPerson.headline,
+    sources
+  };
+}
+
+async function synthesizeProfileClaims(
+  client: JsonLlmClient,
+  plan: ProfileGenerationPlan,
+  person: PersonProfileRecord["person"],
+  bundles: Array<{ source: unknown }>,
+  artifacts: ArtifactRecord[],
+  deterministicClaims: ProfileClaimRecord[]
+): Promise<ProfileClaimRecord[]> {
+  const claims = await synthesizeClaimsWithEvidence({
+    inferredPerson: { ...person, ...plan.inferredPerson },
+    sources: bundles.map((bundle) => bundle.source),
+    artifacts,
+    deterministicClaims: deterministicClaims.map(toSynthesisClaim)
+  }, client);
+  return claims.map(fromSynthesisClaim);
+}
+
+function toSynthesisClaim(claim: ProfileClaimRecord): SynthesisClaim {
+  return {
+    id: claim.id,
+    type: claim.type,
+    text: claim.text,
+    confidence: claim.confidence,
+    evidence: claim.evidence
+  };
+}
+
+function fromSynthesisClaim(claim: SynthesisClaim): ProfileClaimRecord {
+  return {
+    id: claim.id,
+    type: claim.type,
+    text: claim.text,
+    confidence: claim.confidence,
+    evidence: claim.evidence as EvidenceRecord[],
+    status: "approved"
+  };
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 async function appendViaGenerator(

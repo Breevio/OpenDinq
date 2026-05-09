@@ -106,9 +106,40 @@ export type ProfileGenerationResponse = {
   handle: string;
   status: string;
   profileUrl: string;
+  workspaceUrl?: string;
   cardsGenerated: number;
   artifactsImported: number;
   claimsGenerated: number;
+  llmUsed?: boolean;
+  plan?: ProfileGenerationPlan;
+  warnings: string[];
+};
+
+export type ProfileGenerationPlan = {
+  rawInput: string;
+  intent: string;
+  confidence: number;
+  inferredPerson: {
+    displayName?: string;
+    handle?: string;
+    headline?: string;
+    aliases?: string[];
+  };
+  sources: Array<{
+    type: string;
+    input: string | Record<string, unknown>;
+    reason: string;
+    confidence: number;
+  }>;
+  manualNotes: Array<{ text: string; reason: string }>;
+  searchQueries: Array<{ query: string; reason: string }>;
+  warnings: string[];
+  questions: string[];
+};
+
+export type ProfilePlanResponse = {
+  plan: ProfileGenerationPlan;
+  llmUsed: boolean;
   warnings: string[];
 };
 

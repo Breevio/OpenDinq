@@ -41,6 +41,8 @@ Approved claims are preferred in public profile and Discover output. Rejected cl
 
 Before claims reach cards or public search, OpenDinq normalizes text/type/confidence/evidence, removes unsupported claims, merges duplicates, preserves evidence refs, and ranks approved high-quality claims first.
 
+When LLM generation is enabled, the LLM may propose higher-level claims from normalized sources and artifacts. Every LLM claim must cite known evidence refs. Claims without evidence or with hallucinated evidence ids are discarded, then the accepted claims pass through the same deterministic quality pipeline.
+
 `Card`
 
 A public profile object generated from claims and artifacts. Non-manual generated cards require evidence.

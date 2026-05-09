@@ -8,7 +8,18 @@ Generate Profile -> Workspace -> Cards -> Public Profile -> Discover
 
 ## Input
 
-`POST /api/profiles/generate` accepts identity fields and one or more sources.
+`POST /api/profiles/generate-ai` accepts one input and plans sources before generation.
+
+```json
+{
+  "input": "Generate a profile from https://github.com/torvalds",
+  "reviewPlan": false
+}
+```
+
+`POST /api/profiles/plan` previews the plan without persisting a profile.
+
+`POST /api/profiles/generate` remains available for advanced deterministic source entry. It accepts identity fields and one or more explicit sources.
 
 ```json
 {
@@ -38,6 +49,22 @@ Supported source types:
 - `arxiv`
 - `orcid`
 - `manual`
+
+## LLM Planning
+
+Enable with:
+
+```bash
+OPEN_DINQ_ENABLE_LLM_GENERATION=true
+OPEN_DINQ_LLM_PROVIDER=openai-compatible
+OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
+OPEN_DINQ_LLM_API_KEY=...
+OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1 # optional
+```
+
+The planner outputs strict JSON with intent, confidence, inferred person fields, sources, manual notes, search queries, warnings, and questions. OpenDinq validates the JSON and rejects hallucinated URLs that were not present in the input.
+
+If no LLM is configured, OpenDinq returns `llmUsed: false` and uses deterministic fallback planning. Natural-language-only input becomes a manual evidence seed with a warning that stronger evidence needs GitHub, website, ORCID, arXiv, or OpenAlex.
 
 ## Output
 

@@ -76,10 +76,18 @@ export type ProfileGenerationSummary = {
   warnings: string[];
 };
 
+export type ProfileClaimSynthesisHook = (input: {
+  person: PersonRecord;
+  bundles: NormalizedSourceBundle[];
+  artifacts: ArtifactRecord[];
+  deterministicClaims: ProfileClaimRecord[];
+}) => Promise<ProfileClaimRecord[]> | ProfileClaimRecord[];
+
 export type ProfileGeneratorOptions = {
   store: OpenDinqStore;
   fetchImpl?: typeof fetch;
   githubToken?: string;
+  synthesizeClaims?: ProfileClaimSynthesisHook;
 };
 
 export function createProfileGenerator(options: ProfileGeneratorOptions) {
@@ -108,7 +116,11 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
         const existing = await options.store.getProfile(person.handle);
         const sources = dedupeIdentitySources([...(existing?.sources ?? []), ...bundles.map((bundle) => toIdentitySource(bundle.source))]);
         const artifacts = dedupeArtifacts([...(existing?.artifacts ?? []), ...bundles.flatMap((bundle) => bundle.artifacts)]);
-        const claims = normalizeClaims([...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)]);
+        const deterministicClaims = [...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)];
+        const synthesizedClaims = options.synthesizeClaims
+          ? await options.synthesizeClaims({ person, bundles, artifacts, deterministicClaims })
+          : deterministicClaims;
+        const claims = normalizeClaims(synthesizedClaims);
 
         if (artifacts.length === 0 && claims.length === 0) {
           throw new Error("Profile generation needs at least one artifact or claim.");
