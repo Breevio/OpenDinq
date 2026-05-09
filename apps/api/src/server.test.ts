@@ -461,10 +461,10 @@ describe("OpenDinq API", () => {
           rawInput: "https://github.com/demo-agent-builder",
           intent: "generate_profile",
           confidence: 0.95,
-          inferredPerson: { handle: "demo-agent-builder" },
-          sources: [{ type: "github", input: "demo-agent-builder", reason: "GitHub URL provided.", confidence: 0.95 }],
-          manualNotes: [],
-          searchQueries: [],
+          subject: { handle: "demo-agent-builder" },
+          sources: [{ type: "github", input: "demo-agent-builder", reason: "GitHub URL provided.", confidence: 0.95, evidenceStatus: "explicit" }],
+          userProvidedClaims: [],
+          missingEvidence: [],
           warnings: [],
           questions: []
         })
@@ -497,16 +497,78 @@ describe("OpenDinq API", () => {
     expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).not.toContain("No evidence claim");
   });
 
+  it("creates a reviewable workspace from natural language without treating user-provided claims as verified evidence", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValueOnce({
+        rawInput: "AI product engineer who built an evidence-backed workflow",
+        intent: "manual_profile",
+        confidence: 0.84,
+        subject: {
+          displayName: "AI Product Engineer",
+          headline: "Evidence-backed workflow builder"
+        },
+        sources: [],
+        userProvidedClaims: [
+          {
+            type: "summary",
+            text: "Built an evidence-backed workflow",
+            confidence: 0.62,
+            evidenceStatus: "user_provided"
+          }
+        ],
+        missingEvidence: [
+          {
+            need: "Public project evidence",
+            reason: "The input describes the work but does not include a public source.",
+            suggestedSource: "GitHub or website"
+          }
+        ],
+        warnings: ["Add a public source to strengthen this profile."],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "AI product engineer who built an evidence-backed workflow" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      status: "needs_review",
+      llmUsed: true,
+      workspaceUrl: "/u/ai-product-engineer/workspace",
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(llmClient.completeJson).toHaveBeenCalledTimes(1);
+
+    const workspaceResponse = await app.request("/api/people/ai-product-engineer/workspace");
+    expect(workspaceResponse.status).toBe(200);
+    const workspaceJson = await workspaceResponse.json();
+    expect(workspaceJson.profile.claims[0]).toMatchObject({
+      text: "Built an evidence-backed workflow",
+      status: "pending"
+    });
+    expect(workspaceJson.profile.artifacts[0].metadata).toMatchObject({
+      source: "manual",
+      evidenceStatus: "user_provided"
+    });
+  });
+
   it("does not run LLM claim synthesis for source-review fallback profiles", async () => {
     const llmClient = {
       completeJson: vi.fn().mockResolvedValueOnce({
         rawInput: "https://github.com/-bad-user",
         intent: "generate_profile",
         confidence: 0.9,
-        inferredPerson: { handle: "rate-limited-builder" },
-        sources: [{ type: "github", input: "-bad-user", reason: "GitHub URL provided.", confidence: 0.9 }],
-        manualNotes: [],
-        searchQueries: [],
+        subject: { handle: "rate-limited-builder" },
+        sources: [{ type: "github", input: "-bad-user", reason: "GitHub URL provided.", confidence: 0.9, evidenceStatus: "explicit" }],
+        userProvidedClaims: [],
+        missingEvidence: [],
         warnings: [],
         questions: []
       })

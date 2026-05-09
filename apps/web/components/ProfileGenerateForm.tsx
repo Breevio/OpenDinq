@@ -6,9 +6,9 @@ import { apiRequest, type ProfileGenerationResponse, type ProfilePlanResponse } 
 const EXAMPLES = [
   "https://github.com/torvalds",
   "torvalds",
-  "0000-0002-1825-0097",
-  "https://example.com/about",
-  "AI product engineer who built an evidence-backed workflow"
+  "Generate a profile for Linus Torvalds",
+  "AI product engineer who built an evidence-backed workflow",
+  "https://example.com/about"
 ];
 
 export function ProfileGenerateForm() {
@@ -114,7 +114,7 @@ export function ProfileGenerateForm() {
             aria-label="Profile generation input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Paste a URL, GitHub username, ORCID, arXiv id, website, or describe the person..."
+            placeholder="Paste a URL, GitHub handle, ORCID, arXiv id, website, or describe the person..."
           />
           <div className="example-chips" aria-label="Examples">
             {EXAMPLES.map((example) => (
@@ -212,21 +212,33 @@ function PlanPreview({ response }: { response: ProfilePlanResponse }) {
         <span>{plan.intent}</span>
         <span>{Math.round(plan.confidence * 100)}% confidence</span>
       </div>
-      {response.warnings.length ? <p className="status error">{response.warnings.join(" ")}</p> : null}
+      {response.warnings.length ? <p className="status warning">{response.warnings.join(" ")}</p> : null}
       <div className="plan-grid">
         <div>
           <strong>Inferred person</strong>
-          <span>{plan.inferredPerson.displayName ?? "Unknown"}</span>
-          {plan.inferredPerson.handle ? <span>{plan.inferredPerson.handle}</span> : null}
-          {plan.inferredPerson.headline ? <span>{plan.inferredPerson.headline}</span> : null}
+          <span>{plan.subject.displayName ?? "Unknown"}</span>
+          {plan.subject.handle ? <span>{plan.subject.handle}</span> : null}
+          {plan.subject.headline ? <span>{plan.subject.headline}</span> : null}
         </div>
         <div>
           <strong>Sources to use</strong>
           {plan.sources.length ? plan.sources.map((source) => (
-            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.type}: {typeof source.input === "string" ? source.input : JSON.stringify(source.input)}</span>
+            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.type}: {typeof source.input === "string" ? source.input : JSON.stringify(source.input)} ({source.evidenceStatus})</span>
           )) : <span>No reliable public source yet</span>}
         </div>
       </div>
+      {plan.userProvidedClaims.length ? (
+        <div className="plan-grid">
+          <div>
+            <strong>User-provided claims</strong>
+            {plan.userProvidedClaims.map((claim) => <span key={claim.text}>{claim.text}</span>)}
+          </div>
+          <div>
+            <strong>Missing evidence</strong>
+            {plan.missingEvidence.map((item) => <span key={item.need}>{item.need}: {item.suggestedSource ?? item.reason}</span>)}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -242,7 +254,7 @@ function GenerationResult({ result, input }: { result: ProfileGenerationResponse
         <span>{result.claimsGenerated} claims</span>
         <span>{result.cardsGenerated} cards</span>
       </div>
-      {result.warnings.length ? <p className="status error">{result.warnings.join(" ")}</p> : null}
+      {result.warnings.length ? <p className="status warning">{result.warnings.join(" ")}</p> : null}
       <div className="actions">
         <a href={result.workspaceUrl ?? `/u/${result.handle}/workspace`}>Open workspace</a>
         <a href={result.profileUrl}>View public profile</a>

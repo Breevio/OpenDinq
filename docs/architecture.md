@@ -93,11 +93,11 @@ The score breakdown includes claim, card, artifact, skill, evidence, publish boo
 
 ## Optional LLM Layer
 
-LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_PROVIDER=openai-compatible`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API can plan single-input generation and synthesize evidence-backed claims from connector outputs.
+LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API uses an LLM-first planner to convert raw input into one `ProfileGenerationPlan`. `OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL` may point directly at a provider endpoint; `OPEN_DINQ_LLM_BASE_URL` remains supported. Slow or invalid provider responses fall back to local planning with `llmUsed: false`; `OPEN_DINQ_LLM_TIMEOUT_MS` and `OPEN_DINQ_LLM_MAX_TOKENS` can tune provider behavior.
 
 LLM rewrite is separately gated by `OPEN_DINQ_ENABLE_LLM_REWRITE=true`. Generated cards are still deterministic first; the helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
 
-OpenDinq does not invent sources and does not perform production web-wide entity search. If natural-language input has no reliable public source, the generator creates a manual profile seed and warns that evidence is weak.
+OpenDinq does not invent sources and does not perform production web-wide entity search. Natural-language input becomes user-provided claims plus missing-evidence prompts. Connector failures should create a reviewable workspace instead of failing the whole run.
 
 ## MCP
 

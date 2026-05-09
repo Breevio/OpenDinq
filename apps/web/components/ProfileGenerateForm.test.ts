@@ -7,7 +7,7 @@ const source = readFileSync(resolve(__dirname, "ProfileGenerateForm.tsx"), "utf8
 describe("/generate AI-first UI", () => {
   it("uses a single primary input and preview plan action", () => {
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("Paste a URL, GitHub username, ORCID, arXiv id, website, or describe the person");
+    expect(source).toContain("Paste a URL, GitHub handle, ORCID, arXiv id, website, or describe the person");
     expect(source).toContain("Preview plan");
     expect(source).toContain("/api/profiles/plan");
     expect(source).toContain("/api/profiles/generate-ai");

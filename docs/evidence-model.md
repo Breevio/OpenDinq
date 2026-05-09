@@ -2,6 +2,15 @@
 
 OpenDinq generates profiles from evidence, not from unsupported text.
 
+Evidence status is explicit in the generation plan:
+
+- `explicit`: the user provided a public source or a connector returned an artifact
+- `user_provided`: the user wrote the information, but OpenDinq has not verified it
+- `inferred`: the LLM suggested a possibility, not evidence
+- `missing`: evidence needed but absent
+
+Public profiles and Discover should prefer explicit evidence. User-provided claims can help create a review workspace, but they are not verified evidence.
+
 ## Core Objects
 
 `ProfileGenerationRun`
@@ -42,6 +51,8 @@ Approved claims are preferred in public profile and Discover output. Rejected cl
 Before claims reach cards or public search, OpenDinq normalizes text/type/confidence/evidence, removes unsupported claims, merges duplicates, preserves evidence refs, and ranks approved high-quality claims first.
 
 When LLM generation is enabled, the LLM may propose higher-level claims from normalized sources and artifacts. Every LLM claim must cite known evidence refs. Claims without evidence or with hallucinated evidence ids are discarded, then the accepted claims pass through the same deterministic quality pipeline.
+
+Natural-language-only generation creates pending user-provided claims and missing-evidence prompts. OpenDinq should not describe those claims as evidence-backed until a public source is added.
 
 `Card`
 

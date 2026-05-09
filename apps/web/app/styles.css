@@ -279,6 +279,20 @@ button:disabled {
   color: var(--accent);
 }
 
+.warning {
+  color: #8a5a00;
+}
+
+.review-note {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+
 .result-strip {
   align-items: center;
   display: flex;

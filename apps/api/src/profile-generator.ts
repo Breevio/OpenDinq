@@ -283,18 +283,23 @@ async function normalizeSource(
   }
 
   const manual = source.input as ManualSourceInput;
+  const manualEvidenceStatus = manual.url ? "explicit" : "user_provided";
   const artifact = manual.url || manual.title ? {
     type: manual.url ? "project" : "note",
     title: manual.title ?? manual.note ?? "Manual note",
     description: manual.description ?? manual.note,
     url: manual.url,
-    metadata: { source: "manual" },
+    metadata: { source: "manual", evidenceStatus: manualEvidenceStatus },
     evidenceRaw: manual
   } satisfies ArtifactRecord : undefined;
-  const evidence = artifact ? evidenceForArtifact(artifact, "Manual source supplied by the profile creator.") : evidenceForSource("manual", undefined, "Manual note supplied by the profile creator.");
-  return bundleFrom("manual", runId, manual.url, manual, {}, artifact ? [artifact] : [], [
-    claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", 0.7, evidence)
+  const evidence = artifact ? evidenceForArtifact(artifact, manual.url ? "Manual public source supplied by the profile creator." : "User-provided information; add public evidence before treating it as verified.") : evidenceForSource("manual", undefined, "User-provided information; add public evidence before treating it as verified.");
+  const bundle = bundleFrom("manual", runId, manual.url, manual, {}, artifact ? [artifact] : [], [
+    { ...claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", manual.url ? 0.7 : 0.45, evidence), status: manual.url ? "approved" : "pending" }
   ]);
+  return manual.url ? bundle : {
+    ...bundle,
+    warnings: ["This profile was generated from user-provided information. Add public sources to strengthen evidence."]
+  };
 }
 
 function bundleFrom(
@@ -484,6 +489,7 @@ async function maybeRewriteCards(cards: CardRecord[], claims: ProfileClaimRecord
   const client = createOpenAICompatibleRewriteClient({
     apiKey,
     baseUrl: process.env.OPEN_DINQ_LLM_BASE_URL,
+    chatCompletionsUrl: process.env.OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL,
     model: process.env.OPEN_DINQ_LLM_MODEL
   });
   const allowedClaims = claims.filter((claim) => claim.status !== "rejected");

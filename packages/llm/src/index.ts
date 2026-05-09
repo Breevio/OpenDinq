@@ -1,3 +1,5 @@
+import { normalizeChatCompletionsUrl } from "./openai-compatible.js";
+
 export const LLM_FEATURE_STATUS = "optional-evidence-constrained-generation-and-card-rewrite";
 
 export type RewriteEvidenceRef = {
@@ -67,16 +69,17 @@ export function isLlmRewriteEnabled(env: Record<string, string | undefined> = pr
 export function createOpenAICompatibleRewriteClient(options: {
   apiKey: string;
   baseUrl?: string;
+  chatCompletionsUrl?: string;
   model?: string;
   fetchImpl?: typeof fetch;
 }): LlmRewriteClient {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = options.baseUrl ?? "https://api.openai.com/v1";
+  const chatCompletionsUrl = normalizeChatCompletionsUrl(options.chatCompletionsUrl ?? options.baseUrl);
   const model = options.model ?? "gpt-4.1-mini";
 
   return {
     async rewrite(input) {
-      const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      const response = await fetchImpl(chatCompletionsUrl, {
         method: "POST",
         headers: {
           authorization: `Bearer ${options.apiKey}`,

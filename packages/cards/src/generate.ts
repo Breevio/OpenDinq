@@ -94,14 +94,15 @@ function maybeSummaryCard(person: CardPerson, artifacts: CardArtifact[], claims:
   }
   const themes = topThemes(summaryClaims, artifacts);
   const bullets = summaryClaims.slice(0, 3).map((claim) => `- ${claim.text}`);
+  const hasPublicEvidence = evidence.some(isPublicEvidence);
 
   return {
     type: "summary",
     title: `${person.displayName} profile`,
     contentMd: [
       `# ${person.displayName}`,
-      person.headline ?? person.bio ?? (themes.join(", ") || "Evidence-backed public profile."),
-      themes.length ? `Strongest evidence themes: ${themes.join(", ")}.` : undefined,
+      person.headline ?? person.bio ?? (themes.join(", ") || (hasPublicEvidence ? "Evidence-backed public profile." : "Review profile generated from user-provided information.")),
+      hasPublicEvidence && themes.length ? `Strongest evidence themes: ${themes.join(", ")}.` : undefined,
       ...bullets
     ].filter(Boolean).join("\n\n"),
     dataJson: {
@@ -436,6 +437,11 @@ function isResearchArtifact(artifact: CardArtifact): boolean {
 
 function roundScore(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function isPublicEvidence(evidence: EvidenceRef): boolean {
+  const reason = evidence.reason.toLowerCase();
+  return !reason.includes("user-provided") && !reason.includes("add public evidence");
 }
 
 function dedupeEvidence(evidence: EvidenceRef[]): EvidenceRef[] {

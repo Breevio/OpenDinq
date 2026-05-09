@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { isLlmRewriteEnabled, rewriteCardWithEvidence, type LlmRewriteClient, type LlmRewriteInput } from "./index.js";
+import { createOpenAICompatibleJsonClient, normalizeChatCompletionsUrl } from "./openai-compatible.js";
 
 const input: LlmRewriteInput = {
   draftCard: {
@@ -59,5 +60,23 @@ describe("evidence-constrained LLM rewrite", () => {
   it("is disabled unless env and key are present", () => {
     expect(isLlmRewriteEnabled({ OPEN_DINQ_ENABLE_LLM_REWRITE: "true" })).toBe(false);
     expect(isLlmRewriteEnabled({ OPEN_DINQ_ENABLE_LLM_REWRITE: "true", OPENAI_API_KEY: "key" })).toBe(true);
+  });
+
+  it("accepts either provider base URL or full chat completions URL", async () => {
+    expect(normalizeChatCompletionsUrl("https://integrate.api.nvidia.com/v1")).toBe("https://integrate.api.nvidia.com/v1/chat/completions");
+    expect(normalizeChatCompletionsUrl("https://integrate.api.nvidia.com/v1/chat/completions")).toBe("https://integrate.api.nvidia.com/v1/chat/completions");
+
+    const fetchImpl = vi.fn().mockResolvedValue(Response.json({
+      choices: [{ message: { content: "{\"ok\":true}" } }]
+    }));
+    const client = createOpenAICompatibleJsonClient({
+      apiKey: "key",
+      model: "z-ai/glm-5.1",
+      baseUrl: "https://integrate.api.nvidia.com/v1/chat/completions",
+      fetchImpl
+    });
+
+    await expect(client.completeJson({ system: "JSON only", user: "{}" })).resolves.toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledWith("https://integrate.api.nvidia.com/v1/chat/completions", expect.any(Object));
   });
 });

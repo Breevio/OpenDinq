@@ -5,6 +5,9 @@ export type LlmRuntimeConfig = {
   model: string;
   apiKey: string;
   baseUrl?: string;
+  chatCompletionsUrl?: string;
+  timeoutMs?: number;
+  maxTokens?: number;
 };
 
 export function getLlmGenerationConfig(env: Record<string, string | undefined> = process.env): LlmRuntimeConfig | undefined {
@@ -23,7 +26,10 @@ export function getLlmGenerationConfig(env: Record<string, string | undefined> =
     provider: "openai-compatible",
     model,
     apiKey,
-    baseUrl: env.OPEN_DINQ_LLM_BASE_URL
+    baseUrl: env.OPEN_DINQ_LLM_BASE_URL,
+    chatCompletionsUrl: env.OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL,
+    timeoutMs: parsePositiveInteger(env.OPEN_DINQ_LLM_TIMEOUT_MS),
+    maxTokens: parsePositiveInteger(env.OPEN_DINQ_LLM_MAX_TOKENS)
   };
 }
 
@@ -35,15 +41,23 @@ export function createOpenAICompatibleJsonClient(options: {
   apiKey: string;
   model: string;
   baseUrl?: string;
+  chatCompletionsUrl?: string;
+  timeoutMs?: number;
+  maxTokens?: number;
   fetchImpl?: typeof fetch;
 }): JsonLlmClient {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = options.baseUrl ?? "https://api.openai.com/v1";
+  const chatCompletionsUrl = normalizeChatCompletionsUrl(options.chatCompletionsUrl ?? options.baseUrl);
+  const timeoutMs = options.timeoutMs ?? 35000;
+  const maxTokens = options.maxTokens ?? 1200;
 
   return {
     async completeJson(input) {
-      const response = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetchImpl(chatCompletionsUrl, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           authorization: `Bearer ${options.apiKey}`,
           "content-type": "application/json"
@@ -51,13 +65,14 @@ export function createOpenAICompatibleJsonClient(options: {
         body: JSON.stringify({
           model: options.model,
           temperature: 0.1,
+          max_tokens: maxTokens,
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: input.system },
             { role: "user", content: input.user }
           ]
         })
-      });
+      }).finally(() => clearTimeout(timeout));
       if (!response.ok) {
         throw new Error(`LLM JSON call failed with ${response.status}`);
       }
@@ -69,4 +84,17 @@ export function createOpenAICompatibleJsonClient(options: {
       return JSON.parse(content) as unknown;
     }
   };
+}
+
+export function normalizeChatCompletionsUrl(baseUrl?: string): string {
+  const configured = (baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
+  return configured.endsWith("/chat/completions") ? configured : `${configured}/chat/completions`;
+}
+
+function parsePositiveInteger(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }

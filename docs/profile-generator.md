@@ -59,18 +59,21 @@ OPEN_DINQ_ENABLE_LLM_GENERATION=true
 OPEN_DINQ_LLM_PROVIDER=openai-compatible
 OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
 OPEN_DINQ_LLM_API_KEY=...
+OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL=https://api.openai.com/v1/chat/completions # optional
 OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1 # optional
+OPEN_DINQ_LLM_TIMEOUT_MS=35000 # optional
+OPEN_DINQ_LLM_MAX_TOKENS=1200 # optional
 ```
 
-The planner outputs strict JSON with intent, confidence, inferred person fields, sources, manual notes, search queries, warnings, and questions. OpenDinq validates the JSON and rejects hallucinated URLs that were not present in the input.
+The planner outputs strict JSON with intent, confidence, subject, explicit sources, user-provided claims, missing evidence, warnings, and questions. OpenDinq validates the JSON and rejects hallucinated URLs that were not present in the input.
 
-If no LLM is configured, OpenDinq returns `llmUsed: false` and uses deterministic fallback planning. Natural-language-only input becomes a manual evidence seed with a warning that stronger evidence needs GitHub, website, ORCID, arXiv, or OpenAlex.
+If no LLM is configured, the LLM times out, or the provider returns unusable JSON, OpenDinq returns `llmUsed: false` and uses local fallback planning. Natural-language-only input becomes a manual evidence seed and still creates a reviewable workspace. User-provided claims are not verified evidence.
 
 ## Output
 
 The response includes the run id, generated handle, card count, artifact count, claim count, and warnings.
 
-Warnings do not always fail the run. If at least one source produces useful evidence, the run can complete with `needs_review`.
+Warnings do not fail the run by default. Weak evidence and connector failures produce `needs_review`, not hard failure. GitHub rate limits should create a review workspace with source warnings; add `GITHUB_TOKEN` for stronger imports.
 
 After generation, the web flow sends users to `/u/:handle/workspace` first. The workspace shows sources, generated claims, cards, readiness, publish status, and links to the public profile and Discover.
 

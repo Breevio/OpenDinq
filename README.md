@@ -248,12 +248,15 @@ OPEN_DINQ_LLM_PROVIDER=openai-compatible
 OPEN_DINQ_LLM_MODEL=gpt-4.1-mini
 OPEN_DINQ_LLM_API_KEY=...
 # optional:
+OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL=https://api.openai.com/v1/chat/completions
 OPEN_DINQ_LLM_BASE_URL=https://api.openai.com/v1
+OPEN_DINQ_LLM_TIMEOUT_MS=35000
+OPEN_DINQ_LLM_MAX_TOKENS=1200
 ```
 
-When enabled, OpenDinq uses the LLM to interpret the single input, infer safe sources, plan generation, synthesize evidence-backed claims from connector outputs, and explain warnings. It does not invent sources, does not run web-wide entity search, and discards claims without valid evidence.
+When enabled, OpenDinq is LLM-first for planning: raw input becomes one `ProfileGenerationPlan`, then OpenDinq executes explicit sources and opens a review workspace. User-provided descriptions become user-provided claims, not verified evidence. OpenDinq does not invent sources, does not run web-wide entity search, and never pretends missing evidence exists.
 
-If LLM config is missing, `/generate` and `/api/profiles/plan` clearly report deterministic fallback mode.
+If LLM config is missing, times out, or returns unusable JSON, `/generate` and `/api/profiles/plan` use local fallback planning and return `llmUsed: false`. Natural-language-only input still creates a reviewable workspace. Connector failures, including GitHub rate limits, should not block workspace creation; a GitHub token is still recommended for real imports.
 
 Card generation is deterministic by default. An experimental evidence-constrained rewrite path is available only when explicitly enabled:
 

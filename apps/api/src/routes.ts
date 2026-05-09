@@ -110,10 +110,11 @@ export function createApiRoutes(options: ApiRouteOptions) {
     try {
       const body = aiProfileInputSchema.pick({ input: true }).parse(await context.req.json());
       const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
-      const warnings = llmClient ? plan.warnings : ["LLM generation is not configured; using deterministic fallback.", ...plan.warnings];
+      const warnings = plan.warnings;
+      const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
       return context.json({
         plan: { ...plan, warnings },
-        llmUsed: Boolean(llmClient),
+        llmUsed,
         warnings
       });
     } catch (error) {
@@ -125,12 +126,13 @@ export function createApiRoutes(options: ApiRouteOptions) {
     try {
       const body = aiProfileInputSchema.parse(await context.req.json());
       const plan = await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {});
-      const warnings = llmClient ? [...plan.warnings] : ["LLM generation is not configured; using deterministic fallback.", ...plan.warnings];
+      const warnings = [...plan.warnings];
+      const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
       const aiGenerator = createProfileGenerator({
         store: options.store,
         fetchImpl: options.fetchImpl,
         githubToken: process.env.GITHUB_TOKEN || undefined,
-        synthesizeClaims: llmClient
+        synthesizeClaims: llmClient && llmUsed
           ? async ({ person, bundles, artifacts, deterministicClaims }) => synthesizeProfileClaims(llmClient, plan, person, bundles, artifacts, deterministicClaims)
           : undefined
       });
@@ -139,7 +141,7 @@ export function createApiRoutes(options: ApiRouteOptions) {
       return context.json({
         ...generated,
         workspaceUrl: `/u/${generated.handle}/workspace`,
-        llmUsed: Boolean(llmClient),
+        llmUsed,
         plan,
         warnings: [...new Set([...warnings, ...generated.warnings])]
       });
@@ -440,6 +442,10 @@ function getConfiguredLlmClient(options: ApiRouteOptions): JsonLlmClient | undef
   return config ? createOpenAICompatibleJsonClient({ ...config, fetchImpl: options.fetchImpl }) : undefined;
 }
 
+function usedLocalFallback(warnings: string[]): boolean {
+  return warnings.some((warning) => warning.includes("using local fallback planning"));
+}
+
 function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof profileGenerationSchema> {
   const sources = plan.sources.map((source) => {
     if (source.type === "manual") {
@@ -447,10 +453,10 @@ function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof prof
       return {
         type: "manual" as const,
         input: {
-          title: stringValue(input.title) ?? plan.inferredPerson.displayName ?? "Manual profile evidence",
+          title: stringValue(input.title) ?? plan.subject.displayName ?? "Manual profile evidence",
           url: stringValue(input.url),
           note: stringValue(input.note) ?? stringValue(input.text) ?? plan.rawInput,
-          description: stringValue(input.description)
+          description: stringValue(input.description) ?? "User-provided information. This is not verified public evidence."
         }
       };
     }
@@ -460,13 +466,14 @@ function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof prof
     } as z.infer<typeof profileGenerationSchema>["sources"][number];
   });
 
-  for (const note of plan.manualNotes) {
-    if (!sources.some((source) => source.type === "manual" && source.input.note === note.text)) {
+  for (const claim of plan.userProvidedClaims) {
+    if (!sources.some((source) => source.type === "manual" && source.input.note === claim.text)) {
       sources.push({
         type: "manual",
         input: {
-          title: plan.inferredPerson.displayName ? `${plan.inferredPerson.displayName} note` : "Manual profile note",
-          note: note.text
+          title: plan.subject.displayName ? `${plan.subject.displayName} user-provided claim` : "User-provided claim",
+          note: claim.text,
+          description: "User-provided claim. Add public evidence before treating it as verified."
         }
       });
     }
@@ -476,16 +483,17 @@ function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof prof
     sources.push({
       type: "manual",
       input: {
-        title: plan.inferredPerson.displayName ? `${plan.inferredPerson.displayName} profile request` : "Manual profile request",
-        note: plan.rawInput
+        title: plan.subject.displayName ? `${plan.subject.displayName} profile request` : "Manual profile request",
+        note: plan.rawInput,
+        description: plan.missingEvidence.map((item) => `${item.need}: ${item.reason}`).join(" ") || "Review workspace created without verified public evidence."
       }
     });
   }
 
   return {
-    displayName: plan.inferredPerson.displayName,
-    handle: plan.inferredPerson.handle,
-    headline: plan.inferredPerson.headline,
+    displayName: plan.subject.displayName,
+    handle: plan.subject.handle,
+    headline: plan.subject.headline,
     sources
   };
 }
@@ -498,12 +506,12 @@ async function synthesizeProfileClaims(
   artifacts: ArtifactRecord[],
   deterministicClaims: ProfileClaimRecord[]
 ): Promise<ProfileClaimRecord[]> {
-  if (artifacts.length === 0 || artifacts.every((artifact) => artifact.metadata?.source === "opendinq-review")) {
+  if (artifacts.length === 0 || artifacts.every((artifact) => artifact.metadata?.source === "opendinq-review" || artifact.metadata?.evidenceStatus === "user_provided")) {
     return deterministicClaims;
   }
 
   const claims = await synthesizeClaimsWithEvidence({
-    inferredPerson: { ...person, ...plan.inferredPerson },
+    inferredPerson: { ...person, ...plan.subject },
     sources: bundles.map((bundle) => bundle.source),
     artifacts,
     deterministicClaims: deterministicClaims.map(toSynthesisClaim)

@@ -119,7 +119,7 @@ export type ProfileGenerationPlan = {
   rawInput: string;
   intent: string;
   confidence: number;
-  inferredPerson: {
+  subject: {
     displayName?: string;
     handle?: string;
     headline?: string;
@@ -128,13 +128,19 @@ export type ProfileGenerationPlan = {
   sources: Array<{
     type: string;
     input: string | Record<string, unknown>;
-    reason: string;
     confidence: number;
+    reason: string;
+    evidenceStatus: "explicit" | "inferred" | "user_provided";
   }>;
-  manualNotes: Array<{ text: string; reason: string }>;
-  searchQueries: Array<{ query: string; reason: string }>;
-  warnings: string[];
+  userProvidedClaims: Array<{
+    text: string;
+    type: string;
+    confidence: number;
+    evidenceStatus: "user_provided";
+  }>;
+  missingEvidence: Array<{ need: string; reason: string; suggestedSource?: string }>;
   questions: string[];
+  warnings: string[];
 };
 
 export type ProfilePlanResponse = {
