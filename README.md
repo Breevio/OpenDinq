@@ -1,22 +1,22 @@
 # OpenDinq
 
-OpenDinq is an open-source product alpha for evidence-backed AI-native profile generation and people discovery.
+Evidence-backed AI-native profile generation and people discovery.
 
-It turns public or user-provided sources into claims, cards, public profiles, searchable evidence, and MCP/API automation.
+OpenDinq helps you generate a structured profile from public or user-provided sources, review the claims behind it, curate profile cards, publish a shareable profile, and search people with evidence.
 
 ```text
-Generate Profile -> Workspace -> Cards -> Public Profile -> Discover -> MCP/API automation
+Generate Profile -> Workspace -> Claim Review -> Card Curation -> Public Profile -> Discover
 ```
 
-## What You Can Do
+## What It Does
 
-- Generate a profile from GitHub, website, OpenAlex, arXiv, ORCID, manual artifacts, or notes.
-- Review evidence-backed claims in a local profile workspace.
-- Curate cards by editing, reordering, hiding, regenerating, or adding manual note cards.
-- Publish or draft a profile in local-alpha mode.
-- Share a card-first public profile.
-- Search Discover for people by claims, cards, artifacts, skills, and evidence.
-- Use MCP tools to generate profiles, update cards/claims, publish profiles, and search people.
+- Generates profiles from GitHub, websites, OpenAlex, arXiv, ORCID, manual links, and notes.
+- Turns source data into evidence-backed claims.
+- Builds DINQ-style profile cards from claims, artifacts, and evidence.
+- Provides a local workspace for reviewing claims and editing cards.
+- Publishes a card-first public profile page.
+- Searches people by skills, claims, cards, artifacts, and evidence.
+- Exposes API and MCP tools for automation.
 
 ## Screenshots
 
@@ -29,91 +29,246 @@ Generate Profile -> Workspace -> Cards -> Public Profile -> Discover -> MCP/API 
 
 - Node.js 22+
 - pnpm 10+
-- Optional: Docker Desktop for Postgres
+- Optional: Docker Desktop if you want Postgres persistence
 - Optional: `GITHUB_TOKEN` for higher GitHub API rate limits
 
-## Quickstart
+Check your versions:
+
+```bash
+node --version
+pnpm --version
+```
+
+## Start From Zero
+
+Clone the repo:
+
+```bash
+git clone https://github.com/Breevio/OpenDinq.git
+cd OpenDinq
+```
+
+Install dependencies:
 
 ```bash
 pnpm install
+```
+
+Start the API and web app:
+
+```bash
 pnpm dev
 ```
 
-Open:
+Open the app:
 
-- http://localhost:3000/
-- http://localhost:3000/generate
-- http://localhost:3000/discover
-- http://localhost:3000/u/demo-agent-builder
+- Web: http://localhost:3000
+- Generate: http://localhost:3000/generate
+- Discover: http://localhost:3000/discover
+- Demo profile: http://localhost:3000/u/demo-agent-builder
+- API health: http://localhost:3001/health
 
-The API starts with demo profiles, so Discover works without external keys.
+The default runtime uses in-memory demo data, so you can try the product without setting up a database or API keys.
 
-## Generate A Profile
+## Generate Your First Profile
+
+1. Open http://localhost:3000/generate.
+2. Fill in a display name and handle.
+3. Add at least one source.
+4. Click **Generate profile**.
+5. Open the generated workspace.
+
+For the simplest first run, use only manual data:
+
+```text
+Display name: Ada Builder
+Handle: ada-builder
+Headline: AI product engineer
+Manual link title: Built an agent workflow
+Manual link URL: https://example.com/agent-workflow
+Manual note: Designed and shipped an evidence-backed AI workflow for profile generation.
+```
+
+After generation, open:
+
+```text
+http://localhost:3000/u/ada-builder/workspace
+```
+
+The workspace lets you:
+
+- review generated claims
+- approve, reject, or mark claims as pending
+- edit card titles and markdown
+- change card visibility
+- reorder cards
+- regenerate deterministic cards
+- add manual note cards
+- publish or move the profile back to draft
+
+## Try Discover
+
+Open http://localhost:3000/discover and search with natural language.
+
+Useful demo queries:
+
+```text
+AI agent builders with TypeScript and MCP
+researchers working on language models
+open-source infrastructure engineers
+people with strong evidence in product design
+profiles with manual notes about startups
+```
+
+Search results show:
+
+- match score
+- explanation
+- matched claims
+- matched cards
+- matched artifacts
+- evidence snippets
+- link to the public profile
+
+## Generate Through The API
+
+Start the API:
+
+```bash
+pnpm dev:api
+```
+
+Create a profile:
 
 ```bash
 curl -X POST http://localhost:3001/api/profiles/generate \
   -H "content-type: application/json" \
   -d '{
-    "displayName": "Demo Agent Builder",
-    "handle": "demo-agent-builder",
-    "headline": "AI agent engineer",
+    "displayName": "Ada Builder",
+    "handle": "ada-builder",
+    "headline": "AI product engineer",
     "sources": [
-      { "type": "github", "input": "demo-agent-builder" },
-      { "type": "website", "input": "https://example.com" },
       {
         "type": "manual",
         "input": {
-          "title": "Built MCP tools",
-          "url": "https://example.com/project",
-          "note": "Built MCP tools for profile automation."
+          "title": "Built an agent workflow",
+          "url": "https://example.com/agent-workflow",
+          "note": "Designed and shipped an evidence-backed AI workflow for profile generation."
         }
       }
     ]
   }'
 ```
 
-Useful URLs after generation:
+Check the generated profile:
 
-- `/u/:handle/workspace` for claim review, card curation, and publishing.
-- `/u/:handle` for the public profile.
-- `/discover?q=...` for evidence-backed people search.
+```bash
+curl http://localhost:3001/api/people/ada-builder
+```
 
-## API Highlights
+Search:
+
+```bash
+curl "http://localhost:3001/api/search?q=AI%20product%20engineer%20agent%20workflow"
+```
+
+## API Routes
+
+Profile generation:
 
 ```text
-POST  /api/profiles/generate
-GET   /api/profile-runs/:runId
+POST /api/profiles/generate
+GET  /api/profile-runs/:runId
+```
+
+Profiles and workspace:
+
+```text
 GET   /api/people/:handle
 GET   /api/people/:handle/workspace
+PATCH /api/people/:handle/publish
+```
+
+Claims:
+
+```text
 GET   /api/people/:handle/claims
 PATCH /api/claims/:claimId
+```
+
+Cards:
+
+```text
 GET   /api/people/:handle/cards
 PATCH /api/cards/:cardId
 POST  /api/cards/:cardId/regenerate
 POST  /api/people/:handle/cards/manual-note
-PATCH /api/people/:handle/publish
-GET   /api/search?q=...
 ```
 
-`POST /api/import/github` remains available as a compatibility wrapper around profile generation.
+Search:
+
+```text
+GET /api/search?q=...
+```
+
+Compatibility:
+
+```text
+POST /api/import/github
+```
 
 ## Runtime Modes
 
-OpenDinq uses MemoryStore by default. It is fast and requires no database, but imported data is lost when the API restarts.
+### MemoryStore
 
-To persist data with Postgres:
+MemoryStore is the default when `DATABASE_URL` is not set.
+
+Use it for local demos and development:
+
+```bash
+pnpm dev
+```
+
+Data is not persisted after the API process restarts.
+
+### PrismaStore With Postgres
+
+Use Postgres when you want imported profiles to persist.
+
+Start Postgres:
 
 ```bash
 docker compose up -d postgres
+```
+
+Generate Prisma Client and run migrations:
+
+```bash
 pnpm db:generate
 pnpm db:migrate
+```
+
+Verify the DB runtime:
+
+```bash
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm verify:db
+```
+
+Start the API with Postgres:
+
+```bash
 DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:api
 ```
 
-Without `DATABASE_URL`, the API uses MemoryStore.
+Start the web app in another terminal:
+
+```bash
+pnpm dev:web
+```
 
 ## MCP
+
+OpenDinq includes an API-backed MCP server for tools such as profile generation, search, claim updates, card updates, and publishing.
 
 Start the API:
 
@@ -127,25 +282,27 @@ Start the MCP server:
 OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/mcp start
 ```
 
-Primary tools:
+Available tools include:
 
-- `opendinq_generate_profile`
-- `opendinq_get_profile_run`
-- `opendinq_get_profile_workspace`
-- `opendinq_update_claim`
-- `opendinq_update_card`
-- `opendinq_regenerate_card`
-- `opendinq_publish_profile`
-- `opendinq_search_people`
-- `opendinq_get_profile`
-- `opendinq_get_evidence`
-- `opendinq_create_note_card`
-- `opendinq_import_github_profile`
-- `opendinq_list_cards`
+```text
+opendinq_generate_profile
+opendinq_get_profile_run
+opendinq_get_profile_workspace
+opendinq_update_claim
+opendinq_update_card
+opendinq_regenerate_card
+opendinq_publish_profile
+opendinq_search_people
+opendinq_get_profile
+opendinq_get_evidence
+opendinq_create_note_card
+opendinq_import_github_profile
+opendinq_list_cards
+```
 
-Config examples live in `examples/mcp/`.
+Example client configs are in [`examples/mcp`](./examples/mcp).
 
-## Commands
+## Development Commands
 
 ```bash
 pnpm dev              # Start API and web app
@@ -163,7 +320,55 @@ pnpm build            # Build all workspaces
 pnpm check            # Install, type-check, test, lint, and build
 ```
 
-## Docs
+## Project Structure
+
+```text
+apps/
+  web/      Next.js app
+  api/      Hono API
+  mcp/      MCP server
+  worker/   worker placeholder
+
+packages/
+  core/        store contract and MemoryStore
+  db/          Prisma schema and PrismaStore
+  connectors/ source connectors
+  cards/       card generation
+  search/      people search
+  shared/      Zod schemas and shared types
+  llm/         LLM boundary placeholder
+
+docs/          architecture and product docs
+examples/      demo profiles and MCP configs
+scripts/       dev, screenshot, seed, and DB verification scripts
+```
+
+## Troubleshooting
+
+If `pnpm dev` starts but the web app cannot call the API, check that the API is listening on port `3001`:
+
+```bash
+curl http://localhost:3001/health
+```
+
+If GitHub import rate limits, set a token:
+
+```bash
+export GITHUB_TOKEN="..."
+pnpm dev
+```
+
+If Postgres verification fails, confirm Docker is running and `DATABASE_URL` matches `docker-compose.yml`:
+
+```bash
+docker compose ps
+pnpm db:validate
+DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm verify:db
+```
+
+If generated data disappears, you are using MemoryStore. Set `DATABASE_URL` and run the Prisma setup above for persistence.
+
+## More Docs
 
 - [Architecture](./docs/architecture.md)
 - [Profile Generator](./docs/profile-generator.md)
@@ -172,14 +377,3 @@ pnpm check            # Install, type-check, test, lint, and build
 - [Card System](./docs/card-system.md)
 - [Discover](./docs/discover.md)
 - [DB Runtime](./docs/db-runtime.md)
-
-## Current Limits
-
-- Not production-ready.
-- No production auth, ownership, or claim verification yet.
-- The local-alpha workspace is not a security boundary.
-- Publishing is alpha-level draft/published state, not a full permissions system.
-- Semantic/vector search is not production runtime.
-- Card regeneration is deterministic and evidence-bound.
-- Connector quality depends on source data quality.
-- LinkedIn/X scraping, private DINQ APIs, browser automation, and login-gated scraping are intentionally out of scope.
