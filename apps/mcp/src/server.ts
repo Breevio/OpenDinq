@@ -78,6 +78,17 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
   );
 
   server.registerTool(
+    "opendinq_get_profile_workspace",
+    {
+      description: "Get local-alpha workspace data for an OpenDinq profile.",
+      inputSchema: {
+        handle: z.string().min(1).describe("OpenDinq person handle")
+      }
+    },
+    async (input) => textResult(await tools.opendinq_get_profile_workspace(input))
+  );
+
+  server.registerTool(
     "opendinq_get_profile",
     {
       description: "Get an OpenDinq profile, including sources, artifacts, claims, and cards.",
@@ -132,6 +143,63 @@ export function createOpenDinqMcpServer(client: OpenDinqApiClient = createOpenDi
       }
     },
     async (input) => textResult(await tools.opendinq_create_note_card(input))
+  );
+
+  server.registerTool(
+    "opendinq_update_claim",
+    {
+      description: "Update a profile claim review status or editable fields.",
+      inputSchema: {
+        claimId: z.string().min(1),
+        patch: z.object({
+          text: z.string().optional(),
+          type: z.enum(["skill", "role", "project", "research_area", "achievement", "affiliation", "link", "summary"]).optional(),
+          confidence: z.number().min(0).max(1).optional(),
+          status: z.enum(["pending", "approved", "rejected"]).optional()
+        })
+      }
+    },
+    async (input) => textResult(await tools.opendinq_update_claim(input))
+  );
+
+  server.registerTool(
+    "opendinq_update_card",
+    {
+      description: "Update a card title, content, visibility, or order.",
+      inputSchema: {
+        cardId: z.string().min(1),
+        patch: z.object({
+          title: z.string().optional(),
+          contentMd: z.string().optional(),
+          visibility: z.enum(["public", "private", "hidden"]).optional(),
+          order: z.number().optional()
+        })
+      }
+    },
+    async (input) => textResult(await tools.opendinq_update_card(input))
+  );
+
+  server.registerTool(
+    "opendinq_regenerate_card",
+    {
+      description: "Regenerate a card deterministically from approved claims and artifacts.",
+      inputSchema: {
+        cardId: z.string().min(1)
+      }
+    },
+    async (input) => textResult(await tools.opendinq_regenerate_card(input))
+  );
+
+  server.registerTool(
+    "opendinq_publish_profile",
+    {
+      description: "Set a profile's local-alpha public status.",
+      inputSchema: {
+        handle: z.string().min(1),
+        publicStatus: z.enum(["draft", "published"])
+      }
+    },
+    async (input) => textResult(await tools.opendinq_publish_profile(input))
   );
 
   return server;

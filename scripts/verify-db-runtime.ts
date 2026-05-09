@@ -59,6 +59,29 @@ try {
   assertEqual(runSummary.handle, handle, "profile run summary points to the generated handle");
   assertNumberAtLeast(runSummary.cardsCount, 1, "profile run summary includes cards");
 
+  const workspace = await requestJson(app, `/api/people/${encodeURIComponent(handle)}/workspace`);
+  assertNumberAtLeast(asRecord(workspace.readiness, "workspace readiness").score, 1, "workspace readiness score is present");
+  assertNumberAtLeast(arrayField(workspace, "profileSources", "workspace profile sources").length, 1, "workspace includes profile sources");
+
+  const claimsResponse = await requestJson(app, `/api/people/${encodeURIComponent(handle)}/claims`);
+  const claims = arrayField(claimsResponse, "claims", "profile claims");
+  assertNumberAtLeast(claims.length, 1, "profile claims are listed");
+  const claim = asRecord(claims[0], "claim");
+  const claimId = stringField(claim, "id", "claim id");
+  const rejectedClaimResponse = await requestJson(app, `/api/claims/${encodeURIComponent(claimId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "rejected" }),
+    headers: { "content-type": "application/json" }
+  });
+  assertEqual(asRecord(rejectedClaimResponse.claim, "rejected claim").status, "rejected", "claim rejection persists");
+
+  const approvedClaimResponse = await requestJson(app, `/api/claims/${encodeURIComponent(claimId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "approved" }),
+    headers: { "content-type": "application/json" }
+  });
+  assertEqual(asRecord(approvedClaimResponse.claim, "approved claim").status, "approved", "claim approval persists");
+
   const noteResponse = await requestJson(app, `/api/people/${encodeURIComponent(handle)}/cards/manual-note`, {
     method: "POST",
     body: JSON.stringify({
@@ -86,6 +109,34 @@ try {
   const publicCardList = await requestJson(app, `/api/people/${encodeURIComponent(handle)}/cards`);
   const listedCards = arrayField(publicCardList, "cards", "public card list");
   assert(listedCards.every((card) => asRecord(card, "listed card").id !== noteCardId), "hidden card is excluded from public card list");
+
+  const editableCard = asRecord(publicCards[0], "editable card");
+  const editableCardId = stringField(editableCard, "id", "editable card id");
+  const editedCardResponse = await requestJson(app, `/api/cards/${encodeURIComponent(editableCardId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      title: "Edited DB runtime card",
+      contentMd: "Edited card content for DB runtime verification.",
+      order: 1
+    }),
+    headers: { "content-type": "application/json" }
+  });
+  const editedCard = asRecord(editedCardResponse.card, "edited card");
+  assertEqual(editedCard.title, "Edited DB runtime card", "card title edit persists");
+  assertEqual(editedCard.contentMd, "Edited card content for DB runtime verification.", "card content edit persists");
+
+  const regeneratedCardResponse = await requestJson(app, `/api/cards/${encodeURIComponent(editableCardId)}/regenerate`, {
+    method: "POST"
+  });
+  const regeneratedCard = asRecord(regeneratedCardResponse.card, "regenerated card");
+  assertNumberAtLeast(arrayField(regeneratedCard, "evidence", "regenerated card evidence").length, 1, "regenerated card keeps evidence");
+
+  const publishResponse = await requestJson(app, `/api/people/${encodeURIComponent(handle)}/publish`, {
+    method: "PATCH",
+    body: JSON.stringify({ publicStatus: "published" }),
+    headers: { "content-type": "application/json" }
+  });
+  assertEqual(asRecord(asRecord(publishResponse.profile, "published profile").person, "published person").publicStatus, "published", "profile publish status persists");
 
   const search = await requestJson(app, `/api/search?q=${encodeURIComponent("product design DB runtime evidence")}`);
   const searchResults = arrayField(search, "results", "search results");
@@ -125,8 +176,11 @@ try {
       "Prisma connection",
       "profile generation",
       "profile run summary",
+      "workspace summary",
+      "claim approval/rejection",
       "manual note card",
-      "card patch visibility/order",
+      "card edit/regenerate/visibility/order",
+      "profile publish status",
       "hidden card public filtering",
       "DB-backed search",
       "evidence retrieval",

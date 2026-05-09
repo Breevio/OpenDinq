@@ -54,6 +54,7 @@ There is no auth or ownership model yet, so visibility is local runtime behavior
 GET   /api/people/:handle/cards
 PATCH /api/cards/:cardId
 POST  /api/people/:handle/cards/manual-note
+POST  /api/cards/:cardId/regenerate
 ```
 
 `PATCH /api/cards/:cardId` only accepts:
@@ -63,3 +64,18 @@ POST  /api/people/:handle/cards/manual-note
 - `visibility`
 - `order`
 
+`POST /api/cards/:cardId/regenerate` rebuilds the card deterministically from current approved claims, artifacts, and evidence. It preserves the card type and does not invent unsupported claims.
+
+## Workspace Behavior
+
+The profile workspace shows all cards, including hidden and private cards. Public profile responses exclude hidden cards.
+
+The card editor lite supports:
+
+- title edits
+- markdown content edits
+- visibility changes
+- move up/down ordering
+- evidence expansion
+- deterministic regeneration
+- manual note creation

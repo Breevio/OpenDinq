@@ -22,6 +22,10 @@ await page.goto(`${webUrl}/u/demo-agent-builder`, { waitUntil: "networkidle" });
 await page.waitForSelector(".profile-grid");
 await page.screenshot({ path: new URL("profile.png", outputDir).pathname, fullPage: true });
 
+await page.goto(`${webUrl}/u/demo-agent-builder/workspace`, { waitUntil: "networkidle" });
+await page.waitForSelector(".workspace-grid");
+await page.screenshot({ path: new URL("workspace.png", outputDir).pathname, fullPage: true });
+
 await browser.close();
 
 console.log("Captured screenshots in docs/screenshots");

@@ -99,6 +99,17 @@ p {
   box-shadow: 0 12px 40px rgba(22, 23, 20, 0.08);
 }
 
+.product-steps,
+.workspace-grid,
+.workspace-cards {
+  display: grid;
+  gap: 14px;
+}
+
+.product-steps {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .tool-panel {
   display: grid;
   gap: 18px;
@@ -176,6 +187,15 @@ button {
   padding: 13px 18px;
 }
 
+select {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  padding: 12px 14px;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.68;
@@ -199,6 +219,7 @@ button:disabled {
 
 .result-strip span,
 .result-strip a,
+.result-strip button,
 .score {
   background: var(--accent-soft);
   border-radius: 999px;
@@ -207,6 +228,13 @@ button:disabled {
   font-weight: 700;
   padding: 7px 10px;
   text-decoration: none;
+}
+
+.result-strip button {
+  background: var(--accent-soft);
+  border: 0;
+  color: var(--ink);
+  padding: 7px 10px;
 }
 
 .profile-meta {
@@ -248,6 +276,10 @@ button:disabled {
   font-size: 0.78rem;
   padding: 6px 9px;
   text-decoration: none;
+}
+
+.evidence-list.compact {
+  margin-top: 10px;
 }
 
 .evidence-drawer {
@@ -359,6 +391,47 @@ pre {
   overflow: hidden;
 }
 
+.completion-panel,
+.claim-group,
+.claim-review,
+.editor-card,
+.check-list,
+.next-steps {
+  display: grid;
+  gap: 10px;
+}
+
+.completion-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.check-list,
+.next-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.check-list span,
+.next-steps span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 10px;
+}
+
+.check-list .complete {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.claim-group,
+.claim-review {
+  border-top: 1px solid var(--line);
+  padding: 14px;
+}
+
 .section-title,
 .artifact-row,
 .claim-row {
@@ -396,6 +469,9 @@ pre {
   .result-card,
   .profile-header,
   .cards-grid,
+  .product-steps,
+  .check-list,
+  .next-steps,
   .field-grid,
   .section-title,
   .artifact-row,

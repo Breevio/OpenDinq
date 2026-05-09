@@ -124,12 +124,26 @@ export function ProfileGenerateForm() {
 
       {error ? <p className="status error">{error}</p> : null}
       {result ? (
-        <div className="result-strip">
-          <span>{result.status}</span>
-          <span>{result.cardsGenerated} cards</span>
-          <span>{result.claimsGenerated} claims</span>
-          <a href={result.profileUrl}>Open profile</a>
-          <a href={`/discover?q=${encodeURIComponent(`${displayName} ${headline}`)}`}>Search similar</a>
+        <div className="completion-panel">
+          <p className="eyebrow">Generation completed</p>
+          <div className="result-strip">
+            <span>{result.status}</span>
+            <span>{result.artifactsImported} artifacts</span>
+            <span>{result.claimsGenerated} claims</span>
+            <span>{result.cardsGenerated} cards</span>
+          </div>
+          {result.warnings.length ? <p className="status error">{result.warnings.join(" ")}</p> : null}
+          <div className="next-steps">
+            <span>1. Review workspace</span>
+            <span>2. Edit cards</span>
+            <span>3. Publish profile</span>
+            <span>4. Try Discover</span>
+          </div>
+          <div className="actions">
+            <a href={`/u/${result.handle}/workspace`}>Open workspace</a>
+            <a href={result.profileUrl}>View public profile</a>
+            <a href={`/discover?q=${encodeURIComponent(`${displayName} ${headline}`)}`}>Search in Discover</a>
+          </div>
         </div>
       ) : null}
     </section>

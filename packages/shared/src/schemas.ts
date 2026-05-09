@@ -45,6 +45,9 @@ export const personSchema = z.object({
   bio: z.string().min(1).optional(),
   location: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
+  publicStatus: z.enum(["draft", "published"]).default("draft"),
+  publishedAt: z.coerce.date().optional(),
+  shareSlug: z.string().min(1).optional(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional()
 });

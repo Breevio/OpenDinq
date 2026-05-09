@@ -15,6 +15,9 @@ model Person {
   bio         String?
   location    String?
   avatarUrl   String?
+  publicStatus String           @default("draft")
+  publishedAt DateTime?
+  shareSlug   String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   sources     IdentitySource[]
@@ -24,6 +27,9 @@ model Person {
   profileSources ProfileSource[]
   claims      ProfileClaim[]
   runs        ProfileGenerationRun[]
+
+  @@index([publicStatus])
+  @@index([shareSlug])
 }
 
 model IdentitySource {
@@ -109,6 +115,7 @@ model ProfileClaim {
   type         String
   text         String
   confidence   Float
+  status       String   @default("approved")
   evidenceJson Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

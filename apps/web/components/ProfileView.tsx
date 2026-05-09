@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiRequest, type PersonProfile } from "../lib/api";
+import { EvidenceDrawer } from "./EvidenceList";
 
 export function ProfileView({ handle }: { handle: string }) {
   const [profile, setProfile] = useState<PersonProfile | null>(null);
@@ -51,7 +52,9 @@ export function ProfileView({ handle }: { handle: string }) {
             </div>
           ) : null}
           <div className="result-strip profile-meta">
+            <span>{profile.person.publicStatus ?? "draft"}</span>
             <span>{profileCompleteness(profile)}% complete</span>
+            <button type="button" onClick={() => navigator.clipboard?.writeText(window.location.href)}>Copy share link</button>
             {profile.sources.slice(0, 5).map((source) => (
               <span key={`${source.type}-${source.url}`}>{source.type}</span>
             ))}
@@ -66,22 +69,10 @@ export function ProfileView({ handle }: { handle: string }) {
             <h2>{card.title}</h2>
             <pre>{card.contentMd}</pre>
             {typeof card.confidence === "number" ? <small>{Math.round(card.confidence * 100)}% confidence</small> : null}
-            <details className="evidence-drawer">
-              <summary>Evidence ({card.evidence.length})</summary>
-              <div className="evidence-list">
-                {card.evidence.map((evidence, index) => (
-                  evidence.url ? (
-                    <a href={evidence.url} key={`${card.title}-${evidence.id}-${index}`}>
-                      {evidence.title}
-                    </a>
-                  ) : (
-                    <span key={`${card.title}-${evidence.id}-${index}`}>{evidence.title}</span>
-                  )
-                ))}
-              </div>
-            </details>
+            <EvidenceDrawer evidence={card.evidence} />
           </article>
         ))}
+        {profile.cards.filter((card) => card.visibility !== "hidden").length === 0 ? <p className="status">No public cards yet.</p> : null}
       </section>
 
       {profile.claims?.length ? (
@@ -94,11 +85,11 @@ export function ProfileView({ handle }: { handle: string }) {
             <div className="claim-row" key={claim.id ?? claim.text}>
               <span>{claim.type}</span>
               <strong>{claim.text}</strong>
-              <small>{Math.round(claim.confidence * 100)}%</small>
+              <small>{claim.status ?? "approved"} / {Math.round(claim.confidence * 100)}%</small>
             </div>
           ))}
         </section>
-      ) : null}
+      ) : <p className="status">No approved claims yet.</p>}
 
       <section className="source-panel">
         <div className="section-title">
@@ -126,6 +117,7 @@ export function ProfileView({ handle }: { handle: string }) {
             <small>{formatArtifactMeta(artifact.metadata)}</small>
           </a>
         ))}
+        {profile.artifacts.length === 0 ? <p className="status">No artifacts yet.</p> : null}
       </section>
     </div>
   );

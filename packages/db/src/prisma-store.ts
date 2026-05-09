@@ -15,6 +15,7 @@ import type {
 export type PrismaStoreClient = {
   person: {
     upsert(args: unknown): Promise<unknown>;
+    update(args: unknown): Promise<unknown>;
     findUnique(args: unknown): Promise<unknown | null>;
     findMany(args: unknown): Promise<unknown[]>;
   };
@@ -43,6 +44,7 @@ export type PrismaStoreClient = {
   profileClaim: {
     deleteMany(args: unknown): Promise<unknown>;
     createMany(args: unknown): Promise<unknown>;
+    update(args: unknown): Promise<unknown>;
     findMany(args: unknown): Promise<unknown[]>;
   };
 };
@@ -55,6 +57,9 @@ type DbPerson = {
   bio: string | null;
   location: string | null;
   avatarUrl: string | null;
+  publicStatus?: string | null;
+  publishedAt?: Date | null;
+  shareSlug?: string | null;
 };
 
 type DbIdentitySource = {
@@ -105,6 +110,7 @@ type DbProfileClaim = {
   type: string;
   text: string;
   confidence: number;
+  status?: string | null;
   evidenceJson: unknown;
 };
 
@@ -221,6 +227,33 @@ export function createPrismaStore(client: PrismaStoreClient): OpenDinqStore {
         return undefined;
       }
     },
+    async updateClaim(claimId, patch) {
+      try {
+        const saved = await client.profileClaim.update({
+          where: { id: claimId },
+          data: toClaimPatchInput(patch)
+        });
+        return toClaim(saved as DbProfileClaim);
+      } catch {
+        return undefined;
+      }
+    },
+    async publishProfile(handle, publicStatus) {
+      try {
+        const saved = await client.person.update({
+          where: { handle },
+          data: {
+            publicStatus,
+            publishedAt: publicStatus === "published" ? new Date() : null,
+            shareSlug: handle
+          },
+          include: profileInclude
+        });
+        return toProfile(saved as DbPersonProfile);
+      } catch {
+        return undefined;
+      }
+    },
     async createProfileRun(run) {
       const saved = await client.profileGenerationRun.create({ data: toRunInput(run) });
       return toRun(saved as DbProfileGenerationRun);
@@ -251,6 +284,17 @@ export function createPrismaStore(client: PrismaStoreClient): OpenDinqStore {
     },
     async listProfileSources(runId) {
       const sources = await client.profileSource.findMany({ where: { runId } });
+      return sources.map((source) => toProfileSource(source as DbProfileSource));
+    },
+    async listProfileSourcesForHandle(handle) {
+      const person = await client.person.findUnique({
+        where: { handle },
+        select: { id: true }
+      });
+      if (!hasStringId(person)) {
+        return [];
+      }
+      const sources = await client.profileSource.findMany({ where: { personId: person.id } });
       return sources.map((source) => toProfileSource(source as DbProfileSource));
     },
     async saveProfileClaims(handle, claims) {
@@ -328,7 +372,10 @@ function toPerson(person: DbPerson): PersonRecord {
     headline: person.headline ?? undefined,
     bio: person.bio ?? undefined,
     location: person.location ?? undefined,
-    avatarUrl: person.avatarUrl ?? undefined
+    avatarUrl: person.avatarUrl ?? undefined,
+    publicStatus: isPublicStatus(person.publicStatus) ? person.publicStatus : "draft",
+    publishedAt: person.publishedAt?.toISOString(),
+    shareSlug: person.shareSlug ?? person.handle
   });
 }
 
@@ -415,6 +462,11 @@ function toCardPatchInput(patch: CardPatchRecord) {
   return compactRecord({
     title: patch.title,
     contentMd: patch.contentMd,
+    dataJson: patch.dataJson,
+    evidenceJson: patch.evidence,
+    sourceIds: patch.sourceIds,
+    claimIds: patch.claimIds,
+    confidence: patch.confidence,
     visibility: patch.visibility,
     order: patch.order
   });
@@ -513,6 +565,7 @@ function toClaimInput(personId: string, claim: ProfileClaimRecord, preserveRefer
     type: claim.type,
     text: claim.text,
     confidence: claim.confidence,
+    status: claim.status ?? "approved",
     evidenceJson: claim.evidence
   };
 }
@@ -525,7 +578,17 @@ function toClaim(claim: DbProfileClaim): ProfileClaimRecord {
     type: isClaimType(claim.type) ? claim.type : "summary",
     text: claim.text,
     confidence: claim.confidence,
+    status: isClaimStatus(claim.status) ? claim.status : "approved",
     evidence: parseEvidence(claim.evidenceJson)
+  });
+}
+
+function toClaimPatchInput(patch: Partial<Pick<ProfileClaimRecord, "text" | "type" | "confidence" | "status">>) {
+  return compactRecord({
+    text: patch.text,
+    type: patch.type,
+    confidence: patch.confidence,
+    status: patch.status
   });
 }
 
@@ -565,6 +628,14 @@ function isClaimType(value: string): value is ProfileClaimRecord["type"] {
 
 function isCardVisibility(value: unknown): value is CardRecord["visibility"] {
   return value === "public" || value === "private" || value === "hidden";
+}
+
+function isClaimStatus(value: unknown): value is ProfileClaimRecord["status"] {
+  return value === "pending" || value === "approved" || value === "rejected";
+}
+
+function isPublicStatus(value: unknown): value is PersonRecord["publicStatus"] {
+  return value === "draft" || value === "published";
 }
 
 function idFromRecord(value: unknown, label: string): string {

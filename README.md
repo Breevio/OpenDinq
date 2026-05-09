@@ -1,32 +1,27 @@
 # OpenDinq
 
-OpenDinq is an open-source profile generator for evidence-backed AI-native profiles, cards, and people search.
+OpenDinq is an open-source product alpha for evidence-backed AI-native profile generation and people discovery.
 
-Current status: v0.7-alpha product alpha. It is useful for local demos and contributor development, but it is not production-ready.
-
-Primary flow:
+It turns public or user-provided sources into claims, cards, public profiles, searchable evidence, and MCP/API automation.
 
 ```text
-Generate Profile -> Cards -> Public Profile -> Discover -> MCP/API automation
+Generate Profile -> Workspace -> Cards -> Public Profile -> Discover -> MCP/API automation
 ```
 
-GitHub is one connector. Profiles can also use websites, OpenAlex, arXiv, ORCID, and manual links or notes.
+## What You Can Do
 
-## Features
-
-- Multi-source profile generation
-- Evidence-backed claims
-- Card-first public profiles with evidence drawers
-- Card ordering, visibility, manual notes, and patch API
-- Public profile pages
-- Natural-language discover search with matched claims, cards, artifacts, skills, and evidence
-- Local API
-- MCP tools for coding agents
-- MemoryStore by default, Prisma/Postgres when configured
+- Generate a profile from GitHub, website, OpenAlex, arXiv, ORCID, manual artifacts, or notes.
+- Review evidence-backed claims in a local profile workspace.
+- Curate cards by editing, reordering, hiding, regenerating, or adding manual note cards.
+- Publish or draft a profile in local-alpha mode.
+- Share a card-first public profile.
+- Search Discover for people by claims, cards, artifacts, skills, and evidence.
+- Use MCP tools to generate profiles, update cards/claims, publish profiles, and search people.
 
 ## Screenshots
 
 ![Generate](./docs/screenshots/generate.png)
+![Workspace](./docs/screenshots/workspace.png)
 ![Discover](./docs/screenshots/discover.png)
 ![Profile](./docs/screenshots/profile.png)
 
@@ -46,11 +41,12 @@ pnpm dev
 
 Open:
 
+- http://localhost:3000/
 - http://localhost:3000/generate
 - http://localhost:3000/discover
 - http://localhost:3000/u/demo-agent-builder
 
-The API starts with demo profiles, so discover works without external keys.
+The API starts with demo profiles, so Discover works without external keys.
 
 ## Generate A Profile
 
@@ -76,56 +72,34 @@ curl -X POST http://localhost:3001/api/profiles/generate \
   }'
 ```
 
-Check a generation run:
+Useful URLs after generation:
 
-```bash
-curl http://localhost:3001/api/profile-runs/<runId>
+- `/u/:handle/workspace` for claim review, card curation, and publishing.
+- `/u/:handle` for the public profile.
+- `/discover?q=...` for evidence-backed people search.
+
+## API Highlights
+
+```text
+POST  /api/profiles/generate
+GET   /api/profile-runs/:runId
+GET   /api/people/:handle
+GET   /api/people/:handle/workspace
+GET   /api/people/:handle/claims
+PATCH /api/claims/:claimId
+GET   /api/people/:handle/cards
+PATCH /api/cards/:cardId
+POST  /api/cards/:cardId/regenerate
+POST  /api/people/:handle/cards/manual-note
+PATCH /api/people/:handle/publish
+GET   /api/search?q=...
 ```
 
-Read the generated profile:
-
-```bash
-curl http://localhost:3001/api/people/demo-agent-builder
-```
-
-Search:
-
-```bash
-curl "http://localhost:3001/api/search?q=AI%20agent%20MCP%20profile%20automation"
-```
-
-## Sources
-
-Supported generator sources:
-
-- `github`
-- `website`
-- `openalex`
-- `arxiv`
-- `orcid`
-- `manual`
-
-Sources are optional. A profile can be generated from one source or many sources.
-
-## Commands
-
-```bash
-pnpm dev              # Start API and web app
-pnpm dev:api          # Start API on port 3001
-pnpm dev:web          # Start web app on port 3000
-pnpm seed:demo        # Seed demo profiles into the running API
-pnpm screenshots      # Capture screenshots into docs/screenshots
-pnpm db:validate      # Validate Prisma schema
-pnpm verify:db        # Verify DB-backed runtime when DATABASE_URL is set
-pnpm typecheck        # Type-check all workspaces
-pnpm test             # Run tests
-pnpm build            # Build all workspaces
-pnpm check            # Install, type-check, test, lint, and build
-```
+`POST /api/import/github` remains available as a compatibility wrapper around profile generation.
 
 ## Runtime Modes
 
-OpenDinq uses MemoryStore by default. It is good for local demos and tests.
+OpenDinq uses MemoryStore by default. It is fast and requires no database, but imported data is lost when the API restarts.
 
 To persist data with Postgres:
 
@@ -138,8 +112,6 @@ DATABASE_URL="postgresql://opendinq:opendinq@localhost:5432/opendinq" pnpm dev:a
 ```
 
 Without `DATABASE_URL`, the API uses MemoryStore.
-
-Postgres E2E status is tracked in [DB Runtime](./docs/db-runtime.md) and the current release notes.
 
 ## MCP
 
@@ -155,10 +127,15 @@ Start the MCP server:
 OPENDINQ_API_URL=http://localhost:3001 pnpm --filter @opendinq/mcp start
 ```
 
-Tools:
+Primary tools:
 
 - `opendinq_generate_profile`
 - `opendinq_get_profile_run`
+- `opendinq_get_profile_workspace`
+- `opendinq_update_claim`
+- `opendinq_update_card`
+- `opendinq_regenerate_card`
+- `opendinq_publish_profile`
 - `opendinq_search_people`
 - `opendinq_get_profile`
 - `opendinq_get_evidence`
@@ -168,40 +145,41 @@ Tools:
 
 Config examples live in `examples/mcp/`.
 
-## Project Structure
+## Commands
 
-```text
-apps/
-  web/      Next.js app
-  api/      Hono API
-  mcp/      stdio MCP server
-  worker/   background job placeholder
-
-packages/
-  core/        store contract and MemoryStore
-  db/          Prisma schema and PrismaStore
-  connectors/ GitHub, website, OpenAlex, arXiv, ORCID
-  cards/       evidence-backed card generation
-  search/      query parsing, ranking, full-text scoring, hybrid merge
-  shared/      Zod schemas and shared types
-  llm/         LLM boundary placeholder
+```bash
+pnpm dev              # Start API and web app
+pnpm dev:api          # Start API on port 3001
+pnpm dev:web          # Start web app on port 3000
+pnpm seed:demo        # Seed demo profiles into the running API
+pnpm screenshots      # Capture screenshots into docs/screenshots
+pnpm db:generate      # Generate Prisma Client
+pnpm db:validate      # Validate Prisma schema
+pnpm db:migrate       # Apply Prisma migrations
+pnpm verify:db        # Verify DB runtime when DATABASE_URL is set
+pnpm typecheck        # Type-check all workspaces
+pnpm test             # Run tests
+pnpm build            # Build all workspaces
+pnpm check            # Install, type-check, test, lint, and build
 ```
 
 ## Docs
 
+- [Architecture](./docs/architecture.md)
 - [Profile Generator](./docs/profile-generator.md)
+- [Profile Workspace](./docs/profile-workspace.md)
 - [Evidence Model](./docs/evidence-model.md)
 - [Card System](./docs/card-system.md)
 - [Discover](./docs/discover.md)
 - [DB Runtime](./docs/db-runtime.md)
-- [Architecture](./docs/architecture.md)
 
-## Notes
+## Current Limits
 
 - Not production-ready.
-- No auth, ownership, claim verification, teams, billing, or permissions yet.
-- Semantic/vector search is not a production runtime; current search is rule/full-text hybrid.
-- Multi-source generation quality depends on source data quality.
-- Cards are generated from evidence-backed claims.
-- Cards do not yet have a full editor, regenerate workflow, or publishing permissions.
+- No production auth, ownership, or claim verification yet.
+- The local-alpha workspace is not a security boundary.
+- Publishing is alpha-level draft/published state, not a full permissions system.
+- Semantic/vector search is not production runtime.
+- Card regeneration is deterministic and evidence-bound.
+- Connector quality depends on source data quality.
 - LinkedIn/X scraping, private DINQ APIs, browser automation, and login-gated scraping are intentionally out of scope.

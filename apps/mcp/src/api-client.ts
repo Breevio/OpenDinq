@@ -4,9 +4,14 @@ export type OpenDinqApiClient = {
   importGitHubProfile(input: string): Promise<unknown>;
   searchPeople(query: string): Promise<unknown>;
   getPersonProfile(handle: string): Promise<unknown>;
+  getProfileWorkspace(handle: string): Promise<unknown>;
   getEvidence(handle: string): Promise<unknown>;
   listCards(handle: string): Promise<unknown>;
   createNoteCard(handle: string, title: string, contentMd: string): Promise<unknown>;
+  updateClaim(claimId: string, patch: unknown): Promise<unknown>;
+  updateCard(cardId: string, patch: unknown): Promise<unknown>;
+  regenerateCard(cardId: string): Promise<unknown>;
+  publishProfile(handle: string, publicStatus: "draft" | "published"): Promise<unknown>;
 };
 
 export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiClient {
@@ -34,6 +39,9 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
     getPersonProfile(handle) {
       return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}`);
     },
+    getProfileWorkspace(handle) {
+      return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}/workspace`);
+    },
     async getEvidence(handle) {
       const profile = await request(`${baseUrl}/api/people/${encodeURIComponent(handle)}`);
       return extractEvidence(profile);
@@ -45,6 +53,27 @@ export function createOpenDinqApiClient(apiUrl = requiredApiUrl()): OpenDinqApiC
       return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}/cards/manual-note`, {
         method: "POST",
         body: JSON.stringify({ title, contentMd })
+      });
+    },
+    updateClaim(claimId, patch) {
+      return request(`${baseUrl}/api/claims/${encodeURIComponent(claimId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch)
+      });
+    },
+    updateCard(cardId, patch) {
+      return request(`${baseUrl}/api/cards/${encodeURIComponent(cardId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch)
+      });
+    },
+    regenerateCard(cardId) {
+      return request(`${baseUrl}/api/cards/${encodeURIComponent(cardId)}/regenerate`, { method: "POST" });
+    },
+    publishProfile(handle, publicStatus) {
+      return request(`${baseUrl}/api/people/${encodeURIComponent(handle)}/publish`, {
+        method: "PATCH",
+        body: JSON.stringify({ publicStatus })
       });
     }
   };

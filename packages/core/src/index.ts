@@ -12,6 +12,7 @@ export type {
   PersonProfileRecord,
   PersonRecord,
   ProfileClaimRecord,
+  ProfileClaimStatus,
   ProfileGenerationRunRecord,
   ProfileSourceRecord
 } from "./store.js";

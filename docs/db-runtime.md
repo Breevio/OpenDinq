@@ -23,6 +23,9 @@ It persists:
 - profile sources
 - profile claims
 - cards
+- claim review status
+- card visibility and order
+- profile draft/published status
 
 ## Local Postgres
 
@@ -44,8 +47,11 @@ It verifies:
 - profile generation through the API service layer
 - profile run persistence
 - profile sources, artifacts, claims, and cards
+- workspace summary
+- claim approval/rejection
 - manual note cards
-- card patch visibility/order
+- card edit, regenerate, visibility, and order
+- profile publish status
 - hidden card public filtering
 - DB-backed search
 - evidence retrieval
@@ -61,6 +67,7 @@ It verifies:
 6. Stop and restart the API with the same `DATABASE_URL`.
 7. Confirm `/u/:handle` still renders the profile.
 8. Confirm `/discover` finds the profile.
+9. Confirm `/u/:handle/workspace` can edit claims/cards and publish the profile.
 
 ## Current Verification Status
 
@@ -70,6 +77,7 @@ The repository includes an automated DB runtime verification script. In the curr
 
 - DB-backed runtime is still alpha.
 - There is no auth or ownership model.
+- Workspace and publishing are local-alpha product state, not access control.
 - There is no production migration policy yet.
 - Search is not a production vector index.
 - Docker/Postgres verification depends on local Docker availability.

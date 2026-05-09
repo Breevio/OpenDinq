@@ -1,6 +1,6 @@
-import { generateProfileCards } from "@opendinq/cards";
-import type { ArtifactRecord, CardRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
-import { hybridSearchPeople, type PersonSearchDocument, type SearchArtifact } from "@opendinq/search";
+import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import type { CardRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import { hybridSearchPeople, type PersonSearchDocument } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
@@ -51,6 +51,17 @@ const patchCardSchema = z.object({
   visibility: z.enum(["public", "private", "hidden"]).optional(),
   order: z.number().int().optional()
 }).strict();
+
+const patchClaimSchema = z.object({
+  text: z.string().min(1).optional(),
+  type: z.enum(["skill", "role", "project", "research_area", "achievement", "affiliation", "link", "summary"]).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  status: z.enum(["pending", "approved", "rejected"]).optional()
+}).strict();
+
+const publishProfileSchema = z.object({
+  publicStatus: z.enum(["draft", "published"])
+});
 
 const manualArtifactSchema = z.object({
   type: z.enum(["repo", "paper", "project", "post", "note", "website"]),
@@ -159,6 +170,24 @@ export function createApiRoutes(options: ApiRouteOptions) {
     return context.json(toPublicProfile(profile));
   });
 
+  routes.get("/people/:handle/workspace", async (context) => {
+    const handle = context.req.param("handle");
+    const profile = await options.store.getProfile(handle);
+
+    if (!profile) {
+      return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+    }
+
+    const profileSources = await options.store.listProfileSourcesForHandle(handle);
+    return context.json({
+      profile,
+      publicProfile: toPublicProfile(profile),
+      profileSources,
+      readiness: profileReadiness(profile),
+      discoverQuery: workspaceDiscoverQuery(profile)
+    });
+  });
+
   routes.get("/search", async (context) => {
     try {
       const query = z.string().min(1).parse(context.req.query("q"));
@@ -201,6 +230,26 @@ export function createApiRoutes(options: ApiRouteOptions) {
     return context.json({ handle, cards: publicCards(cards) });
   });
 
+  routes.get("/people/:handle/claims", async (context) => {
+    const handle = context.req.param("handle");
+    const claims = await options.store.listProfileClaims(handle);
+    return context.json({ handle, claims });
+  });
+
+  routes.patch("/claims/:claimId", async (context) => {
+    try {
+      const body = patchClaimSchema.parse(await context.req.json());
+      const claim = await options.store.updateClaim(context.req.param("claimId"), body);
+      if (!claim) {
+        return context.json({ error: { code: "not_found", message: "Claim was not found." } }, 404);
+      }
+
+      return context.json({ claim });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
   routes.patch("/cards/:cardId", async (context) => {
     try {
       const body = patchCardSchema.parse(await context.req.json());
@@ -210,6 +259,52 @@ export function createApiRoutes(options: ApiRouteOptions) {
       }
 
       return context.json({ card });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/cards/:cardId/regenerate", async (context) => {
+    const cardId = context.req.param("cardId");
+    const profiles = await options.store.listProfiles();
+    const profile = profiles.find((item) => item.cards.some((card) => card.id === cardId));
+    const existingCard = profile?.cards.find((card) => card.id === cardId);
+    if (!profile || !existingCard) {
+      return context.json({ error: { code: "not_found", message: "Card was not found." } }, 404);
+    }
+
+    const regenerated = generateProfileCards(profile.person, profile.artifacts, approvedClaims(profile) as CardClaim[])
+      .find((card) => card.type === existingCard.type);
+    if (!regenerated) {
+      return context.json({ error: { code: "not_found", message: "No supported regeneration source was found for this card." } }, 404);
+    }
+
+    const card = await options.store.updateCard(cardId, {
+      title: regenerated.title,
+      contentMd: regenerated.contentMd,
+      dataJson: regenerated.dataJson,
+      evidence: regenerated.evidence,
+      claimIds: regenerated.claimIds,
+      sourceIds: regenerated.sourceIds,
+      confidence: regenerated.confidence
+    });
+    if (!card) {
+      return context.json({ error: { code: "not_found", message: "Card was not found." } }, 404);
+    }
+
+    return context.json({ card });
+  });
+
+  routes.patch("/people/:handle/publish", async (context) => {
+    try {
+      const handle = context.req.param("handle");
+      const body = publishProfileSchema.parse(await context.req.json());
+      const profile = await options.store.publishProfile(handle, body.publicStatus);
+      if (!profile) {
+        return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
+      }
+
+      return context.json({ profile: toPublicProfile(profile) });
     } catch (error) {
       return errorResponse(context, error);
     }
@@ -278,29 +373,6 @@ export function createApiRoutes(options: ApiRouteOptions) {
   return routes;
 }
 
-async function appendProfileData(
-  store: OpenDinqStore,
-  handle: string,
-  sources: IdentitySourceRecord[],
-  artifacts: ArtifactRecord[]
-): Promise<PersonProfileRecord | undefined> {
-  const profile = await store.getProfile(handle);
-  if (!profile) {
-    return undefined;
-  }
-
-  const mergedArtifacts = dedupeArtifacts([...profile.artifacts, ...artifacts]);
-  const noteCards = profile.cards.filter((card) => card.type === "note");
-  const cards = [...generateProfileCards(profile.person, mergedArtifacts, (profile.claims ?? []) as ProfileClaimRecord[]), ...noteCards];
-
-  return store.upsertProfile({
-    person: profile.person,
-    sources: dedupeSources([...profile.sources, ...sources]),
-    artifacts: mergedArtifacts,
-    cards
-  });
-}
-
 async function appendViaGenerator(
   generator: ReturnType<typeof createProfileGenerator>,
   store: OpenDinqStore,
@@ -322,24 +394,6 @@ async function appendViaGenerator(
   return profile ? importSummary(profile) : summary;
 }
 
-function dedupeSources(sources: IdentitySourceRecord[]): IdentitySourceRecord[] {
-  const byKey = new Map<string, IdentitySourceRecord>();
-  for (const source of sources) {
-    byKey.set(`${source.type}:${source.url}`, source);
-  }
-
-  return [...byKey.values()];
-}
-
-function dedupeArtifacts(artifacts: ArtifactRecord[]): ArtifactRecord[] {
-  const byKey = new Map<string, ArtifactRecord>();
-  for (const artifact of artifacts) {
-    byKey.set(`${artifact.type}:${artifact.url ?? artifact.title}`, artifact);
-  }
-
-  return [...byKey.values()];
-}
-
 function importSummary(profile: PersonProfileRecord) {
   return {
     handle: profile.person.handle,
@@ -352,7 +406,8 @@ function importSummary(profile: PersonProfileRecord) {
 function toPublicProfile(profile: PersonProfileRecord): PersonProfileRecord {
   return {
     ...profile,
-    cards: publicCards(profile.cards)
+    cards: publicCards(profile.cards),
+    claims: approvedClaims(profile)
   };
 }
 
@@ -384,4 +439,29 @@ async function createManualNoteCard(store: OpenDinqStore, handle: string, title:
     visibility: "public",
     order: 60
   });
+}
+
+function approvedClaims(profile: PersonProfileRecord): ProfileClaimRecord[] {
+  return (profile.claims ?? []).filter((claim) => claim.status !== "rejected");
+}
+
+function profileReadiness(profile: PersonProfileRecord) {
+  const claims = profile.claims ?? [];
+  const visibleCards = publicCards(profile.cards);
+  const approved = approvedClaims(profile);
+  const checks = [
+    { label: "Add at least one source", complete: profile.sources.length > 0 },
+    { label: "Review claims", complete: claims.length > 0 && claims.every((claim) => claim.status && claim.status !== "pending") },
+    { label: "Publish at least three cards", complete: visibleCards.length >= 3 },
+    { label: "Add headline", complete: Boolean(profile.person.headline) },
+    { label: "Add manual note", complete: profile.cards.some((card) => card.type === "note") },
+    { label: "Verify evidence", complete: approved.some((claim) => claim.evidence.length > 0) && visibleCards.some((card) => card.evidence.length > 0) }
+  ];
+  const score = Math.round((checks.filter((check) => check.complete).length / checks.length) * 100);
+  return { score, checks };
+}
+
+function workspaceDiscoverQuery(profile: PersonProfileRecord): string {
+  const skills = approvedClaims(profile).filter((claim) => claim.type === "skill").map((claim) => claim.text).slice(0, 4);
+  return [profile.person.headline, ...skills].filter(Boolean).join(" ") || profile.person.displayName;
 }

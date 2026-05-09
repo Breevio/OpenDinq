@@ -12,6 +12,7 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
   const profiles = new Map(initialProfiles.map((profile) => [profile.person.handle, normalizeProfile(profile)]));
   const runs = new Map<string, ProfileGenerationRunRecord>();
   const sourcesByRun = new Map<string, ProfileSourceRecord[]>();
+  const sourcesByHandle = new Map<string, ProfileSourceRecord[]>();
   const claimsByHandle = new Map<string, ProfileClaimRecord[]>();
 
   return {
@@ -67,6 +68,55 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
 
       return undefined;
     },
+    async updateClaim(claimId, patch) {
+      for (const [handle, claims] of claimsByHandle.entries()) {
+        const index = claims.findIndex((claim) => claim.id === claimId);
+        const existing = claims[index];
+        if (index < 0 || !existing) {
+          continue;
+        }
+
+        const updated = { ...existing, ...compactClaimPatch(patch) };
+        claims[index] = updated;
+        const profile = profiles.get(handle);
+        if (profile) {
+          profile.claims = claims;
+        }
+        return updated;
+      }
+
+      for (const profile of profiles.values()) {
+        const claims = profile.claims ?? [];
+        const index = claims.findIndex((claim) => claim.id === claimId);
+        const existing = claims[index];
+        if (index < 0 || !existing) {
+          continue;
+        }
+
+        const updated = { ...existing, ...compactClaimPatch(patch) };
+        claims[index] = updated;
+        claimsByHandle.set(profile.person.handle, claims);
+        profile.claims = claims;
+        return updated;
+      }
+
+      return undefined;
+    },
+    async publishProfile(handle, publicStatus) {
+      const profile = profiles.get(handle);
+      if (!profile) {
+        return undefined;
+      }
+
+      profile.person = {
+        ...profile.person,
+        publicStatus,
+        publishedAt: publicStatus === "published" ? new Date().toISOString() : undefined,
+        shareSlug: profile.person.shareSlug ?? profile.person.handle
+      };
+      profiles.set(handle, normalizeProfile(profile));
+      return profiles.get(handle);
+    },
     async createProfileRun(run) {
       runs.set(run.id, run);
       return run;
@@ -100,17 +150,22 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
           sourcesByRun.set(source.runId, [...(sourcesByRun.get(source.runId) ?? []), source]);
         }
       }
+      sourcesByHandle.set(handle, [...(sourcesByHandle.get(handle) ?? []), ...saved]);
 
       return saved;
     },
     async listProfileSources(runId) {
       return sourcesByRun.get(runId) ?? [];
     },
+    async listProfileSourcesForHandle(handle) {
+      return sourcesByHandle.get(handle) ?? [];
+    },
     async saveProfileClaims(handle, claims) {
       const saved = claims.map((claim, index) => ({
         id: claim.id ?? `claim-${handle}-${index}`,
         personId: handle,
-        ...claim
+        ...claim,
+        status: claim.status ?? "approved"
       }));
       claimsByHandle.set(handle, saved);
       const profile = profiles.get(handle);
@@ -129,6 +184,11 @@ export function createMemoryStore(initialProfiles: PersonProfileRecord[] = []): 
 function normalizeProfile(profile: PersonProfileRecord): PersonProfileRecord {
   return {
     ...profile,
+    person: {
+      publicStatus: "draft",
+      shareSlug: profile.person.handle,
+      ...profile.person
+    },
     cards: sortedCards(profile.cards.map((card, index) => normalizeCard(profile.person.handle, card, index + 1))) ?? []
   };
 }
@@ -158,6 +218,10 @@ function nextCardOrder(cards: CardRecord[]): number {
 
 function compactCardPatch(patch: CardPatchRecord): CardPatchRecord {
   return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)) as CardPatchRecord;
+}
+
+function compactClaimPatch(patch: Partial<Pick<ProfileClaimRecord, "text" | "type" | "confidence" | "status">>) {
+  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
 }
 
 function slugify(value: string): string {

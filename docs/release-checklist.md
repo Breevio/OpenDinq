@@ -11,7 +11,12 @@ Before tagging a release:
 - [ ] `/generate` returns 200
 - [ ] `/discover` returns 200
 - [ ] `/u/demo-agent-builder` returns 200
+- [ ] `/u/demo-agent-builder/workspace` returns 200
 - [ ] Manual-only profile generation works from `/generate`
+- [ ] Generated profile result links to workspace, public profile, and Discover
+- [ ] Claim approve/reject works
+- [ ] Card edit/reorder/hide/regenerate works
+- [ ] Publish/draft toggle works
 - [ ] Demo search returns `demo-agent-builder`
 - [ ] MemoryStore verification passes
 - [ ] PrismaStore/Postgres verification passes, or release notes clearly say it is pending local Docker/Postgres availability

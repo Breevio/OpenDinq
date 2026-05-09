@@ -5,16 +5,30 @@ export default function HomePage() {
     <main className="page-shell">
       <section className="hero">
         <p className="eyebrow">OpenDinq</p>
-        <h1>Generate profiles, cards, and evidence-backed search</h1>
+        <h1>Evidence-backed AI-native profiles and people discovery.</h1>
         <p>
-          Turn public sources and manual notes into AI-native profile cards,
-          public profiles, and discoverable evidence.
+          Generate a profile from public sources, turn evidence into cards,
+          and make people discoverable through claims, artifacts, and search.
         </p>
         <div className="actions">
-          <Link href="/generate">Generate</Link>
-          <Link href="/discover">Discover</Link>
-          <Link href="/import">Legacy GitHub import</Link>
+          <Link href="/generate">Generate Profile</Link>
+          <Link href="/discover">Explore Discover</Link>
+          <Link href="/u/demo-agent-builder">View Demo Profile</Link>
         </div>
+      </section>
+      <section className="product-steps">
+        {[
+          ["Generate from sources", "Start from GitHub, websites, papers, ORCID, or manual notes."],
+          ["Review evidence-backed claims", "Inspect claims before they shape cards and search results."],
+          ["Curate cards", "Edit, reorder, hide, or regenerate profile cards."],
+          ["Publish profile", "Switch from draft to published and preview the shareable page."],
+          ["Discover people", "Search by skills, artifacts, claims, cards, and evidence."]
+        ].map(([title, body]) => (
+          <article className="profile-card" key={title}>
+            <p className="eyebrow">{title}</p>
+            <p>{body}</p>
+          </article>
+        ))}
       </section>
     </main>
   );

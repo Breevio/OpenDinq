@@ -41,6 +41,9 @@ export type PersonProfile = {
     bio?: string;
     location?: string;
     avatarUrl?: string;
+    publicStatus?: "draft" | "published";
+    publishedAt?: string;
+    shareSlug?: string;
   };
   sources: Array<{
     type: string;
@@ -55,7 +58,25 @@ export type PersonProfile = {
     text: string;
     confidence: number;
     evidence: EvidenceRef[];
+    status?: "pending" | "approved" | "rejected";
   }>;
+};
+
+export type ProfileWorkspace = {
+  profile: PersonProfile;
+  publicProfile: PersonProfile;
+  profileSources: Array<{
+    id?: string;
+    type: string;
+    status: string;
+    url?: string;
+    warnings?: string[];
+  }>;
+  readiness: {
+    score: number;
+    checks: Array<{ label: string; complete: boolean }>;
+  };
+  discoverQuery: string;
 };
 
 export type SearchResult = {

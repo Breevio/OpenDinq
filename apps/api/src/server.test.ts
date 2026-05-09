@@ -144,6 +144,53 @@ describe("OpenDinq API", () => {
     const publicCardsJson = await publicCardsResponse.json();
     expect(publicCardsJson.cards.map((card: { id?: string }) => card.id)).not.toContain(manualNoteJson.card.id);
 
+    const workspaceResponse = await app.request("/api/people/demo-agent-builder/workspace");
+    expect(workspaceResponse.status).toBe(200);
+    const workspaceJson = await workspaceResponse.json();
+    expect(workspaceJson.readiness.score).toEqual(expect.any(Number));
+    expect(workspaceJson.profile.cards.map((card: { id?: string }) => card.id)).toContain(manualNoteJson.card.id);
+
+    const claimsResponse = await app.request("/api/people/demo-agent-builder/claims");
+    expect(claimsResponse.status).toBe(200);
+    const claimsJson = await claimsResponse.json();
+    const claimId = claimsJson.claims[0].id;
+    expect(claimId).toEqual(expect.any(String));
+
+    const rejectClaimResponse = await app.request(`/api/claims/${claimId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "rejected" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(rejectClaimResponse.status).toBe(200);
+    await expect(rejectClaimResponse.json()).resolves.toMatchObject({ claim: { id: claimId, status: "rejected" } });
+
+    const publicProfileAfterReject = await app.request("/api/people/demo-agent-builder");
+    const publicAfterRejectJson = await publicProfileAfterReject.json();
+    expect(publicAfterRejectJson.claims.map((claim: { id?: string }) => claim.id)).not.toContain(claimId);
+
+    const regenerateResponse = await app.request(`/api/cards/${publicCardsJson.cards[0].id}/regenerate`, { method: "POST" });
+    expect(regenerateResponse.status).toBe(200);
+    await expect(regenerateResponse.json()).resolves.toMatchObject({
+      card: {
+        id: publicCardsJson.cards[0].id,
+        evidence: expect.any(Array)
+      }
+    });
+
+    const publishResponse = await app.request("/api/people/demo-agent-builder/publish", {
+      method: "PATCH",
+      body: JSON.stringify({ publicStatus: "published" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(publishResponse.status).toBe(200);
+    await expect(publishResponse.json()).resolves.toMatchObject({
+      profile: {
+        person: {
+          publicStatus: "published"
+        }
+      }
+    });
+
     const searchResponse = await app.request("/api/search?q=AI%20agent%20TypeScript%20MCP");
     expect(searchResponse.status).toBe(200);
     const searchJson = await searchResponse.json();

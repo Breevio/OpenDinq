@@ -91,6 +91,22 @@ describe("PrismaStore", () => {
       }
     });
   });
+
+  it("updates claims and profile publish status", async () => {
+    const client = createMockClient();
+    const store = createPrismaStore(client);
+
+    await expect(store.updateClaim("claim-1", { status: "rejected" })).resolves.toMatchObject({
+      id: "claim-1",
+      status: "rejected"
+    });
+    await expect(store.publishProfile("demo", "published")).resolves.toMatchObject({
+      person: {
+        handle: "demo",
+        publicStatus: "published"
+      }
+    });
+  });
 });
 
 function createMockClient() {
@@ -102,6 +118,9 @@ function createMockClient() {
     bio: null,
     location: null,
     avatarUrl: null,
+    publicStatus: "draft",
+    publishedAt: null,
+    shareSlug: "demo",
     sources: [{ type: "github", url: "https://github.com/demo", externalId: "123", rawJson: null }],
     artifacts: [
       {
@@ -135,6 +154,7 @@ function createMockClient() {
   return {
     person: {
       upsert: vi.fn().mockResolvedValue({ id: "person-1" }),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ ...profile, ...data })),
       findUnique: vi.fn().mockResolvedValue(profile),
       findMany: vi.fn().mockResolvedValue([profile])
     },
@@ -189,6 +209,16 @@ function createMockClient() {
     profileClaim: {
       deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({
+        id: "claim-1",
+        sourceId: null,
+        artifactId: null,
+        type: "skill",
+        text: "TypeScript",
+        confidence: 0.8,
+        status: data.status ?? "approved",
+        evidenceJson: [{ id: "artifact-1", type: "artifact", title: "demo/agent-tools", reason: "Repo evidence." }]
+      })),
       findMany: vi.fn().mockResolvedValue([])
     }
   };

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apiRequest, type SearchResult } from "../lib/api";
+import { EvidenceList } from "./EvidenceList";
 
 export function DiscoverSearch() {
   const [query, setQuery] = useState(() => {
@@ -55,7 +56,8 @@ export function DiscoverSearch() {
             "AI agent builders with TypeScript and MCP",
             "researchers working on language models",
             "open-source infrastructure engineers",
-            "people with manual notes about product design"
+            "people with strong evidence in product design",
+            "profiles with manual notes about startups"
           ].map((suggestion) => (
             <button key={suggestion} type="button" onClick={() => setQuery(suggestion)}>
               {suggestion}
@@ -104,17 +106,7 @@ export function DiscoverSearch() {
               ) : null}
             </div>
             <span className="score">{Math.round(result.score * 100)}%</span>
-            <div className="evidence-list">
-              {result.evidence.slice(0, 3).map((evidence) => (
-                evidence.url ? (
-                  <a href={evidence.url} key={`${result.person.handle}-${evidence.id}-${evidence.reason}`}>
-                    {evidence.title}
-                  </a>
-                ) : (
-                  <span key={`${result.person.handle}-${evidence.id}-${evidence.reason}`}>{evidence.title}</span>
-                )
-              ))}
-            </div>
+            <EvidenceList evidence={result.evidence.slice(0, 3)} compact />
           </article>
         ))}
       </div>

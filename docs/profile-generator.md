@@ -3,7 +3,7 @@
 The generator is the primary OpenDinq product flow.
 
 ```text
-Generate Profile -> Cards -> Public Profile -> Discover
+Generate Profile -> Workspace -> Cards -> Public Profile -> Discover
 ```
 
 ## Input
@@ -44,6 +44,19 @@ Supported source types:
 The response includes the run id, generated handle, card count, artifact count, claim count, and warnings.
 
 Warnings do not always fail the run. If at least one source produces useful evidence, the run can complete with `needs_review`.
+
+After generation, the web flow sends users to `/u/:handle/workspace` first. The workspace shows sources, generated claims, cards, readiness, publish status, and links to the public profile and Discover.
+
+## Next Steps After Generation
+
+Recommended product path:
+
+1. Review the generation run summary.
+2. Open the workspace.
+3. Approve, edit, or reject claims.
+4. Edit, hide, reorder, or regenerate cards.
+5. Publish the profile.
+6. Search Discover with an evidence-backed query.
 
 ## Compatibility
 

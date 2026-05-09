@@ -13,6 +13,9 @@ export type PersonRecord = {
   bio?: string;
   location?: string;
   avatarUrl?: string;
+  publicStatus?: "draft" | "published";
+  publishedAt?: string;
+  shareSlug?: string;
 };
 
 export type ArtifactRecord = {
@@ -50,7 +53,9 @@ export type CardRecord = {
   updatedAt?: string;
 };
 
-export type CardPatchRecord = Pick<Partial<CardRecord>, "title" | "contentMd" | "visibility" | "order">;
+export type CardPatchRecord = Pick<Partial<CardRecord>, "title" | "contentMd" | "visibility" | "order" | "dataJson" | "evidence" | "sourceIds" | "claimIds" | "confidence">;
+
+export type ProfileClaimStatus = "pending" | "approved" | "rejected";
 
 export type ProfileClaimRecord = {
   id?: string;
@@ -61,6 +66,7 @@ export type ProfileClaimRecord = {
   text: string;
   confidence: number;
   evidence: EvidenceRecord[];
+  status?: ProfileClaimStatus;
 };
 
 export type ProfileSourceRecord = {
@@ -104,11 +110,14 @@ export type OpenDinqStore = {
   listCards(handle: string): Promise<CardRecord[] | undefined>;
   saveCard(handle: string, card: CardRecord): Promise<CardRecord | undefined>;
   updateCard(cardId: string, patch: CardPatchRecord): Promise<CardRecord | undefined>;
+  updateClaim(claimId: string, patch: Partial<Pick<ProfileClaimRecord, "text" | "type" | "confidence" | "status">>): Promise<ProfileClaimRecord | undefined>;
+  publishProfile(handle: string, publicStatus: "draft" | "published"): Promise<PersonProfileRecord | undefined>;
   createProfileRun(run: ProfileGenerationRunRecord): Promise<ProfileGenerationRunRecord>;
   updateProfileRun(runId: string, patch: Partial<ProfileGenerationRunRecord>): Promise<ProfileGenerationRunRecord | undefined>;
   getProfileRun(runId: string): Promise<ProfileGenerationRunRecord | undefined>;
   saveProfileSources(handle: string, sources: ProfileSourceRecord[]): Promise<ProfileSourceRecord[]>;
   listProfileSources(runId: string): Promise<ProfileSourceRecord[]>;
+  listProfileSourcesForHandle(handle: string): Promise<ProfileSourceRecord[]>;
   saveProfileClaims(handle: string, claims: ProfileClaimRecord[]): Promise<ProfileClaimRecord[]>;
   listProfileClaims(handle: string): Promise<ProfileClaimRecord[]>;
 };
