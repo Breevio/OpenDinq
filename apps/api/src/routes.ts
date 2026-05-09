@@ -498,6 +498,10 @@ async function synthesizeProfileClaims(
   artifacts: ArtifactRecord[],
   deterministicClaims: ProfileClaimRecord[]
 ): Promise<ProfileClaimRecord[]> {
+  if (artifacts.length === 0 || artifacts.every((artifact) => artifact.metadata?.source === "opendinq-review")) {
+    return deterministicClaims;
+  }
+
   const claims = await synthesizeClaimsWithEvidence({
     inferredPerson: { ...person, ...plan.inferredPerson },
     sources: bundles.map((bundle) => bundle.source),

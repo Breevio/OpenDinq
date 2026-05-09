@@ -110,6 +110,10 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
 
       try {
         const bundles = await normalizeSources(input.sources, runId, options);
+        const sourceWarnings = bundles.flatMap((bundle) => bundle.warnings);
+        if (bundles.length > 0 && bundles.every((bundle) => bundle.artifacts.length === 0 && bundle.claims.length === 0) && sourceWarnings.length > 0) {
+          bundles.push(reviewBundleFromFailedSources(input, runId, sourceWarnings));
+        }
         const warnings = bundles.flatMap((bundle) => bundle.warnings);
         const identities = bundles.map((bundle) => bundle.identity).filter(Boolean);
         const person = mergePerson(input, initialHandle, displayName, identities);
@@ -316,6 +320,41 @@ function bundleFrom(
     artifacts,
     claims: claims.map((item) => ({ ...item, sourceId: item.sourceId ?? `${type}-${runId}` })),
     warnings: []
+  };
+}
+
+function reviewBundleFromFailedSources(
+  input: ProfileGenerationInput,
+  runId: string,
+  warnings: string[]
+): NormalizedSourceBundle {
+  const sourceLabels = input.sources.map((source) => `${source.type}:${source.type === "manual" ? "manual" : source.input}`).join(", ");
+  const artifact: ArtifactRecord = {
+    type: "note",
+    title: "Source import needs review",
+    description: `OpenDinq could not import usable public artifacts from ${sourceLabels}. ${warnings.join(" ")}`,
+    metadata: {
+      source: "opendinq-review",
+      attemptedSources: input.sources
+    },
+    evidenceRaw: {
+      attemptedSources: input.sources,
+      warnings
+    }
+  };
+
+  const bundle = bundleFrom("manual", runId, undefined, artifact.evidenceRaw, {}, [artifact], [
+    claim(
+      "summary",
+      "Profile generation needs source review before claims can be trusted.",
+      0.35,
+      evidenceForArtifact(artifact, "OpenDinq recorded the failed source import so the profile can be reviewed instead of discarded.")
+    )
+  ]);
+
+  return {
+    ...bundle,
+    warnings
   };
 }
 

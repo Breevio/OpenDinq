@@ -60,6 +60,31 @@ describe("LLM profile intent planner", () => {
     expect(plan.warnings[0]).toContain("LLM planning failed");
   });
 
+  it("coerces provider-specific JSON into the OpenDinq plan schema", async () => {
+    const client: JsonLlmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        person: {
+          names: [{ fullName: "Linus Torvalds" }],
+          domains: ["Software Engineering", "Operating Systems"]
+        },
+        sources: [{ type: "github", url: "https://github.com/torvalds" }]
+      })
+    };
+
+    const plan = await planProfileGeneration("https://github.com/torvalds", { client });
+
+    expect(plan).toMatchObject({
+      rawInput: "https://github.com/torvalds",
+      intent: "generate_profile",
+      inferredPerson: {
+        displayName: "Linus Torvalds",
+        headline: "Software Engineering, Operating Systems"
+      },
+      sources: [expect.objectContaining({ type: "github", input: "torvalds" })]
+    });
+    expect(plan.warnings).toHaveLength(0);
+  });
+
   it("rejects hallucinated unsupported URLs", async () => {
     const client: JsonLlmClient = {
       completeJson: vi.fn().mockResolvedValue({

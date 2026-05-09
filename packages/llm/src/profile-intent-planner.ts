@@ -52,7 +52,7 @@ export async function planProfileGeneration(input: string, options: PlanProfileG
       system: PROFILE_INTENT_SYSTEM_PROMPT,
       user: JSON.stringify({ input })
     });
-    const parsed = profileGenerationPlanSchema.parse(json);
+    const parsed = parseProfileGenerationPlan(json, input);
     const sanitized = sanitizePlan(parsed, input);
     return sanitized.sources.length > 0 || sanitized.manualNotes.length > 0 ? sanitized : fallbackWithWarning(fallback, "LLM returned no usable sources or notes; using deterministic fallback.");
   } catch {
@@ -178,6 +178,81 @@ function sanitizePlan(plan: ProfileGenerationPlan, rawInput: string): ProfileGen
   };
 }
 
+function parseProfileGenerationPlan(json: unknown, rawInput: string): ProfileGenerationPlan {
+  const parsed = profileGenerationPlanSchema.safeParse(json);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const coerced = coerceProfileGenerationPlan(json, rawInput);
+  return profileGenerationPlanSchema.parse(coerced);
+}
+
+function coerceProfileGenerationPlan(json: unknown, rawInput: string): unknown {
+  if (!json || typeof json !== "object") {
+    return json;
+  }
+
+  const record = json as Record<string, unknown>;
+  const fallback = deterministicFallbackPlan(rawInput);
+  const person = record.person && typeof record.person === "object" ? record.person as Record<string, unknown> : {};
+  const names = Array.isArray(person.names) ? person.names : [];
+  const firstName = names.find((name): name is Record<string, unknown> => Boolean(name) && typeof name === "object");
+  const displayName = stringValue(record.displayName) ?? stringValue(person.displayName) ?? stringValue(firstName?.fullName);
+  const domainHeadline = stringArray(person.domains).slice(0, 2).join(", ");
+  const headline = stringValue(record.headline) ?? stringValue(person.headline) ?? (domainHeadline || undefined);
+  const sources = coerceSources(record.sources, rawInput);
+  const manualNotes = stringArray(record.manualNotes).map((text) => ({ text, reason: "LLM-provided manual note." }));
+  const searchQueries = stringArray(record.searchQueries).map((query) => ({ query, reason: "LLM-provided search query." }));
+  const warnings = stringArray(record.warnings);
+  if (sources.length === 0 && fallback.sources.length > 0) {
+    warnings.unshift("LLM planning failed or returned invalid JSON; using deterministic fallback.");
+  }
+
+  return {
+    rawInput,
+    intent: sources.length > 0 ? "generate_profile" : fallback.intent,
+    confidence: numberValue(record.confidence) ?? fallback.confidence,
+    inferredPerson: {
+      displayName,
+      handle: stringValue(record.handle) ?? fallback.inferredPerson.handle,
+      headline: headline || fallback.inferredPerson.headline,
+      aliases: stringArray(person.aliases)
+    },
+    sources: sources.length > 0 ? sources : fallback.sources,
+    manualNotes: manualNotes.length > 0 ? manualNotes : fallback.manualNotes,
+    searchQueries: searchQueries.length > 0 ? searchQueries : fallback.searchQueries,
+    warnings,
+    questions: stringArray(record.questions)
+  };
+}
+
+function coerceSources(value: unknown, rawInput: string): ProfileGenerationPlan["sources"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const source = item as Record<string, unknown>;
+    const type = stringValue(source.type);
+    const rawSourceInput = stringValue(source.input) ?? stringValue(source.url) ?? stringValue(source.id);
+    if (!type || !rawSourceInput || !sourceTypeSchema.safeParse(type).success) {
+      return [];
+    }
+
+    const sourceInput = type === "github" ? githubInput(rawSourceInput) ?? githubInput(rawInput) ?? rawSourceInput : rawSourceInput;
+    return [{
+      type: type as ProfileIntentSource["type"],
+      input: sourceInput,
+      reason: stringValue(source.reason) ?? "LLM inferred this source from the input.",
+      confidence: numberValue(source.confidence) ?? 0.7
+    }];
+  });
+}
+
 function fallbackWithWarning(plan: ProfileGenerationPlan, warning: string): ProfileGenerationPlan {
   return {
     ...plan,
@@ -249,4 +324,19 @@ function inferHeadline(input: string): string | undefined {
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : undefined;
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
 }

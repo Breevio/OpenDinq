@@ -340,6 +340,35 @@ describe("OpenDinq API", () => {
     expect(json.warnings[0]).toContain("github");
   });
 
+  it("keeps generation reviewable when every connector fails", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        displayName: "Rate Limited Builder",
+        handle: "rate-limited-builder",
+        sources: [{ type: "github", input: "-bad-user" }]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      handle: "rate-limited-builder",
+      status: "needs_review",
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(json.warnings[0]).toContain("github");
+
+    const profileResponse = await app.request("/api/people/rate-limited-builder");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.cards).toEqual(expect.arrayContaining([expect.objectContaining({ type: "summary" })]));
+    expect(profileJson.claims[0].text).toContain("needs source review");
+  });
+
   it("adds public multi-source artifacts to an existing profile", async () => {
     const app = createApp({ fetchImpl: fixtureFetch });
 
@@ -466,6 +495,38 @@ describe("OpenDinq API", () => {
     const claimsJson = await claimsResponse.json();
     expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).toContain("Builds TypeScript MCP tools for AI agent workflows");
     expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).not.toContain("No evidence claim");
+  });
+
+  it("does not run LLM claim synthesis for source-review fallback profiles", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValueOnce({
+        rawInput: "https://github.com/-bad-user",
+        intent: "generate_profile",
+        confidence: 0.9,
+        inferredPerson: { handle: "rate-limited-builder" },
+        sources: [{ type: "github", input: "-bad-user", reason: "GitHub URL provided.", confidence: 0.9 }],
+        manualNotes: [],
+        searchQueries: [],
+        warnings: [],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/-bad-user" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "needs_review",
+      llmUsed: true,
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(llmClient.completeJson).toHaveBeenCalledTimes(1);
   });
 });
 
