@@ -205,36 +205,37 @@ export function ProfileGenerateForm() {
 
 function PlanPreview({ response }: { response: ProfilePlanResponse }) {
   const { plan } = response;
+  const manualOnly = plan.intent === "manual_profile" && !plan.sources.some((source) => source.evidenceStatus === "explicit");
   return (
     <div className="plan-preview">
       <div className="result-strip">
-        <span>{response.llmUsed ? "LLM used" : "Deterministic fallback"}</span>
-        <span>{plan.intent}</span>
+        <span>{response.llmUsed ? "LLM planned" : "Local fallback plan"}</span>
+        <span>{manualOnly ? "Needs public source" : plan.intent}</span>
         <span>{Math.round(plan.confidence * 100)}% confidence</span>
       </div>
       {response.warnings.length ? <p className="status warning">{response.warnings.join(" ")}</p> : null}
       <div className="plan-grid">
         <div>
-          <strong>Inferred person</strong>
+          <strong>Subject</strong>
           <span>{plan.subject.displayName ?? "Unknown"}</span>
           {plan.subject.handle ? <span>{plan.subject.handle}</span> : null}
           {plan.subject.headline ? <span>{plan.subject.headline}</span> : null}
         </div>
         <div>
-          <strong>Sources to use</strong>
+          <strong>Public sources to import</strong>
           {plan.sources.length ? plan.sources.map((source) => (
-            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.type}: {typeof source.input === "string" ? source.input : JSON.stringify(source.input)} ({source.evidenceStatus})</span>
+            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.evidenceStatus === "user_provided" ? "No public source supplied; using your input as a review seed." : `${source.type}: ${typeof source.input === "string" ? source.input : JSON.stringify(source.input)}`}</span>
           )) : <span>No reliable public source yet</span>}
         </div>
       </div>
       {plan.userProvidedClaims.length ? (
         <div className="plan-grid">
           <div>
-            <strong>User-provided claims</strong>
+            <strong>Review seed from your input</strong>
             {plan.userProvidedClaims.map((claim) => <span key={claim.text}>{claim.text}</span>)}
           </div>
           <div>
-            <strong>Missing evidence</strong>
+            <strong>Evidence to add next</strong>
             {plan.missingEvidence.map((item) => <span key={item.need}>{item.need}: {item.suggestedSource ?? item.reason}</span>)}
           </div>
         </div>
@@ -244,12 +245,14 @@ function PlanPreview({ response }: { response: ProfilePlanResponse }) {
 }
 
 function GenerationResult({ result, input }: { result: ProfileGenerationResponse; input: string }) {
+  const needsReview = result.status === "needs_review";
+  const manualOnly = result.plan?.intent === "manual_profile" && !result.plan.sources.some((source) => source.evidenceStatus === "explicit");
   return (
     <div className="completion-panel">
-      <p className="eyebrow">Generation completed</p>
+      <p className="eyebrow">{needsReview ? "Review workspace created" : "Generation completed"}</p>
       <div className="result-strip">
-        <span>{result.status}</span>
-        <span>{result.llmUsed ? "LLM used" : "Deterministic fallback"}</span>
+        <span>{needsReview ? "needs review" : result.status}</span>
+        <span>{result.llmUsed ? (manualOnly ? "LLM planned review" : "LLM used") : "Local fallback plan"}</span>
         <span>{result.artifactsImported} artifacts</span>
         <span>{result.claimsGenerated} claims</span>
         <span>{result.cardsGenerated} cards</span>

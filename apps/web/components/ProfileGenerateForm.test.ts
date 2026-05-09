@@ -20,7 +20,8 @@ describe("/generate AI-first UI", () => {
   });
 
   it("shows no-key fallback messaging from API results", () => {
-    expect(source).toContain("Deterministic fallback");
-    expect(source).toContain("LLM used");
+    expect(source).toContain("Local fallback plan");
+    expect(source).toContain("LLM planned");
+    expect(source).toContain("Needs public source");
   });
 });
