@@ -57,6 +57,28 @@ It verifies:
 - evidence retrieval
 - profile/search persistence after Prisma reconnect
 
+## CI Postgres Verification
+
+GitHub Actions runs a Postgres service container on pushes to `main` and pull requests.
+
+The workflow uses:
+
+```text
+DATABASE_URL=postgresql://opendinq:opendinq@localhost:5432/opendinq
+```
+
+CI runs:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm verify:db
+./scripts/check.sh
+pnpm audit --audit-level high
+```
+
+This validates PrismaStore against a real Postgres database instead of only validating the Prisma schema.
+
 ## Manual Verification Checklist
 
 1. Start Postgres.

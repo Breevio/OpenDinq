@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test and verify
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://opendinq:opendinq@localhost:5432/opendinq
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opendinq
+          POSTGRES_PASSWORD: opendinq
+          POSTGRES_DB: opendinq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opendinq -d opendinq"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.10.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Run migrations
+        run: pnpm db:migrate
+
+      - name: Verify DB runtime
+        run: pnpm verify:db
+
+      - name: Run checks
+        run: ./scripts/check.sh
+
+      - name: Audit high severity vulnerabilities
+        run: pnpm audit --audit-level high

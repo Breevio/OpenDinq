@@ -7,6 +7,7 @@ Before tagging a release:
 - [ ] `pnpm db:generate` passes
 - [ ] `pnpm db:validate` passes
 - [ ] `DATABASE_URL=... pnpm verify:db` passes when Postgres is available
+- [ ] GitHub Actions Postgres service runs `pnpm verify:db`
 - [ ] `/health` returns ok
 - [ ] `/generate` returns 200
 - [ ] `/discover` returns 200
