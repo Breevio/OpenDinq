@@ -4,17 +4,17 @@ import { useState } from "react";
 import { apiRequest, type ProfileGenerationResponse } from "../lib/api";
 
 export function ProfileGenerateForm() {
-  const [displayName, setDisplayName] = useState("Demo Agent Builder");
-  const [handle, setHandle] = useState("demo-agent-builder");
-  const [headline, setHeadline] = useState("AI agent engineer");
-  const [github, setGithub] = useState("demo-agent-builder");
+  const [displayName, setDisplayName] = useState("Ada Builder");
+  const [handle, setHandle] = useState("ada-builder");
+  const [headline, setHeadline] = useState("AI product engineer");
+  const [github, setGithub] = useState("");
   const [website, setWebsite] = useState("");
   const [openAlex, setOpenAlex] = useState("");
   const [arxiv, setArxiv] = useState("");
   const [orcid, setOrcid] = useState("");
-  const [manualTitle, setManualTitle] = useState("");
-  const [manualUrl, setManualUrl] = useState("");
-  const [manualNote, setManualNote] = useState("");
+  const [manualTitle, setManualTitle] = useState("Built an agent workflow");
+  const [manualUrl, setManualUrl] = useState("https://example.com/agent-workflow");
+  const [manualNote, setManualNote] = useState("Designed and shipped an evidence-backed AI workflow for profile generation.");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProfileGenerationResponse | null>(null);
