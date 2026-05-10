@@ -2,6 +2,15 @@
 
 OpenDinq generates profiles from evidence, not from unsupported text.
 
+Evidence status is explicit in the generation plan:
+
+- `explicit`: the user provided a public source or a connector returned an artifact
+- `user_provided`: the user wrote the information, but OpenDinq has not verified it
+- `inferred`: the LLM suggested a possibility, not evidence
+- `missing`: evidence needed but absent
+
+Public profiles and Discover should prefer explicit evidence. User-provided claims can help create a review workspace, but they are not verified evidence.
+
 ## Core Objects
 
 `ProfileGenerationRun`
@@ -29,7 +38,7 @@ A claim inferred from sources and artifacts. Examples:
 - link
 - summary
 
-Every claim has confidence and evidence refs.
+Every claim has confidence and evidence refs. Claims may also have `qualityScore`, a deterministic score based on evidence count, source quality, artifact quality, confidence, specificity, generic-claim penalties, and manual-source signals.
 
 Claims also have a review status:
 
@@ -38,6 +47,12 @@ Claims also have a review status:
 - `rejected`
 
 Approved claims are preferred in public profile and Discover output. Rejected claims remain stored for review history, but should not be shown as public approved claims or used prominently in search.
+
+Before claims reach cards or public search, OpenDinq normalizes text/type/confidence/evidence, removes unsupported claims, merges duplicates, preserves evidence refs, and ranks approved high-quality claims first.
+
+When LLM generation is enabled, the LLM may propose higher-level claims from normalized sources and artifacts. Every LLM claim must cite known evidence refs. Claims without evidence or with hallucinated evidence ids are discarded, then the accepted claims pass through the same deterministic quality pipeline.
+
+Natural-language-only generation creates pending user-provided claims and missing-evidence prompts. OpenDinq should not describe those claims as evidence-backed until a public source is added.
 
 `Card`
 
@@ -68,7 +83,7 @@ Generated cards include:
 - `visibility`
 - `order`
 
-Cards should support claims. Artifacts support cards.
+Cards should support claims. Artifacts support cards. Generated cards also store lightweight quality metadata in `dataJson` when available: `qualityScore`, `evidenceCount`, `generatedFromClaimIds`, and `generatedFromArtifactIds`.
 
 ## Evidence UX
 

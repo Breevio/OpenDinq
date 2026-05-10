@@ -2,13 +2,14 @@ import { buildEvidenceRefs } from "./evidence.js";
 import type { CardArtifact, CardClaim, CardPerson, EvidenceRef, GeneratedCard } from "./types.js";
 
 export function generateProfileCards(person: CardPerson, artifacts: CardArtifact[], claims: CardClaim[] = []): GeneratedCard[] {
+  const usableClaims = qualityClaims(claims);
   const cards = [
-    maybeSummaryCard(person, artifacts, claims),
-    maybeSkillCard(person, artifacts, claims),
-    maybeWorksCard(person, artifacts, claims),
-    maybeResearchCard(person, artifacts, claims),
-    maybeTimelineCard(person, artifacts, claims),
-    ...manualNoteCards(person, claims)
+    maybeSummaryCard(person, artifacts, usableClaims),
+    maybeSkillCard(person, artifacts, usableClaims),
+    maybeWorksCard(person, artifacts, usableClaims),
+    maybeResearchCard(person, artifacts, usableClaims),
+    maybeTimelineCard(person, artifacts, usableClaims),
+    ...manualNoteCards(person, claims.filter((claim) => claim.status !== "rejected"))
   ].filter((card): card is GeneratedCard => Boolean(card));
 
   return cards.map((card) => ({
@@ -86,21 +87,29 @@ export function generateSkillsCard(person: CardPerson, artifacts: CardArtifact[]
 }
 
 function maybeSummaryCard(person: CardPerson, artifacts: CardArtifact[], claims: CardClaim[]): GeneratedCard | undefined {
-  const summaryClaims = claims.filter((claim) => claim.type === "summary" || claim.type === "role" || claim.type === "achievement");
+  const summaryClaims = claims.filter((claim) => claim.type === "summary" || claim.type === "role" || claim.type === "achievement").slice(0, 5);
   const evidence = evidenceFromClaims(summaryClaims).concat(buildEvidenceRefs(artifacts.slice(0, 3), "Artifact contributes to the profile summary."));
   if (evidence.length === 0) {
     return undefined;
   }
+  const themes = topThemes(summaryClaims, artifacts);
+  const bullets = summaryClaims.slice(0, 3).map((claim) => `- ${claim.text}`);
+  const hasPublicEvidence = evidence.some(isPublicEvidence);
 
   return {
     type: "summary",
     title: `${person.displayName} profile`,
     contentMd: [
       `# ${person.displayName}`,
-      person.headline ?? person.bio ?? "Evidence-backed public profile.",
-      ...summaryClaims.slice(0, 4).map((claim) => `- ${claim.text}`)
-    ].join("\n\n"),
-    dataJson: { handle: person.handle },
+      person.headline ?? person.bio ?? (themes.join(", ") || (hasPublicEvidence ? "Evidence-backed public profile." : "Review profile generated from user-provided information.")),
+      hasPublicEvidence && themes.length ? `Strongest evidence themes: ${themes.join(", ")}.` : undefined,
+      ...bullets
+    ].filter(Boolean).join("\n\n"),
+    dataJson: {
+      handle: person.handle,
+      themes,
+      ...qualityMetadata(summaryClaims, [], evidence)
+    },
     evidence: dedupeEvidence(evidence),
     claimIds: claimIds(summaryClaims),
     confidence: averageConfidence(summaryClaims)
@@ -109,19 +118,47 @@ function maybeSummaryCard(person: CardPerson, artifacts: CardArtifact[], claims:
 
 function maybeSkillCard(person: CardPerson, artifacts: CardArtifact[], claims: CardClaim[]): GeneratedCard | undefined {
   const skillClaims = claims.filter((claim) => claim.type === "skill");
-  const skills = skillClaims.length > 0 ? skillClaims.map((claim) => claim.text) : extractSkills(artifacts);
+  const skillRows = skillClaims.length > 0 ? skillClaims.map((claim) => ({
+    skill: claim.text,
+    confidence: claim.confidence,
+    evidenceCount: claim.evidence.length,
+    sources: claim.evidence.map((item) => item.title),
+    claim
+  })) : extractSkills(artifacts).map((skill) => ({
+    skill,
+    confidence: 0.6,
+    evidenceCount: artifacts.filter((artifact) => artifactContainsSkill(artifact, skill)).length,
+    sources: artifacts.filter((artifact) => artifactContainsSkill(artifact, skill)).map((artifact) => artifact.title),
+    claim: undefined
+  }));
+  const uniqueSkills = dedupeSkillRows(skillRows).slice(0, 12);
   const evidence = evidenceFromClaims(skillClaims);
-  const fallbackEvidence = artifacts.filter((artifact) => skills.some((skill) => artifactContainsSkill(artifact, skill)));
+  const fallbackEvidence = artifacts.filter((artifact) => uniqueSkills.some((row) => artifactContainsSkill(artifact, row.skill)));
   const allEvidence = dedupeEvidence(evidence.concat(buildEvidenceRefs(fallbackEvidence, "Artifact supports this skill.")));
-  if (skills.length === 0 || allEvidence.length === 0) {
+  if (uniqueSkills.length === 0 || allEvidence.length === 0) {
     return undefined;
   }
 
   return {
     type: "skills",
     title: `${person.displayName} skills`,
-    contentMd: ["## Skills", ...[...new Set(skills)].slice(0, 12).map((skill) => `- ${skill}`)].join("\n"),
-    dataJson: { skills: [...new Set(skills)].slice(0, 12) },
+    contentMd: [
+      "## Skills",
+      ...uniqueSkills.map((row) => {
+        const evidenceLabel = row.sources.slice(0, 2).join(", ");
+        return `- ${row.skill} (${Math.round(row.confidence * 100)}% confidence${evidenceLabel ? `, evidence: ${evidenceLabel}` : ""})`;
+      })
+    ].join("\n\n"),
+    dataJson: {
+      skills: uniqueSkills.map((row) => row.skill),
+      groupedByEvidence: uniqueSkills.map((row) => ({
+        skill: row.skill,
+        confidence: row.confidence,
+        evidenceCount: row.evidenceCount,
+        sources: row.sources.slice(0, 3)
+      })),
+      ...qualityMetadata(skillClaims, [], allEvidence)
+    },
     evidence: allEvidence,
     claimIds: claimIds(skillClaims),
     confidence: averageConfidence(skillClaims)
@@ -130,7 +167,10 @@ function maybeSkillCard(person: CardPerson, artifacts: CardArtifact[], claims: C
 
 function maybeWorksCard(person: CardPerson, artifacts: CardArtifact[], claims: CardClaim[]): GeneratedCard | undefined {
   const workClaims = claims.filter((claim) => ["project", "achievement", "link"].includes(claim.type));
-  const works = artifacts.filter((artifact) => ["repo", "project", "post", "website"].includes(artifact.type)).slice(0, 6);
+  const works = artifacts
+    .filter((artifact) => ["repo", "project", "post", "website"].includes(artifact.type))
+    .toSorted((left, right) => scoreWorkArtifact(right, workClaims) - scoreWorkArtifact(left, workClaims) || left.title.localeCompare(right.title))
+    .slice(0, 6);
   const evidence = dedupeEvidence(evidenceFromClaims(workClaims).concat(buildEvidenceRefs(works, "Artifact supports this work card.")));
   if (works.length === 0 || evidence.length === 0) {
     return undefined;
@@ -140,7 +180,11 @@ function maybeWorksCard(person: CardPerson, artifacts: CardArtifact[], claims: C
     type: "works",
     title: `${person.displayName} works`,
     contentMd: ["## Selected works", ...works.map((artifact) => `- ${artifact.title}${artifact.description ? ` — ${artifact.description}` : ""}`)].join("\n"),
-    dataJson: { works },
+    dataJson: {
+      works,
+      rankedArtifacts: works.map((artifact) => ({ id: artifact.id, title: artifact.title, score: scoreWorkArtifact(artifact, workClaims) })),
+      ...qualityMetadata(workClaims, works, evidence)
+    },
     evidence,
     claimIds: claimIds(workClaims),
     confidence: averageConfidence(workClaims)
@@ -149,7 +193,7 @@ function maybeWorksCard(person: CardPerson, artifacts: CardArtifact[], claims: C
 
 function maybeResearchCard(person: CardPerson, artifacts: CardArtifact[], claims: CardClaim[]): GeneratedCard | undefined {
   const researchClaims = claims.filter((claim) => claim.type === "research_area");
-  const papers = artifacts.filter((artifact) => artifact.type === "paper").slice(0, 6);
+  const papers = artifacts.filter(isResearchArtifact).slice(0, 6);
   const evidence = dedupeEvidence(evidenceFromClaims(researchClaims).concat(buildEvidenceRefs(papers, "Paper supports this research card.")));
   if (papers.length === 0 && researchClaims.length === 0) {
     return undefined;
@@ -162,7 +206,7 @@ function maybeResearchCard(person: CardPerson, artifacts: CardArtifact[], claims
     type: "research",
     title: `${person.displayName} research`,
     contentMd: ["## Research", ...[...researchClaims.map((claim) => claim.text), ...papers.map((paper) => paper.title)].slice(0, 8).map((line) => `- ${line}`)].join("\n"),
-    dataJson: { papers },
+    dataJson: { papers, ...qualityMetadata(researchClaims, papers, evidence) },
     evidence,
     claimIds: claimIds(researchClaims),
     confidence: averageConfidence(researchClaims)
@@ -183,7 +227,10 @@ function maybeTimelineCard(person: CardPerson, artifacts: CardArtifact[], claims
     type: "timeline",
     title: `${person.displayName} timeline`,
     contentMd: ["## Timeline", ...dated.map(({ artifact, date }) => `- ${date.slice(0, 10)} — ${artifact.title}`)].join("\n"),
-    dataJson: { events: dated },
+    dataJson: {
+      events: dated,
+      ...qualityMetadata(claims.filter((claim) => claim.type === "achievement"), dated.map((item) => item.artifact), buildEvidenceRefs(dated.map((item) => item.artifact)))
+    },
     evidence: buildEvidenceRefs(dated.map((item) => item.artifact), "Dated artifact supports this timeline event."),
     claimIds: claimIds(claims.filter((claim) => claim.type === "achievement")),
     confidence: averageConfidence(claims)
@@ -199,6 +246,7 @@ function manualNoteCards(person: CardPerson, claims: CardClaim[]): GeneratedCard
       type: "note",
       title: `${person.displayName} note ${index + 1}`,
       contentMd: claim.text,
+      dataJson: { source: "manual", ...qualityMetadata([claim], [], claim.evidence) },
       evidence: claim.evidence,
       claimIds: claimIds([claim]),
       confidence: claim.confidence,
@@ -307,6 +355,93 @@ function averageConfidence(claims: CardClaim[]): number | undefined {
   }
 
   return Math.round((claims.reduce((sum, claim) => sum + claim.confidence, 0) / claims.length) * 100) / 100;
+}
+
+function qualityClaims(claims: CardClaim[]): CardClaim[] {
+  return claims
+    .filter((claim) => claim.status !== "rejected")
+    .filter((claim) => claim.evidence.length > 0)
+    .toSorted((left, right) => (right.qualityScore ?? 0) - (left.qualityScore ?? 0) || right.confidence - left.confidence);
+}
+
+function qualityMetadata(claims: CardClaim[], artifacts: CardArtifact[], evidence: EvidenceRef[]): Record<string, unknown> {
+  return {
+    qualityScore: roundScore(
+      Math.min(1, (averageConfidence(claims) ?? 0.65) * 0.45 + Math.min(1, evidence.length / 4) * 0.35 + Math.min(1, claims.length / 4) * 0.2)
+    ),
+    evidenceCount: dedupeEvidence(evidence).length,
+    generatedFromClaimIds: claimIds(claims),
+    generatedFromArtifactIds: artifacts.map((artifact) => artifact.id ?? artifact.url ?? artifact.title).filter(Boolean)
+  };
+}
+
+function topThemes(claims: CardClaim[], artifacts: CardArtifact[]): string[] {
+  const themes = new Set<string>();
+  for (const claim of claims) {
+    if (claim.type === "role" || claim.type === "research_area" || claim.type === "achievement") {
+      themes.add(claim.text);
+    }
+  }
+  for (const skill of extractSkills(artifacts).slice(0, 3)) {
+    themes.add(skill);
+  }
+  return [...themes].slice(0, 3);
+}
+
+type SkillRow = {
+  skill: string;
+  confidence: number;
+  evidenceCount: number;
+  sources: string[];
+  claim?: CardClaim;
+};
+
+function dedupeSkillRows(rows: SkillRow[]): SkillRow[] {
+  const bySkill = new Map<string, SkillRow>();
+  for (const row of rows) {
+    const key = row.skill.toLowerCase();
+    const existing = bySkill.get(key);
+    if (!existing || row.confidence > existing.confidence || row.evidenceCount > existing.evidenceCount) {
+      bySkill.set(key, row);
+    }
+  }
+  return [...bySkill.values()].toSorted((left, right) => right.confidence - left.confidence || right.evidenceCount - left.evidenceCount || left.skill.localeCompare(right.skill));
+}
+
+function scoreWorkArtifact(artifact: CardArtifact, claims: CardClaim[]): number {
+  const linkedClaims = claims.filter((claim) => claim.artifactId && (claim.artifactId === artifact.id || claim.artifactId === artifact.url));
+  const evidenceRelevance = claims.some((claim) => claim.evidence.some((item) => item.id === artifact.id || item.id === artifact.url || item.title === artifact.title)) ? 0.3 : 0;
+  const impact = Math.min(0.25, Math.log10(numberMetadata(artifact, "stars") + numberMetadata(artifact, "forks") * 2 + 1) / 12);
+  const recency = artifactRecencyScore(artifact) * 0.15;
+  const linkage = Math.min(0.2, linkedClaims.length * 0.1);
+  const manual = numberMetadata(artifact, "manualImportance") * 0.1;
+  return roundScore(evidenceRelevance + impact + recency + linkage + manual);
+}
+
+function artifactRecencyScore(artifact: CardArtifact): number {
+  const timestamp = Date.parse(stringMetadata(artifact, "updatedAt") || stringMetadata(artifact, "pushedAt") || stringMetadata(artifact, "publishedAt"));
+  if (!timestamp) {
+    return 0;
+  }
+  const ageDays = (Date.now() - timestamp) / 86_400_000;
+  return ageDays <= 120 ? 1 : ageDays <= 730 ? 0.5 : 0.15;
+}
+
+function isResearchArtifact(artifact: CardArtifact): boolean {
+  if (artifact.type === "paper") {
+    return true;
+  }
+  const text = `${artifact.title} ${artifact.description ?? ""} ${stringArrayMetadata(artifact, "topics").join(" ")}`.toLowerCase();
+  return /\b(paper|research|arxiv|publication|evaluation|benchmark)\b/.test(text);
+}
+
+function roundScore(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function isPublicEvidence(evidence: EvidenceRef): boolean {
+  const reason = evidence.reason.toLowerCase();
+  return !reason.includes("user-provided") && !reason.includes("add public evidence");
 }
 
 function dedupeEvidence(evidence: EvidenceRef[]): EvidenceRef[] {

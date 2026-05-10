@@ -1,5 +1,16 @@
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
-import type { CardRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import { searchOpenAlexAuthors } from "@opendinq/connectors";
+import { publicRankedClaims } from "@opendinq/core";
+import type { ArtifactRecord, CardRecord, EvidenceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord } from "@opendinq/core";
+import {
+  createOpenAICompatibleJsonClient,
+  getLlmGenerationConfig,
+  planProfileGeneration,
+  synthesizeClaimsWithEvidence,
+  type JsonLlmClient,
+  type ProfileGenerationPlan,
+  type SynthesisClaim
+} from "@opendinq/llm";
 import { hybridSearchPeople, type PersonSearchDocument } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -10,6 +21,7 @@ import { createProfileGenerator, getProfileRunSummary } from "./profile-generato
 export type ApiRouteOptions = {
   store: OpenDinqStore;
   fetchImpl?: typeof fetch;
+  llmClient?: JsonLlmClient;
 };
 
 const importGitHubSchema = z.object({
@@ -38,6 +50,11 @@ const profileGenerationSchema = z.object({
       })
     ])
   ).min(1)
+});
+
+const aiProfileInputSchema = z.object({
+  input: z.string().min(1),
+  reviewPlan: z.boolean().optional()
 });
 
 const createNoteCardSchema = z.object({
@@ -87,6 +104,51 @@ export function createApiRoutes(options: ApiRouteOptions) {
     store: options.store,
     fetchImpl: options.fetchImpl,
     githubToken: process.env.GITHUB_TOKEN || undefined
+  });
+  const llmClient = getConfiguredLlmClient(options);
+
+  routes.post("/profiles/plan", async (context) => {
+    try {
+      const body = aiProfileInputSchema.pick({ input: true }).parse(await context.req.json());
+      const plan = await enrichPlanWithDiscoveredSources(await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {}), options.fetchImpl);
+      const warnings = plan.warnings;
+      const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
+      return context.json({
+        plan: { ...plan, warnings },
+        llmUsed,
+        warnings
+      });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/profiles/generate-ai", async (context) => {
+    try {
+      const body = aiProfileInputSchema.parse(await context.req.json());
+      const plan = await enrichPlanWithDiscoveredSources(await planProfileGeneration(body.input, llmClient ? { client: llmClient } : {}), options.fetchImpl);
+      const warnings = [...plan.warnings];
+      const llmUsed = Boolean(llmClient) && !usedLocalFallback(warnings);
+      const aiGenerator = createProfileGenerator({
+        store: options.store,
+        fetchImpl: options.fetchImpl,
+        githubToken: process.env.GITHUB_TOKEN || undefined,
+        synthesizeClaims: llmClient && llmUsed
+          ? async ({ person, bundles, artifacts, deterministicClaims }) => synthesizeProfileClaims(llmClient, plan, person, bundles, artifacts, deterministicClaims)
+          : undefined
+      });
+      const generated = await aiGenerator.generate(planToGenerationInput(plan));
+
+      return context.json({
+        ...generated,
+        workspaceUrl: `/u/${generated.handle}/workspace`,
+        llmUsed,
+        plan,
+        warnings: mergeGenerationWarnings(plan, warnings, generated.warnings)
+      });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
   });
 
   routes.post("/profiles/generate", async (context) => {
@@ -373,6 +435,175 @@ export function createApiRoutes(options: ApiRouteOptions) {
   return routes;
 }
 
+function getConfiguredLlmClient(options: ApiRouteOptions): JsonLlmClient | undefined {
+  if (options.llmClient) {
+    return options.llmClient;
+  }
+  const config = getLlmGenerationConfig();
+  return config ? createOpenAICompatibleJsonClient({ ...config, fetchImpl: options.fetchImpl }) : undefined;
+}
+
+function usedLocalFallback(warnings: string[]): boolean {
+  return warnings.some((warning) => warning.includes("using local fallback planning"));
+}
+
+function mergeGenerationWarnings(plan: ProfileGenerationPlan, planWarnings: string[], generatedWarnings: string[]): string[] {
+  const hasPublicSource = plan.sources.some((source) => source.type !== "manual");
+  return [...new Set([...planWarnings, ...generatedWarnings])]
+    .filter((warning) => !(hasPublicSource && warning.includes("This profile was generated from user-provided information")));
+}
+
+async function enrichPlanWithDiscoveredSources(plan: ProfileGenerationPlan, fetchImpl?: typeof fetch): Promise<ProfileGenerationPlan> {
+  if (plan.sources.some((source) => source.evidenceStatus === "explicit" && source.type !== "manual")) {
+    return plan;
+  }
+
+  const query = plan.subject.displayName ?? personLikeInput(plan.rawInput);
+  if (!query) {
+    return plan;
+  }
+
+  try {
+    const authors = await searchOpenAlexAuthors(query, { fetchImpl });
+    const candidate = bestOpenAlexCandidate(query, authors);
+    if (!candidate) {
+      return plan;
+    }
+
+    return {
+      ...plan,
+      sources: [
+        {
+          type: "openalex",
+          input: candidate.id,
+          confidence: 0.72,
+          reason: `OpenDinq found a public OpenAlex author candidate for "${query}".`,
+          evidenceStatus: "inferred"
+        },
+        ...plan.sources
+      ],
+      warnings: [
+        `OpenDinq found an OpenAlex candidate for "${query}". Review the imported evidence before publishing.`,
+        ...plan.warnings.filter((warning) => !warning.includes("No public source URL or id was provided"))
+      ]
+    };
+  } catch {
+    return plan;
+  }
+}
+
+function bestOpenAlexCandidate(query: string, authors: Awaited<ReturnType<typeof searchOpenAlexAuthors>>) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const exact = authors.filter((author) => author.display_name.trim().toLowerCase() === normalizedQuery);
+  const candidates = exact.length > 0 ? exact : authors;
+  return candidates
+    .filter((author) => author.id && author.display_name)
+    .toSorted((left, right) => (right.cited_by_count ?? 0) - (left.cited_by_count ?? 0) || (right.works_count ?? 0) - (left.works_count ?? 0))[0];
+}
+
+function personLikeInput(input: string): string | undefined {
+  const normalized = input.replace(/^generate a profile (for|from)\s+/i, "").trim();
+  return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(normalized) ? normalized : undefined;
+}
+
+function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof profileGenerationSchema> {
+  const sources = plan.sources.map((source) => {
+    if (source.type === "manual") {
+      const input = typeof source.input === "string" ? { note: source.input } : source.input;
+      return {
+        type: "manual" as const,
+        input: {
+          title: stringValue(input.title) ?? plan.subject.displayName ?? "Manual profile evidence",
+          url: stringValue(input.url),
+          note: stringValue(input.note) ?? stringValue(input.text) ?? plan.rawInput,
+          description: stringValue(input.description) ?? "User-provided information. This is not verified public evidence."
+        }
+      };
+    }
+    return {
+      type: source.type,
+      input: String(source.input)
+    } as z.infer<typeof profileGenerationSchema>["sources"][number];
+  });
+
+  for (const claim of plan.userProvidedClaims) {
+    if (!sources.some((source) => source.type === "manual" && source.input.note === claim.text)) {
+      sources.push({
+        type: "manual",
+        input: {
+          title: plan.subject.displayName ? `${plan.subject.displayName} user-provided claim` : "User-provided claim",
+          note: claim.text,
+          description: "User-provided claim. Add public evidence before treating it as verified."
+        }
+      });
+    }
+  }
+
+  if (sources.length === 0) {
+    sources.push({
+      type: "manual",
+      input: {
+        title: plan.subject.displayName ? `${plan.subject.displayName} profile request` : "Manual profile request",
+        note: plan.rawInput,
+        description: plan.missingEvidence.map((item) => `${item.need}: ${item.reason}`).join(" ") || "Review workspace created without verified public evidence."
+      }
+    });
+  }
+
+  return {
+    displayName: plan.subject.displayName,
+    handle: plan.subject.handle,
+    headline: plan.subject.headline,
+    sources
+  };
+}
+
+async function synthesizeProfileClaims(
+  client: JsonLlmClient,
+  plan: ProfileGenerationPlan,
+  person: PersonProfileRecord["person"],
+  bundles: Array<{ source: unknown }>,
+  artifacts: ArtifactRecord[],
+  deterministicClaims: ProfileClaimRecord[]
+): Promise<ProfileClaimRecord[]> {
+  if (artifacts.length === 0 || artifacts.every((artifact) => artifact.metadata?.source === "opendinq-review" || artifact.metadata?.evidenceStatus === "user_provided")) {
+    return deterministicClaims;
+  }
+
+  const claims = await synthesizeClaimsWithEvidence({
+    inferredPerson: { ...person, ...plan.subject },
+    sources: bundles.map((bundle) => bundle.source),
+    artifacts,
+    deterministicClaims: deterministicClaims.map(toSynthesisClaim)
+  }, client);
+  return claims.map(fromSynthesisClaim);
+}
+
+function toSynthesisClaim(claim: ProfileClaimRecord): SynthesisClaim {
+  return {
+    id: claim.id,
+    type: claim.type,
+    text: claim.text,
+    confidence: claim.confidence,
+    evidence: claim.evidence
+  };
+}
+
+function fromSynthesisClaim(claim: SynthesisClaim): ProfileClaimRecord {
+  return {
+    id: claim.id,
+    type: claim.type,
+    text: claim.text,
+    confidence: claim.confidence,
+    evidence: claim.evidence as EvidenceRecord[],
+    status: "approved"
+  };
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
 async function appendViaGenerator(
   generator: ReturnType<typeof createProfileGenerator>,
   store: OpenDinqStore,
@@ -442,7 +673,7 @@ async function createManualNoteCard(store: OpenDinqStore, handle: string, title:
 }
 
 function approvedClaims(profile: PersonProfileRecord): ProfileClaimRecord[] {
-  return (profile.claims ?? []).filter((claim) => claim.status !== "rejected");
+  return publicRankedClaims(profile.claims ?? []);
 }
 
 function profileReadiness(profile: PersonProfileRecord) {

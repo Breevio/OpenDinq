@@ -17,6 +17,7 @@ Search results include:
 - matchedArtifacts
 - topSkills
 - profileUrl
+- scoreBreakdown
 
 Discover only receives public-profile-shaped data from the API. Hidden cards and rejected claims are filtered before ranking.
 
@@ -31,8 +32,17 @@ The current ranking combines:
 - public impact signals such as stars and forks
 - recency
 - profile completeness
+- exact phrase match boosts
+- small published-profile boost
+- evidence-backed claim/card/artifact matches
 
 Evidence-backed matches should rank above weak profile-text-only matches.
+
+## Score Breakdown
+
+Each result includes `claimScore`, `cardScore`, `artifactScore`, `skillScore`, `evidenceScore`, `publishBoost`, `recencyScore`, and `finalScore`.
+
+The UI shows a compact "why matched" breakdown plus matched claims, cards, artifacts, and evidence snippets.
 
 ## Demo Queries
 
@@ -42,6 +52,7 @@ Evidence-backed matches should rank above weak profile-text-only matches.
 - people with manual notes about product design
 - people with strong evidence in product design
 - profiles with manual notes about startups
+- evidence-backed profile cards
 
 ## UI Behavior
 

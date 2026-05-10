@@ -21,6 +21,7 @@ apps/mcp
 packages/core
   Store contract
   MemoryStore
+  Claim quality pipeline
 
 packages/db
   Prisma schema
@@ -38,6 +39,11 @@ packages/cards
 
 packages/search
   Rule/full-text hybrid search
+
+packages/llm
+  Intent planner
+  Evidence-constrained claim synthesis
+  Optional evidence-constrained card rewrite helper
 ```
 
 ## Product Flow
@@ -64,7 +70,9 @@ Profile claims have a review status:
 - `approved`
 - `rejected`
 
-Rejected claims are excluded from public profile output and are not emphasized in Discover. Public profiles have alpha-level `draft` or `published` status. This is product state only; it is not an authorization system.
+Raw connector claims pass through normalization, dedupe, ranking, and quality scoring before card generation. The quality score uses evidence count, source/artifact quality, confidence, specificity, generic-claim penalties, and manual-source signals.
+
+Rejected claims are excluded from public profile output and Discover ranking. Public profiles have alpha-level `draft` or `published` status. This is product state only; it is not an authorization system.
 
 ## Search
 
@@ -79,7 +87,17 @@ Search currently combines:
 
 Vector search is not implemented as a production runtime yet.
 
-Search responses include matched claims, matched cards, matched artifacts, top skills, evidence, and the public profile URL.
+Search responses include matched claims, matched cards, matched artifacts, top skills, evidence, score breakdown, and the public profile URL.
+
+The score breakdown includes claim, card, artifact, skill, evidence, publish boost, recency, and final score.
+
+## Optional LLM Layer
+
+LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API uses an LLM-first planner to convert raw input into one `ProfileGenerationPlan`. `OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL` may point directly at a provider endpoint; `OPEN_DINQ_LLM_BASE_URL` remains supported. Slow or invalid provider responses fall back to local planning with `llmUsed: false`; `OPEN_DINQ_LLM_TIMEOUT_MS` and `OPEN_DINQ_LLM_MAX_TOKENS` can tune provider behavior.
+
+LLM rewrite is separately gated by `OPEN_DINQ_ENABLE_LLM_REWRITE=true`. Generated cards are still deterministic first; the helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
+
+OpenDinq does not invent sources and does not perform browser scraping or production web-wide entity search. Person-name input can trigger safe source discovery through existing public connectors, currently OpenAlex author search. Natural-language input still becomes user-provided claims plus missing-evidence prompts when discovery finds no usable public source. Connector failures should create a reviewable workspace instead of failing the whole run.
 
 ## MCP
 
@@ -88,6 +106,8 @@ The MCP server calls the API. It does not connect directly to the database.
 Primary tools:
 
 - `opendinq_generate_profile`
+- `opendinq_plan_profile_generation`
+- `opendinq_generate_profile_ai`
 - `opendinq_get_profile_run`
 - `opendinq_get_profile_workspace`
 - `opendinq_update_claim`

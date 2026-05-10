@@ -4,6 +4,8 @@ export type SearchPerson = {
   headline?: string;
   bio?: string;
   location?: string;
+  publicStatus?: "draft" | "published";
+  publishedAt?: string;
 };
 
 export type SearchArtifact = {
@@ -21,6 +23,7 @@ export type SearchCard = {
   title: string;
   contentMd: string;
   dataJson?: Record<string, unknown>;
+  evidence?: SearchEvidenceRef[];
   visibility?: "public" | "private" | "hidden";
 };
 
@@ -29,6 +32,8 @@ export type SearchClaim = {
   type: string;
   text: string;
   confidence?: number;
+  qualityScore?: number;
+  status?: "pending" | "approved" | "rejected";
   evidence?: SearchEvidenceRef[];
 };
 
@@ -43,6 +48,13 @@ export type ParsedSearchQuery = {
   queryText: string;
   terms: string[];
   phrases: string[];
+  intent: {
+    skills: string[];
+    projectTerms: string[];
+    researchTerms: string[];
+    sourceHints: string[];
+    roleTerms: string[];
+  };
 };
 
 export type SearchEvidenceRef = {
@@ -65,6 +77,7 @@ export type MatchedSignals = {
 export type RankedSearchResult = {
   person: SearchPerson;
   score: number;
+  scoreBreakdown: SearchScoreBreakdown;
   explanation: string;
   evidence: SearchEvidenceRef[];
   matchedClaims?: SearchClaim[];
@@ -72,6 +85,17 @@ export type RankedSearchResult = {
   matchedArtifacts?: SearchArtifact[];
   topSkills?: string[];
   profileUrl?: string;
+};
+
+export type SearchScoreBreakdown = {
+  claimScore: number;
+  cardScore: number;
+  artifactScore: number;
+  skillScore: number;
+  evidenceScore: number;
+  publishBoost: number;
+  recencyScore: number;
+  finalScore: number;
 };
 
 export type SearchProviderMatch = {

@@ -41,6 +41,9 @@ importers:
       '@opendinq/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@opendinq/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@opendinq/search':
         specifier: workspace:*
         version: link:../../packages/search
@@ -128,7 +131,11 @@ importers:
         specifier: ^6.7.0
         version: 6.19.3(typescript@5.9.3)
 
-  packages/llm: {}
+  packages/llm:
+    dependencies:
+      zod:
+        specifier: ^3.24.3
+        version: 3.25.76
 
   packages/search:
     dependencies:

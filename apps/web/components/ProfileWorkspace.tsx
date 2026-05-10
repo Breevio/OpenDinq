@@ -67,6 +67,9 @@ export function ProfileWorkspace({ handle }: { handle: string }) {
   }
 
   const { profile, readiness } = workspace;
+  const userProvidedClaims = (profile.claims ?? []).filter((claim) => claim.status === "pending" || claim.evidence.some((item) => item.reason.toLowerCase().includes("user-provided")));
+  const evidenceBackedClaims = (profile.claims ?? []).filter((claim) => !userProvidedClaims.includes(claim));
+  const sourceWarnings = workspace.profileSources.flatMap((source) => source.warnings ?? []);
 
   return (
     <div className="workspace-grid">
@@ -109,7 +112,20 @@ export function ProfileWorkspace({ handle }: { handle: string }) {
         ))}
       </section>
 
-      <ClaimsPanel profile={profile} onPatch={patchClaim} />
+      {userProvidedClaims.length || sourceWarnings.length ? (
+        <section className="tool-panel">
+          <div className="section-title">
+            <h2>Review needed</h2>
+            <span>{userProvidedClaims.length + sourceWarnings.length}</span>
+          </div>
+          {userProvidedClaims.length ? <p className="status">This profile includes user-provided information. Add a GitHub, website, paper, ORCID, or OpenAlex source to strengthen evidence.</p> : null}
+          {sourceWarnings.length ? <p className="status warning">Some sources could not be imported. You can still review and publish this profile.</p> : null}
+          {sourceWarnings.map((warning) => <span className="review-note" key={warning}>{warning}</span>)}
+        </section>
+      ) : null}
+
+      <ClaimsPanel title="Evidence-backed claims" claims={evidenceBackedClaims} onPatch={patchClaim} />
+      <ClaimsPanel title="User-provided claims" claims={userProvidedClaims} onPatch={patchClaim} />
       <CardsPanel profile={profile} onPatch={patchCard} onRegenerate={regenerateCard} onCreateNote={createNote} />
 
       <section className="tool-panel">
@@ -128,14 +144,15 @@ export function ProfileWorkspace({ handle }: { handle: string }) {
   );
 }
 
-function ClaimsPanel({ profile, onPatch }: { profile: PersonProfile; onPatch: (claimId: string, patch: Record<string, unknown>) => Promise<void> }) {
-  const groups = groupClaims(profile.claims ?? []);
+function ClaimsPanel({ title, claims, onPatch }: { title: string; claims: NonNullable<PersonProfile["claims"]>; onPatch: (claimId: string, patch: Record<string, unknown>) => Promise<void> }) {
+  const groups = groupClaims(claims);
   return (
     <section className="claim-panel">
       <div className="section-title">
-        <h2>Claims review</h2>
-        <span>{profile.claims?.length ?? 0}</span>
+        <h2>{title}</h2>
+        <span>{claims.length}</span>
       </div>
+      {claims.length === 0 ? <p className="status">No claims in this group yet.</p> : null}
       {Object.entries(groups).map(([type, claims]) => (
         <div className="claim-group" key={type}>
           <p className="eyebrow">{type}</p>

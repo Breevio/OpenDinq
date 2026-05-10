@@ -36,7 +36,7 @@ function scoreDocument(query: ParsedSearchQuery, document: PersonSearchDocument)
     }
   });
 
-  document.cards?.forEach((card, index) => {
+  document.cards?.filter((card) => card.visibility !== "hidden").forEach((card, index) => {
     const cardTokens = tokenize(`${card.type} ${card.title} ${card.contentMd} ${metadataText(card.dataJson)}`);
     const cardScore = scoreTokens(query, cardTokens);
     if (cardScore > 0) {
@@ -46,12 +46,12 @@ function scoreDocument(query: ParsedSearchQuery, document: PersonSearchDocument)
     }
   });
 
-  document.claims?.forEach((claim, index) => {
+  document.claims?.filter((claim) => claim.status !== "rejected").forEach((claim, index) => {
     const claimTokens = tokenize(`${claim.type} ${claim.text}`);
     const claimScore = scoreTokens(query, claimTokens);
     if (claimScore > 0) {
       matchedFields += 1;
-      weightedMatches += claimScore * 0.35;
+      weightedMatches += claimScore * (claim.evidence?.length ? 0.45 : 0.22) * (claim.qualityScore ?? 1);
       evidence.push(claimEvidence(claim, "Matched profile claim.", index));
       evidence.push(...(claim.evidence ?? []));
     }
@@ -77,7 +77,7 @@ function scoreTokens(query: ParsedSearchQuery, tokens: string[]): number {
   const phraseText = tokens.join(" ");
   const matchedPhrases = query.phrases.filter((phrase) => phraseText.includes(phrase));
 
-  return Math.min(1, matchedTerms.length / query.terms.length + matchedPhrases.length * 0.25);
+  return Math.min(1, matchedTerms.length / query.terms.length + matchedPhrases.length * 0.4);
 }
 
 function metadataText(metadata: Record<string, unknown> | undefined): string {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fetchArxivPaper,
+  searchOpenAlexAuthors,
   fetchWebsiteMetadata,
   normalizeArxivPaperToArtifact,
   normalizeOpenAlexAuthorToIdentitySource,
@@ -65,6 +66,30 @@ describe("OpenAlex connector", () => {
         })
       })
     ]);
+  });
+
+  it("searches OpenAlex authors by name", async () => {
+    const authors = await searchOpenAlexAuthors("Jiajun Wu", {
+      fetchImpl: async (url) => {
+        expect(String(url)).toContain("api.openalex.org/authors");
+        expect(String(url)).toContain("search=Jiajun+Wu");
+        return Response.json({
+          results: [
+            {
+              id: "https://openalex.org/A5018878364",
+              display_name: "Jiajun Wu",
+              works_count: 120,
+              cited_by_count: 9000
+            }
+          ]
+        });
+      }
+    });
+
+    expect(authors[0]).toMatchObject({
+      id: "https://openalex.org/A5018878364",
+      display_name: "Jiajun Wu"
+    });
   });
 });
 

@@ -116,6 +116,75 @@ p {
   padding: 18px;
 }
 
+.ai-generate-panel {
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 14px 44px rgba(22, 23, 20, 0.1);
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.ai-generate-form,
+.ai-prompt-shell,
+.plan-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.ai-prompt-shell textarea {
+  font-size: 1.1rem;
+  min-height: 154px;
+}
+
+.example-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.example-chips button,
+.secondary-button {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.advanced-sources {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.advanced-sources summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.advanced-sources .generator-form {
+  margin-top: 14px;
+}
+
+.plan-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plan-grid > div {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.plan-grid span {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
 .command-form {
   display: grid;
   gap: 10px;
@@ -208,6 +277,20 @@ button:disabled {
 
 .error {
   color: var(--accent);
+}
+
+.warning {
+  color: #8a5a00;
+}
+
+.review-note {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
 }
 
 .result-strip {

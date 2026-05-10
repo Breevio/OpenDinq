@@ -31,6 +31,8 @@ Cards include:
 - `createdAt`
 - `updatedAt`
 
+Generated card `dataJson` may also include `qualityScore`, `evidenceCount`, `generatedFromClaimIds`, and `generatedFromArtifactIds`.
+
 ## Ordering
 
 Default public order:
@@ -65,6 +67,17 @@ POST  /api/cards/:cardId/regenerate
 - `order`
 
 `POST /api/cards/:cardId/regenerate` rebuilds the card deterministically from current approved claims, artifacts, and evidence. It preserves the card type and does not invent unsupported claims.
+
+## Quality Rules
+
+- Summary cards use top approved/high-quality claims and strongest evidence themes.
+- Skill cards group deduped skills with confidence and evidence sources.
+- Works cards rank artifacts by evidence relevance, stars/forks, recency, claim linkage, and manual importance.
+- Research cards require research-area claims or paper-like artifacts.
+- Timeline cards require dated artifacts.
+- Manual note cards preserve user-provided text and attach manual evidence.
+
+Optional LLM rewrite is experimental and evidence-constrained. If validation fails, deterministic card content is retained. Summary, Skill, Works, Research, and Timeline cards can be rewritten when enabled; ManualNoteCard remains user-authored unless explicitly changed in a future workflow.
 
 ## Workspace Behavior
 

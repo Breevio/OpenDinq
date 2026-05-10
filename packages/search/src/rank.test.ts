@@ -9,7 +9,8 @@ const documents: PersonSearchDocument[] = [
       displayName: "Agent TypeScript Builder",
       headline: "AI agent engineer",
       bio: "Builds MCP tools",
-      location: "Remote"
+      location: "Remote",
+      publicStatus: "published"
     },
     artifacts: [
       {
@@ -42,6 +43,8 @@ const documents: PersonSearchDocument[] = [
         type: "skill",
         text: "AI agent workflows",
         confidence: 0.8,
+        qualityScore: 0.9,
+        status: "approved",
         evidence: [{ id: "repo-agent", type: "artifact", title: "agent-ts/mcp-tools", reason: "Repo supports claim." }]
       }
     ]
@@ -99,7 +102,10 @@ describe("parseSearchQuery", () => {
     expect(parseSearchQuery("AI agent TypeScript MCP")).toEqual({
       queryText: "AI agent TypeScript MCP",
       terms: ["ai", "agent", "typescript", "mcp"],
-      phrases: []
+      phrases: [],
+      intent: expect.objectContaining({
+        skills: ["typescript", "mcp"]
+      })
     });
   });
 });
@@ -127,6 +133,7 @@ describe("rule-based people search", () => {
     expect(results[0]?.matchedArtifacts).toEqual(expect.arrayContaining([expect.objectContaining({ id: "repo-agent" })]));
     expect(results[0]?.topSkills).toEqual(expect.arrayContaining(["TypeScript", "MCP"]));
     expect(results[0]?.profileUrl).toBe("/u/agent-ts");
+    expect(results[0]?.scoreBreakdown).toEqual(expect.objectContaining({ finalScore: expect.any(Number) }));
     expect(results[0]?.evidence.length).toBeGreaterThan(0);
   });
 
@@ -151,5 +158,66 @@ describe("rule-based people search", () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results.every((result) => result.evidence.length > 0)).toBe(true);
     expect(results.every((result) => result.explanation.length > 0)).toBe(true);
+  });
+
+  it("applies a small published profile boost", async () => {
+    const unpublished = structuredClone(documents);
+    if (unpublished[0]) {
+      unpublished[0].person.publicStatus = "draft";
+    }
+
+    const publishedScore = (await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("agent workflows", documents)))[0]?.score ?? 0;
+    const draftScore = (await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("agent workflows", unpublished)))[0]?.score ?? 0;
+
+    expect(publishedScore).toBeGreaterThan(draftScore);
+  });
+
+  it("does not score rejected claims or hidden cards", async () => {
+    const hiddenOnly: PersonSearchDocument[] = [{
+      person: { handle: "hidden", displayName: "Hidden Match" },
+      artifacts: [],
+      cards: [{ id: "hidden-card", type: "skills", title: "Kubernetes", contentMd: "Kubernetes", visibility: "hidden" }],
+      claims: [{ id: "rejected-claim", type: "skill", text: "Kubernetes", status: "rejected", evidence: [{ id: "repo-k8s", type: "artifact", title: "k8s", reason: "Rejected." }] }]
+    }];
+
+    const results = await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("Kubernetes", hiddenOnly));
+
+    expect(results).toHaveLength(0);
+  });
+
+  it("ranks exact phrase matches above weak token matches", async () => {
+    const docs: PersonSearchDocument[] = [
+      {
+        person: { handle: "exact", displayName: "Exact" },
+        artifacts: [{ id: "repo-exact", type: "repo", title: "eval-kit", description: "language model evaluation researcher", metadata: {} }]
+      },
+      {
+        person: { handle: "weak", displayName: "Weak" },
+        artifacts: [{ id: "repo-weak", type: "repo", title: "language-tools", description: "model utilities", metadata: {} }]
+      }
+    ];
+
+    const results = await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("\"language model evaluation\"", docs));
+
+    expect(results[0]?.person.handle).toBe("exact");
+  });
+
+  it("ranks evidence-backed claim matches above unsupported profile text", async () => {
+    const docs: PersonSearchDocument[] = [
+      {
+        person: { handle: "evidence", displayName: "Evidence" },
+        artifacts: [{ id: "repo-eval", type: "repo", title: "eval-kit", description: "benchmark tooling", metadata: {} }],
+        claims: [{ id: "claim-eval", type: "research_area", text: "language model evaluation", qualityScore: 0.9, evidence: [{ id: "repo-eval", type: "artifact", title: "eval-kit", reason: "Repo supports evaluation." }] }]
+      },
+      {
+        person: { handle: "text", displayName: "Text", bio: "language model evaluation" },
+        artifacts: []
+      }
+    ];
+
+    const results = await import("./index.js").then(({ hybridSearchPeople }) => hybridSearchPeople("language model evaluation", docs));
+
+    expect(results[0]?.person.handle).toBe("evidence");
+    expect(results[0]?.scoreBreakdown.claimScore).toBeGreaterThan(0);
   });
 });

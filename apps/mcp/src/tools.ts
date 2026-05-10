@@ -2,6 +2,8 @@ import type { OpenDinqApiClient } from "./api-client.js";
 
 export const MCP_TOOL_PLAN = [
   "opendinq_generate_profile",
+  "opendinq_plan_profile_generation",
+  "opendinq_generate_profile_ai",
   "opendinq_get_profile_run",
   "opendinq_import_github_profile",
   "opendinq_search_people",
@@ -20,6 +22,8 @@ export const MCP_TOOL_PLAN = [
 export function createToolHandlers(client: OpenDinqApiClient) {
   return {
     opendinq_generate_profile: (input: unknown) => client.generateProfile(input),
+    opendinq_plan_profile_generation: ({ input }: { input: string }) => client.planProfileGeneration(input),
+    opendinq_generate_profile_ai: ({ input, reviewPlan }: { input: string; reviewPlan?: boolean }) => client.generateProfileAi(input, reviewPlan),
     opendinq_get_profile_run: ({ runId }: { runId: string }) => client.getProfileRun(runId),
     opendinq_import_github_profile: ({ input }: { input: string }) => client.importGitHubProfile(input),
     opendinq_search_people: ({ query }: { query: string }) => client.searchPeople(query),

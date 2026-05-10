@@ -14,5 +14,6 @@ export type {
   SearchEvidenceRef,
   SearchPerson,
   SearchProvider,
-  SearchProviderMatch
+  SearchProviderMatch,
+  SearchScoreBreakdown
 } from "./types.js";

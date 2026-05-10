@@ -18,7 +18,7 @@ export function createApp(options?: Partial<ApiRouteOptions> & { seedDemo?: bool
     })
   );
 
-  app.route("/api", createApiRoutes({ store, fetchImpl: options?.fetchImpl }));
+  app.route("/api", createApiRoutes({ store, fetchImpl: options?.fetchImpl, llmClient: options?.llmClient }));
 
   return app;
 }
@@ -52,6 +52,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   serve({
     fetch: runtimeApp.fetch,
-    port: Number(process.env.PORT ?? 3001)
+    port: Number(process.env.PORT ?? 3011)
   });
 }

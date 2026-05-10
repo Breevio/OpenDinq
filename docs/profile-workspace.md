@@ -40,13 +40,26 @@ Sources show type, status, URL/input context, warnings, and imported source stat
 
 ### Claims Review
 
-Claims are grouped by type and can be:
+The workspace separates evidence-backed claims from user-provided claims. User-provided claims are useful review seeds, but they are not verified public evidence until a source is added.
+
+Claims can be:
 
 - `pending`
 - `approved`
 - `rejected`
 
 Rejected claims are filtered from public approved-claim output and are not emphasized in Discover.
+
+### Missing Evidence and Source Warnings
+
+Natural-language-only generation and connector failures are normal review states. The workspace should show:
+
+- missing evidence prompts
+- source warnings
+- questions to improve the profile
+- copy such as “Add a GitHub, website, paper, ORCID, or OpenAlex source to strengthen evidence.”
+
+Recoverable connector failures should not be shown as generation failure.
 
 ### Cards
 

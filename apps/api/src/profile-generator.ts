@@ -19,6 +19,13 @@ import {
   parseGitHubProfileUrl
 } from "@opendinq/connectors";
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import { normalizeClaims } from "@opendinq/core";
+import {
+  createOpenAICompatibleRewriteClient,
+  isLlmRewriteEnabled,
+  rewriteCardWithEvidence,
+  type RewriteEvidenceRef
+} from "@opendinq/llm";
 import type {
   ArtifactRecord,
   CardRecord,
@@ -69,10 +76,18 @@ export type ProfileGenerationSummary = {
   warnings: string[];
 };
 
+export type ProfileClaimSynthesisHook = (input: {
+  person: PersonRecord;
+  bundles: NormalizedSourceBundle[];
+  artifacts: ArtifactRecord[];
+  deterministicClaims: ProfileClaimRecord[];
+}) => Promise<ProfileClaimRecord[]> | ProfileClaimRecord[];
+
 export type ProfileGeneratorOptions = {
   store: OpenDinqStore;
   fetchImpl?: typeof fetch;
   githubToken?: string;
+  synthesizeClaims?: ProfileClaimSynthesisHook;
 };
 
 export function createProfileGenerator(options: ProfileGeneratorOptions) {
@@ -95,13 +110,21 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
 
       try {
         const bundles = await normalizeSources(input.sources, runId, options);
+        const sourceWarnings = bundles.flatMap((bundle) => bundle.warnings);
+        if (bundles.length > 0 && bundles.every((bundle) => bundle.artifacts.length === 0 && bundle.claims.length === 0) && sourceWarnings.length > 0) {
+          bundles.push(reviewBundleFromFailedSources(input, runId, sourceWarnings));
+        }
         const warnings = bundles.flatMap((bundle) => bundle.warnings);
         const identities = bundles.map((bundle) => bundle.identity).filter(Boolean);
         const person = mergePerson(input, initialHandle, displayName, identities);
         const existing = await options.store.getProfile(person.handle);
         const sources = dedupeIdentitySources([...(existing?.sources ?? []), ...bundles.map((bundle) => toIdentitySource(bundle.source))]);
         const artifacts = dedupeArtifacts([...(existing?.artifacts ?? []), ...bundles.flatMap((bundle) => bundle.artifacts)]);
-        const claims = dedupeClaims([...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)]);
+        const deterministicClaims = [...(existing?.claims ?? []), ...bundles.flatMap((bundle) => bundle.claims)];
+        const synthesizedClaims = options.synthesizeClaims
+          ? await options.synthesizeClaims({ person, bundles, artifacts, deterministicClaims })
+          : deterministicClaims;
+        const claims = normalizeClaims(synthesizedClaims);
 
         if (artifacts.length === 0 && claims.length === 0) {
           throw new Error("Profile generation needs at least one artifact or claim.");
@@ -112,7 +135,11 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
           ...claim
         }));
         const manualCards = existing?.cards.filter((card) => card.type === "note") ?? [];
-        const cards = [...generateProfileCards(person, artifacts, claimsWithIds as CardClaim[]) as CardRecord[], ...manualCards];
+        const generatedCards = await maybeRewriteCards(
+          generateProfileCards(person, artifacts, claimsWithIds as CardClaim[]) as CardRecord[],
+          claimsWithIds
+        );
+        const cards = [...generatedCards, ...manualCards];
         const profile: PersonProfileRecord = {
           person,
           sources,
@@ -256,18 +283,23 @@ async function normalizeSource(
   }
 
   const manual = source.input as ManualSourceInput;
+  const manualEvidenceStatus = manual.url ? "explicit" : "user_provided";
   const artifact = manual.url || manual.title ? {
     type: manual.url ? "project" : "note",
     title: manual.title ?? manual.note ?? "Manual note",
     description: manual.description ?? manual.note,
     url: manual.url,
-    metadata: { source: "manual" },
+    metadata: { source: "manual", evidenceStatus: manualEvidenceStatus },
     evidenceRaw: manual
   } satisfies ArtifactRecord : undefined;
-  const evidence = artifact ? evidenceForArtifact(artifact, "Manual source supplied by the profile creator.") : evidenceForSource("manual", undefined, "Manual note supplied by the profile creator.");
-  return bundleFrom("manual", runId, manual.url, manual, {}, artifact ? [artifact] : [], [
-    claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", 0.7, evidence)
+  const evidence = artifact ? evidenceForArtifact(artifact, manual.url ? "Manual public source supplied by the profile creator." : "User-provided information; add public evidence before treating it as verified.") : evidenceForSource("manual", undefined, "User-provided information; add public evidence before treating it as verified.");
+  const bundle = bundleFrom("manual", runId, manual.url, manual, {}, artifact ? [artifact] : [], [
+    { ...claim(manual.url ? "project" : "summary", manual.note ?? manual.description ?? manual.title ?? "Manual profile note", manual.url ? 0.7 : 0.45, evidence), status: manual.url ? "approved" : "pending" }
   ]);
+  return manual.url ? bundle : {
+    ...bundle,
+    warnings: ["This profile was generated from user-provided information. Add public sources to strengthen evidence."]
+  };
 }
 
 function bundleFrom(
@@ -293,6 +325,41 @@ function bundleFrom(
     artifacts,
     claims: claims.map((item) => ({ ...item, sourceId: item.sourceId ?? `${type}-${runId}` })),
     warnings: []
+  };
+}
+
+function reviewBundleFromFailedSources(
+  input: ProfileGenerationInput,
+  runId: string,
+  warnings: string[]
+): NormalizedSourceBundle {
+  const sourceLabels = input.sources.map((source) => `${source.type}:${source.type === "manual" ? "manual" : source.input}`).join(", ");
+  const artifact: ArtifactRecord = {
+    type: "note",
+    title: "Source import needs review",
+    description: `OpenDinq could not import usable public artifacts from ${sourceLabels}. ${warnings.join(" ")}`,
+    metadata: {
+      source: "opendinq-review",
+      attemptedSources: input.sources
+    },
+    evidenceRaw: {
+      attemptedSources: input.sources,
+      warnings
+    }
+  };
+
+  const bundle = bundleFrom("manual", runId, undefined, artifact.evidenceRaw, {}, [artifact], [
+    claim(
+      "summary",
+      "Profile generation needs source review before claims can be trusted.",
+      0.35,
+      evidenceForArtifact(artifact, "OpenDinq recorded the failed source import so the profile can be reviewed instead of discarded.")
+    )
+  ]);
+
+  return {
+    ...bundle,
+    warnings
   };
 }
 
@@ -405,10 +472,46 @@ function dedupeArtifacts(artifacts: ArtifactRecord[]): ArtifactRecord[] {
   return [...new Map(artifacts.map((artifact) => [`${artifact.type}:${artifact.url ?? artifact.title}`, artifact])).values()];
 }
 
-function dedupeClaims(claims: ProfileClaimRecord[]): ProfileClaimRecord[] {
-  return [...new Map(claims.map((claim) => [`${claim.type}:${claim.text.toLowerCase()}`, claim])).values()];
-}
-
 function dedupeIdentitySources(sources: IdentitySourceRecord[]): IdentitySourceRecord[] {
   return [...new Map(sources.map((source) => [`${source.type}:${source.url}`, source])).values()];
+}
+
+async function maybeRewriteCards(cards: CardRecord[], claims: ProfileClaimRecord[]): Promise<CardRecord[]> {
+  if (!isLlmRewriteEnabled()) {
+    return cards;
+  }
+
+  const apiKey = process.env.OPEN_DINQ_LLM_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return cards;
+  }
+
+  const client = createOpenAICompatibleRewriteClient({
+    apiKey,
+    baseUrl: process.env.OPEN_DINQ_LLM_BASE_URL,
+    chatCompletionsUrl: process.env.OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL,
+    model: process.env.OPEN_DINQ_LLM_MODEL
+  });
+  const allowedClaims = claims.filter((claim) => claim.status !== "rejected");
+
+  return Promise.all(cards.map(async (card) => {
+    const relevantClaims = allowedClaims.filter((claim) => card.claimIds?.includes(claim.id ?? ""));
+    const rewritten = await rewriteCardWithEvidence({
+      draftCard: {
+        title: card.title,
+        contentMd: card.contentMd,
+        evidence: card.evidence as RewriteEvidenceRef[],
+        claimIds: card.claimIds
+      },
+      allowedClaims: relevantClaims,
+      evidence: card.evidence as RewriteEvidenceRef[]
+    }, client);
+
+    return {
+      ...card,
+      contentMd: rewritten.contentMd,
+      evidence: rewritten.evidence as EvidenceRecord[],
+      claimIds: rewritten.claimIds
+    };
+  }));
 }

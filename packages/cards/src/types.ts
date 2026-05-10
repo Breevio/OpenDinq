@@ -27,6 +27,8 @@ export type CardClaim = {
   type: string;
   text: string;
   confidence: number;
+  qualityScore?: number;
+  status?: "pending" | "approved" | "rejected";
   evidence: EvidenceRef[];
   artifactId?: string;
   sourceId?: string;

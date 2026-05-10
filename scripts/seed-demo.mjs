@@ -1,4 +1,4 @@
-const apiUrl = process.env.OPENDINQ_API_URL ?? "http://localhost:3001";
+const apiUrl = process.env.OPENDINQ_API_URL ?? "http://localhost:3011";
 
 const response = await fetch(`${apiUrl.replace(/\/$/, "")}/api/seed/demo`, {
   method: "POST"

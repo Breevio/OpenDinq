@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./server.js";
 
 const githubUser = {
@@ -232,8 +232,8 @@ describe("OpenDinq API", () => {
     const seedResponse = await app.request("/api/seed/demo", { method: "POST" });
     expect(seedResponse.status).toBe(200);
     await expect(seedResponse.json()).resolves.toMatchObject({
-      profileCount: 3,
-      handles: expect.arrayContaining(["demo-agent-builder", "demo-systems-maintainer", "demo-ml-researcher"])
+      profileCount: 4,
+      handles: expect.arrayContaining(["demo-agent-builder", "demo-product-designer", "demo-systems-maintainer", "demo-ml-researcher"])
     });
 
     const searchResponse = await app.request("/api/search?q=systems%20programming%20open%20source%20maintainers");
@@ -340,6 +340,35 @@ describe("OpenDinq API", () => {
     expect(json.warnings[0]).toContain("github");
   });
 
+  it("keeps generation reviewable when every connector fails", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        displayName: "Rate Limited Builder",
+        handle: "rate-limited-builder",
+        sources: [{ type: "github", input: "-bad-user" }]
+      }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      handle: "rate-limited-builder",
+      status: "needs_review",
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(json.warnings[0]).toContain("github");
+
+    const profileResponse = await app.request("/api/people/rate-limited-builder");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.cards).toEqual(expect.arrayContaining([expect.objectContaining({ type: "summary" })]));
+    expect(profileJson.claims[0].text).toContain("needs source review");
+  });
+
   it("adds public multi-source artifacts to an existing profile", async () => {
     const app = createApp({ fetchImpl: fixtureFetch });
 
@@ -405,6 +434,210 @@ describe("OpenDinq API", () => {
       ])
     );
   });
+
+  it("plans profile generation with deterministic fallback when LLM is not configured", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/plan", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/torvalds" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      llmUsed: false,
+      plan: {
+        sources: [expect.objectContaining({ type: "github", input: "torvalds" })]
+      },
+      warnings: expect.arrayContaining([expect.stringContaining("LLM generation is not configured")])
+    });
+  });
+
+  it("generates an AI profile from a single input and synthesizes evidence-backed claims", async () => {
+    const llmClient = {
+      completeJson: vi.fn()
+        .mockResolvedValueOnce({
+          rawInput: "https://github.com/demo-agent-builder",
+          intent: "generate_profile",
+          confidence: 0.95,
+          subject: { handle: "demo-agent-builder" },
+          sources: [{ type: "github", input: "demo-agent-builder", reason: "GitHub URL provided.", confidence: 0.95, evidenceStatus: "explicit" }],
+          userProvidedClaims: [],
+          missingEvidence: [],
+          warnings: [],
+          questions: []
+        })
+        .mockResolvedValueOnce([
+          { type: "project", text: "Builds TypeScript MCP tools for AI agent workflows", confidence: 0.92, evidenceRefs: [{ id: "https://github.com/demo-agent-builder/agent-tools" }] },
+          { type: "skill", text: "No evidence claim", confidence: 0.9, evidenceRefs: [{ id: "missing" }] }
+        ])
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/demo-agent-builder" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      handle: "demo-agent-builder",
+      llmUsed: true,
+      workspaceUrl: "/u/demo-agent-builder/workspace",
+      plan: { intent: "generate_profile" }
+    });
+    expect(json.claimsGenerated).toBeGreaterThan(0);
+
+    const claimsResponse = await app.request("/api/people/demo-agent-builder/claims");
+    const claimsJson = await claimsResponse.json();
+    expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).toContain("Builds TypeScript MCP tools for AI agent workflows");
+    expect(claimsJson.claims.map((claim: { text: string }) => claim.text)).not.toContain("No evidence claim");
+  });
+
+  it("researches public sources for person-name input before falling back to manual-only generation", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        rawInput: "jiajun wu",
+        intent: "manual_profile",
+        confidence: 0.4,
+        subject: { displayName: "Jiajun Wu", handle: "jiajun-wu" },
+        sources: [],
+        userProvidedClaims: [{ type: "summary", text: "jiajun wu", confidence: 0.4, evidenceStatus: "user_provided" }],
+        missingEvidence: [{ need: "Public source", reason: "A name alone is ambiguous." }],
+        warnings: ["A name alone is ambiguous."],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const planResponse = await app.request("/api/profiles/plan", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(planResponse.status).toBe(200);
+    const planJson = await planResponse.json();
+    expect(planJson.plan.sources).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "openalex", input: "https://openalex.org/A5018878364" })])
+    );
+
+    const generateResponse = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu" }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(generateResponse.status).toBe(200);
+    const generated = await generateResponse.json();
+    expect(generated).toMatchObject({
+      handle: "jiajun-wu",
+      llmUsed: true,
+      workspaceUrl: "/u/jiajun-wu/workspace"
+    });
+    expect(generated.artifactsImported).toBeGreaterThan(1);
+    expect(generated.warnings.join(" ")).not.toContain("This profile was generated from user-provided information");
+
+    const profileResponse = await app.request("/api/people/jiajun-wu");
+    const profileJson = await profileResponse.json();
+    expect(profileJson.sources).toEqual(expect.arrayContaining([expect.objectContaining({ type: "openalex" })]));
+    expect(profileJson.artifacts).toEqual(expect.arrayContaining([expect.objectContaining({ type: "paper" })]));
+  });
+
+  it("creates a reviewable workspace from natural language without treating user-provided claims as verified evidence", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValueOnce({
+        rawInput: "AI product engineer who built an evidence-backed workflow",
+        intent: "manual_profile",
+        confidence: 0.84,
+        subject: {
+          displayName: "AI Product Engineer",
+          headline: "Evidence-backed workflow builder"
+        },
+        sources: [],
+        userProvidedClaims: [
+          {
+            type: "summary",
+            text: "Built an evidence-backed workflow",
+            confidence: 0.62,
+            evidenceStatus: "user_provided"
+          }
+        ],
+        missingEvidence: [
+          {
+            need: "Public project evidence",
+            reason: "The input describes the work but does not include a public source.",
+            suggestedSource: "GitHub or website"
+          }
+        ],
+        warnings: ["Add a public source to strengthen this profile."],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "AI product engineer who built an evidence-backed workflow" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      status: "needs_review",
+      llmUsed: true,
+      workspaceUrl: "/u/ai-product-engineer/workspace",
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(llmClient.completeJson).toHaveBeenCalledTimes(1);
+
+    const workspaceResponse = await app.request("/api/people/ai-product-engineer/workspace");
+    expect(workspaceResponse.status).toBe(200);
+    const workspaceJson = await workspaceResponse.json();
+    expect(workspaceJson.profile.claims[0]).toMatchObject({
+      text: "Built an evidence-backed workflow",
+      status: "pending"
+    });
+    expect(workspaceJson.profile.artifacts[0].metadata).toMatchObject({
+      source: "manual",
+      evidenceStatus: "user_provided"
+    });
+  });
+
+  it("does not run LLM claim synthesis for source-review fallback profiles", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValueOnce({
+        rawInput: "https://github.com/-bad-user",
+        intent: "generate_profile",
+        confidence: 0.9,
+        subject: { handle: "rate-limited-builder" },
+        sources: [{ type: "github", input: "-bad-user", reason: "GitHub URL provided.", confidence: 0.9, evidenceStatus: "explicit" }],
+        userProvidedClaims: [],
+        missingEvidence: [],
+        warnings: [],
+        questions: []
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/generate-ai", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/-bad-user" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "needs_review",
+      llmUsed: true,
+      artifactsImported: 1,
+      claimsGenerated: 1
+    });
+    expect(llmClient.completeJson).toHaveBeenCalledTimes(1);
+  });
 });
 
 async function fixtureFetch(url: string | URL | Request) {
@@ -425,6 +658,31 @@ async function fixtureFetch(url: string | URL | Request) {
     return Response.json({
       id: "https://openalex.org/A123456789",
       display_name: "Demo Agent Builder"
+    });
+  }
+
+  if (textUrl.endsWith("/authors/A5018878364")) {
+    return Response.json({
+      id: "https://openalex.org/A5018878364",
+      display_name: "Jiajun Wu",
+      works_count: 120,
+      cited_by_count: 9000
+    });
+  }
+
+  if (textUrl.startsWith("https://api.openalex.org/authors?")) {
+    if (!textUrl.includes("Jiajun")) {
+      return Response.json({ results: [] });
+    }
+    return Response.json({
+      results: [
+        {
+          id: "https://openalex.org/A5018878364",
+          display_name: "Jiajun Wu",
+          works_count: 120,
+          cited_by_count: 9000
+        }
+      ]
     });
   }
 

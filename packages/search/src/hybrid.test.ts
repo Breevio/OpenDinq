@@ -90,7 +90,14 @@ describe("fullTextSearch", () => {
       {
         queryText: "semantic scholar citation",
         terms: ["semantic", "scholar", "citation"],
-        phrases: []
+        phrases: [],
+        intent: {
+          skills: [],
+          projectTerms: [],
+          researchTerms: [],
+          sourceHints: [],
+          roleTerms: []
+        }
       },
       documents
     );

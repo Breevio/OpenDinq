@@ -65,6 +65,7 @@ export type ProfileClaimRecord = {
   type: "skill" | "role" | "project" | "research_area" | "achievement" | "affiliation" | "link" | "summary";
   text: string;
   confidence: number;
+  qualityScore?: number;
   evidence: EvidenceRecord[];
   status?: ProfileClaimStatus;
 };

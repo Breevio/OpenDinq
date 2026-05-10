@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? "http://localhost:3001";
+  process.env.NEXT_PUBLIC_OPENDINQ_API_URL ?? "http://localhost:3011";
 
 export type EvidenceRef = {
   id: string;
@@ -82,6 +82,16 @@ export type ProfileWorkspace = {
 export type SearchResult = {
   person: PersonProfile["person"];
   score: number;
+  scoreBreakdown: {
+    claimScore: number;
+    cardScore: number;
+    artifactScore: number;
+    skillScore: number;
+    evidenceScore: number;
+    publishBoost: number;
+    recencyScore: number;
+    finalScore: number;
+  };
   explanation: string;
   evidence: EvidenceRef[];
   matchedClaims?: PersonProfile["claims"];
@@ -96,9 +106,46 @@ export type ProfileGenerationResponse = {
   handle: string;
   status: string;
   profileUrl: string;
+  workspaceUrl?: string;
   cardsGenerated: number;
   artifactsImported: number;
   claimsGenerated: number;
+  llmUsed?: boolean;
+  plan?: ProfileGenerationPlan;
+  warnings: string[];
+};
+
+export type ProfileGenerationPlan = {
+  rawInput: string;
+  intent: string;
+  confidence: number;
+  subject: {
+    displayName?: string;
+    handle?: string;
+    headline?: string;
+    aliases?: string[];
+  };
+  sources: Array<{
+    type: string;
+    input: string | Record<string, unknown>;
+    confidence: number;
+    reason: string;
+    evidenceStatus: "explicit" | "inferred" | "user_provided";
+  }>;
+  userProvidedClaims: Array<{
+    text: string;
+    type: string;
+    confidence: number;
+    evidenceStatus: "user_provided";
+  }>;
+  missingEvidence: Array<{ need: string; reason: string; suggestedSource?: string }>;
+  questions: string[];
+  warnings: string[];
+};
+
+export type ProfilePlanResponse = {
+  plan: ProfileGenerationPlan;
+  llmUsed: boolean;
   warnings: string[];
 };
 

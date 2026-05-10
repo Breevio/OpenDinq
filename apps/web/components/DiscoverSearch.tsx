@@ -104,6 +104,13 @@ export function DiscoverSearch() {
                   ))}
                 </div>
               ) : null}
+              <div className="matched-block compact-breakdown" aria-label="Score breakdown">
+                <strong>Why matched</strong>
+                <span>claims {Math.round(result.scoreBreakdown.claimScore * 100)}%</span>
+                <span>cards {Math.round(result.scoreBreakdown.cardScore * 100)}%</span>
+                <span>artifacts {Math.round(result.scoreBreakdown.artifactScore * 100)}%</span>
+                <span>evidence {Math.round(result.scoreBreakdown.evidenceScore * 100)}%</span>
+              </div>
             </div>
             <span className="score">{Math.round(result.score * 100)}%</span>
             <EvidenceList evidence={result.evidence.slice(0, 3)} compact />

@@ -118,6 +118,16 @@ export const searchResultSchema = z.object({
   queryId: z.string().min(1).optional(),
   person: personSchema,
   score: z.number().min(0).max(1),
+  scoreBreakdown: z.object({
+    claimScore: z.number().min(0).max(1),
+    cardScore: z.number().min(0).max(1),
+    artifactScore: z.number().min(0).max(1),
+    skillScore: z.number().min(0).max(1),
+    evidenceScore: z.number().min(0).max(1),
+    publishBoost: z.number().min(0).max(1),
+    recencyScore: z.number().min(0).max(1),
+    finalScore: z.number().min(0).max(1)
+  }).optional(),
   explanation: z.string().min(1),
   evidence: z.array(evidenceRefSchema).min(1)
 });
