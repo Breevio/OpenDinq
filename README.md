@@ -1,3 +1,5 @@
+I'm William Wu.
+
 # OpenDinq
 
 Evidence-backed AI-native profile generation and people discovery.
