@@ -4,13 +4,13 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(resolve(__dirname, "ProfileGenerateForm.tsx"), "utf8");
 
-describe("/generate AI-first UI", () => {
-  it("uses a single primary input and preview plan action", () => {
+describe("/generate search-first UI", () => {
+  it("uses a single primary input and candidate preview action", () => {
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("Paste a URL, GitHub handle, ORCID, arXiv id, website, or describe the person");
-    expect(source).toContain("Preview plan");
-    expect(source).toContain("/api/profiles/plan");
-    expect(source).toContain("/api/profiles/generate-ai");
+    expect(source).toContain("Search a person, describe them, or paste a source");
+    expect(source).toContain("Preview candidates");
+    expect(source).toContain("/api/profiles/resolve");
+    expect(source).toContain("/api/profiles/search-and-generate");
   });
 
   it("keeps advanced source fields collapsed", () => {
@@ -19,9 +19,9 @@ describe("/generate AI-first UI", () => {
     expect(source).toContain("/api/profiles/generate");
   });
 
-  it("shows no-key fallback messaging from API results", () => {
-    expect(source).toContain("Local fallback plan");
-    expect(source).toContain("LLM planned");
-    expect(source).toContain("Needs public source");
+  it("renders candidate resolution and selected candidate generation", () => {
+    expect(source).toContain("Candidate requires confirmation");
+    expect(source).toContain("Generate this profile");
+    expect(source).toContain("/api/profiles/generate-from-candidate");
   });
 });

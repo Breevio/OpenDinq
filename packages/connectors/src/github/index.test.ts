@@ -10,6 +10,7 @@ import {
   normalizeGitHubUserToIdentitySource,
   normalizeGitHubUserToPerson,
   parseGitHubProfileUrl,
+  searchGitHubUsers,
   type GitHubRepo,
   type GitHubUser
 } from "./index.js";
@@ -99,6 +100,30 @@ describe("GitHub API client", () => {
     );
   });
 
+  it("searches GitHub users", async () => {
+    const users = await searchGitHubUsers("Jiajun Wu", {
+      fetchImpl: async (url, init) => {
+        expect(String(url)).toBe("https://api.github.com/search/users?q=Jiajun+Wu+type%3Auser+in%3Alogin+in%3Aname&per_page=5");
+        expect(init?.headers).toMatchObject({ accept: "application/vnd.github+json" });
+        return Response.json({
+          items: [
+            {
+              login: "jiajun-wu",
+              id: 501,
+              html_url: "https://github.com/jiajun-wu",
+              type: "User"
+            }
+          ]
+        });
+      }
+    });
+
+    expect(users[0]).toMatchObject({
+      login: "jiajun-wu",
+      html_url: "https://github.com/jiajun-wu"
+    });
+  });
+
   it("maps not found and rate-limit responses to typed errors", async () => {
     await expect(
       fetchGitHubUser("missing", {
@@ -123,4 +148,3 @@ describe("GitHub API client", () => {
 function readFixture<T>(name: string): T {
   return JSON.parse(readFileSync(join(fixtureDir, name), "utf8")) as T;
 }
-

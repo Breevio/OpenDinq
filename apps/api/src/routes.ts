@@ -16,6 +16,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
 import { errorResponse } from "./errors.js";
+import { ProfileCandidateResolver, type ProfileCandidate } from "./profile-candidate-resolver.js";
 import { createProfileGenerator, getProfileRunSummary } from "./profile-generator.js";
 
 export type ApiRouteOptions = {
@@ -55,6 +56,52 @@ const profileGenerationSchema = z.object({
 const aiProfileInputSchema = z.object({
   input: z.string().min(1),
   reviewPlan: z.boolean().optional()
+});
+
+const candidateGenerationSchema = z.object({
+  candidateId: z.string().min(1),
+  rawInput: z.string().min(1),
+  candidate: z.lazy(() => candidatePayloadSchema).optional()
+});
+
+const candidatePayloadSchema: z.ZodType<ProfileCandidate> = z.object({
+    id: z.string().min(1),
+    displayName: z.string().min(1),
+    headline: z.string().optional(),
+    handle: z.string().optional(),
+    sourceType: z.enum(["existing_profile", "openalex", "orcid", "arxiv", "github", "website", "manual", "web"]),
+    sourceId: z.string().optional(),
+    sourceUrl: z.string().optional(),
+    confidence: z.number().min(0).max(1),
+    evidencePreview: z.array(z.object({
+      id: z.string(),
+      type: z.enum(["artifact", "claim", "source", "external"]),
+      title: z.string(),
+      url: z.string().optional(),
+      reason: z.string()
+    })),
+    reasons: z.array(z.string()),
+    warnings: z.array(z.string()),
+    sources: z.array(z.object({
+      sourceType: z.enum(["existing_profile", "openalex", "orcid", "arxiv", "github", "website", "manual", "web"]),
+      sourceId: z.string().optional(),
+      sourceUrl: z.string().optional(),
+      confidence: z.number().min(0).max(1),
+      evidencePreview: z.array(z.object({
+        id: z.string(),
+        type: z.enum(["artifact", "claim", "source", "external"]),
+        title: z.string(),
+        url: z.string().optional(),
+        reason: z.string()
+      })),
+      reasons: z.array(z.string()),
+      warnings: z.array(z.string())
+    })).optional()
+});
+
+const searchAndGenerateSchema = z.object({
+  input: z.string().min(1),
+  autoSelect: z.boolean().optional()
 });
 
 const createNoteCardSchema = z.object({
@@ -100,12 +147,79 @@ const importWebsiteSchema = z.object({
 
 export function createApiRoutes(options: ApiRouteOptions) {
   const routes = new Hono();
+  const candidateResolver = new ProfileCandidateResolver({
+    ...options,
+    githubToken: process.env.GITHUB_TOKEN || undefined
+  });
   const generator = createProfileGenerator({
     store: options.store,
     fetchImpl: options.fetchImpl,
     githubToken: process.env.GITHUB_TOKEN || undefined
   });
   const llmClient = getConfiguredLlmClient(options);
+
+  routes.post("/profiles/resolve", async (context) => {
+    try {
+      const body = aiProfileInputSchema.pick({ input: true }).parse(await context.req.json());
+      return context.json(await candidateResolver.resolve(body.input));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/profiles/generate-from-candidate", async (context) => {
+    try {
+      const body = candidateGenerationSchema.parse(await context.req.json());
+      const candidate = candidateResolver.getCandidate(body.candidateId) ?? body.candidate;
+      if (!candidate) {
+        return context.json({ error: { code: "not_found", message: "Candidate was not found. Preview candidates again." } }, 404);
+      }
+      return context.json(await generateFromCandidate(candidate, body.rawInput, generator, llmClient));
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
+
+  routes.post("/profiles/search-and-generate", async (context) => {
+    try {
+      const body = searchAndGenerateSchema.parse(await context.req.json());
+      const resolution = await candidateResolver.resolve(body.input);
+      if (resolution.candidates.length === 0 && descriptiveEnough(body.input)) {
+        const generated = await generator.generate({
+          displayName: titleFromInput(body.input),
+          handle: slugFromInput(body.input),
+          sources: [{
+            type: "manual",
+            input: {
+              title: "Review workspace from search input",
+              note: body.input,
+              description: "No public candidate was found. OpenDinq created a review workspace from the user's description."
+            }
+          }]
+        });
+        return context.json({
+          ...generated,
+          workspaceUrl: `/u/${generated.handle}/workspace`,
+          llmUsed: false,
+          resolution,
+          warnings: [...new Set([...resolution.warnings, ...generated.warnings])]
+        });
+      }
+      if (resolution.needsSelection || !resolution.autoSelectedCandidateId || body.autoSelect === false) {
+        return context.json({ ...resolution, status: "needs_selection" });
+      }
+
+      const candidate = candidateResolver.getCandidate(resolution.autoSelectedCandidateId);
+      if (!candidate) {
+        return context.json({ ...resolution, status: "needs_selection", needsSelection: true });
+      }
+
+      const generated = await generateFromCandidate(candidate, body.input, generator, llmClient);
+      return context.json({ ...generated, resolution });
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+  });
 
   routes.post("/profiles/plan", async (context) => {
     try {
@@ -447,6 +561,98 @@ function usedLocalFallback(warnings: string[]): boolean {
   return warnings.some((warning) => warning.includes("using local fallback planning"));
 }
 
+async function generateFromCandidate(
+  candidate: ProfileCandidate,
+  rawInput: string,
+  generator: ReturnType<typeof createProfileGenerator>,
+  llmClient: JsonLlmClient | undefined
+) {
+  if (candidate.sourceType === "existing_profile" && candidate.handle) {
+    return {
+      runId: `existing-${candidate.handle}`,
+      handle: candidate.handle,
+      status: "completed",
+      profileUrl: `/u/${candidate.handle}`,
+      workspaceUrl: `/u/${candidate.handle}/workspace`,
+      cardsGenerated: 0,
+      artifactsImported: candidate.evidencePreview.length,
+      claimsGenerated: 0,
+      llmUsed: false,
+      warnings: candidate.warnings
+    };
+  }
+
+  const plan = candidateToPlan(candidate, rawInput);
+  const generated = await generator.generate(planToGenerationInput(plan));
+  return {
+    ...generated,
+    workspaceUrl: `/u/${generated.handle}/workspace`,
+    llmUsed: Boolean(llmClient),
+    plan,
+    warnings: [...new Set([...candidate.warnings, ...generated.warnings])]
+  };
+}
+
+function candidateToPlan(candidate: ProfileCandidate, rawInput: string): ProfileGenerationPlan {
+  const sources = candidateSources(candidate);
+  return {
+    rawInput,
+    intent: sources.every((source) => source.type === "manual") ? "manual_profile" : "generate_profile",
+    confidence: candidate.confidence,
+    subject: {
+      displayName: candidate.displayName,
+      handle: candidate.handle,
+      headline: candidate.headline
+    },
+    sources,
+    userProvidedClaims: sources.every((source) => source.type === "manual") ? [{ text: rawInput, type: "summary", confidence: 0.45, evidenceStatus: "user_provided" }] : [],
+    missingEvidence: [],
+    questions: [],
+    warnings: candidate.warnings
+  };
+}
+
+function candidateSources(candidate: ProfileCandidate): ProfileGenerationPlan["sources"] {
+  const sources = candidate.sources?.length
+    ? candidate.sources.map((source) => candidateSource({
+      displayName: candidate.displayName,
+      sourceType: source.sourceType,
+      sourceId: source.sourceId,
+      sourceUrl: source.sourceUrl,
+      confidence: source.confidence,
+      evidencePreview: source.evidencePreview,
+      reasons: source.reasons,
+      warnings: source.warnings
+    } as ProfileCandidate))
+    : [candidateSource(candidate)];
+  return dedupePlanSources(sources);
+}
+
+function candidateSource(candidate: ProfileCandidate): ProfileGenerationPlan["sources"][number] {
+  if (candidate.sourceType === "github") {
+    return { type: "github", input: candidate.sourceId ?? candidate.handle ?? candidate.sourceUrl ?? candidate.displayName, confidence: candidate.confidence, reason: candidate.reasons[0] ?? "Candidate selected for generation.", evidenceStatus: "explicit" };
+  }
+  if (candidate.sourceType === "website" || candidate.sourceType === "web") {
+    return { type: "website", input: candidate.sourceUrl ?? candidate.sourceId ?? candidate.displayName, confidence: candidate.confidence, reason: candidate.reasons[0] ?? "Candidate selected for generation.", evidenceStatus: "explicit" };
+  }
+  if (candidate.sourceType === "openalex" || candidate.sourceType === "orcid" || candidate.sourceType === "arxiv") {
+    return { type: candidate.sourceType, input: candidate.sourceId ?? candidate.sourceUrl ?? candidate.displayName, confidence: candidate.confidence, reason: candidate.reasons[0] ?? "Candidate selected for generation.", evidenceStatus: candidate.confidence >= 0.9 ? "explicit" : "inferred" };
+  }
+  return { type: "manual", input: { title: `${candidate.displayName} profile request`, note: candidate.displayName, description: candidate.reasons.join(" ") }, confidence: candidate.confidence, reason: "No public candidate source was selected.", evidenceStatus: "user_provided" };
+}
+
+function dedupePlanSources(sources: ProfileGenerationPlan["sources"]): ProfileGenerationPlan["sources"] {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const key = `${source.type}:${typeof source.input === "string" ? source.input : JSON.stringify(source.input)}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 function mergeGenerationWarnings(plan: ProfileGenerationPlan, planWarnings: string[], generatedWarnings: string[]): string[] {
   const hasPublicSource = plan.sources.some((source) => source.type !== "manual");
   return [...new Set([...planWarnings, ...generatedWarnings])]
@@ -504,6 +710,19 @@ function bestOpenAlexCandidate(query: string, authors: Awaited<ReturnType<typeof
 function personLikeInput(input: string): string | undefined {
   const normalized = input.replace(/^generate a profile (for|from)\s+/i, "").trim();
   return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(normalized) ? normalized : undefined;
+}
+
+function descriptiveEnough(input: string): boolean {
+  return input.trim().split(/\s+/).length >= 3;
+}
+
+function titleFromInput(input: string): string {
+  const words = input.trim().split(/\s+/).slice(0, 6).join(" ");
+  return words.replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Review Profile";
+}
+
+function slugFromInput(input: string): string {
+  return input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "review-profile";
 }
 
 function planToGenerationInput(plan: ProfileGenerationPlan): z.infer<typeof profileGenerationSchema> {

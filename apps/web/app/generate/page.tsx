@@ -5,8 +5,8 @@ export default function GeneratePage() {
     <main className="page-shell">
       <div className="page-heading">
         <p className="eyebrow">Generate</p>
-        <h1>Generate a profile from public evidence</h1>
-        <p>Describe a person, paste a URL, or provide a public source. OpenDinq will plan sources, collect evidence, generate claims, and create cards you can review.</p>
+        <h1>Search a person or generate a profile</h1>
+        <p>Enter a name, describe a person, or paste a public source. OpenDinq searches for candidates, imports evidence, and creates cards you can review.</p>
       </div>
       <ProfileGenerateForm />
     </main>

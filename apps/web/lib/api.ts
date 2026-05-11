@@ -115,6 +115,48 @@ export type ProfileGenerationResponse = {
   warnings: string[];
 };
 
+export type ProfileCandidate = {
+  id: string;
+  displayName: string;
+  headline?: string;
+  handle?: string;
+  sourceType: "existing_profile" | "openalex" | "orcid" | "arxiv" | "github" | "website" | "manual" | "web";
+  sourceId?: string;
+  sourceUrl?: string;
+  confidence: number;
+  evidencePreview: EvidenceRef[];
+  reasons: string[];
+  warnings: string[];
+  sources?: Array<{
+    sourceType: ProfileCandidate["sourceType"];
+    sourceId?: string;
+    sourceUrl?: string;
+    confidence: number;
+    evidencePreview: EvidenceRef[];
+    reasons: string[];
+    warnings: string[];
+  }>;
+};
+
+export type ProfileResolutionResponse = {
+  rawInput: string;
+  queryType: "person_name" | "source_url" | "natural_language" | "role_search" | "unknown";
+  candidates: ProfileCandidate[];
+  autoSelectedCandidateId?: string;
+  needsSelection: boolean;
+  warnings: string[];
+  status?: string;
+};
+
+export type SearchAndGenerateResponse = ProfileGenerationResponse & {
+  resolution?: ProfileResolutionResponse;
+  candidates?: ProfileCandidate[];
+  needsSelection?: boolean;
+  rawInput?: string;
+  autoSelectedCandidateId?: string;
+  queryType?: ProfileResolutionResponse["queryType"];
+};
+
 export type ProfileGenerationPlan = {
   rawInput: string;
   intent: string;

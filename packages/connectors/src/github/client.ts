@@ -1,4 +1,4 @@
-import { GitHubConnectorError, type GitHubFetchOptions, type GitHubRepo, type GitHubUser } from "./types.js";
+import { GitHubConnectorError, type GitHubFetchOptions, type GitHubRepo, type GitHubUser, type GitHubUserSearchResult } from "./types.js";
 
 const GITHUB_API_BASE_URL = "https://api.github.com";
 
@@ -20,6 +20,26 @@ export async function fetchGitHubRepos(
     `/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner`,
     normalizeOptions(tokenOrOptions)
   );
+}
+
+export async function searchGitHubUsers(
+  query: string,
+  tokenOrOptions?: string | GitHubFetchOptions
+): Promise<NonNullable<GitHubUserSearchResult["items"]>> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    q: `${trimmed} type:user in:login in:name`,
+    per_page: "5"
+  });
+  const result = await requestGitHub<GitHubUserSearchResult>(
+    `/search/users?${params.toString()}`,
+    normalizeOptions(tokenOrOptions)
+  );
+  return result.items ?? [];
 }
 
 async function requestGitHub<T>(path: string, options: GitHubFetchOptions): Promise<T> {
@@ -70,4 +90,3 @@ function normalizeOptions(tokenOrOptions?: string | GitHubFetchOptions): GitHubF
 
   return tokenOrOptions;
 }
-

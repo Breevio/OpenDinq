@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { apiRequest, type ProfileGenerationResponse, type ProfilePlanResponse } from "../lib/api";
+import { apiRequest, type ProfileCandidate, type ProfileGenerationResponse, type ProfileResolutionResponse, type SearchAndGenerateResponse } from "../lib/api";
 
 const EXAMPLES = [
+  "Jiajun Wu",
+  "Linus Torvalds",
+  "AI agent builders working on MCP",
+  "Stanford researcher working on 3D scene understanding",
   "https://github.com/torvalds",
-  "torvalds",
-  "Generate a profile for Linus Torvalds",
-  "AI product engineer who built an evidence-backed workflow",
-  "https://example.com/about"
 ];
 
 export function ProfileGenerateForm() {
-  const [input, setInput] = useState("AI product engineer who built an evidence-backed workflow");
+  const [input, setInput] = useState("Jiajun Wu");
   const [displayName, setDisplayName] = useState("Ada Builder");
   const [handle, setHandle] = useState("ada-builder");
   const [headline, setHeadline] = useState("AI product engineer");
@@ -25,45 +25,70 @@ export function ProfileGenerateForm() {
   const [manualUrl, setManualUrl] = useState("https://example.com/agent-workflow");
   const [manualNote, setManualNote] = useState("Designed and shipped an evidence-backed AI workflow for profile generation.");
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<"plan" | "generate" | "advanced" | null>(null);
+  const [mode, setMode] = useState<"resolve" | "generate" | "advanced" | "candidate" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [planResult, setPlanResult] = useState<ProfilePlanResponse | null>(null);
+  const [resolution, setResolution] = useState<ProfileResolutionResponse | null>(null);
   const [result, setResult] = useState<ProfileGenerationResponse | null>(null);
 
-  async function previewPlan() {
+  async function previewCandidates() {
     setIsLoading(true);
-    setMode("plan");
+    setMode("resolve");
     setError(null);
     setResult(null);
     try {
-      setPlanResult(await apiRequest<ProfilePlanResponse>("/api/profiles/plan", {
+      setResolution(await apiRequest<ProfileResolutionResponse>("/api/profiles/resolve", {
         method: "POST",
         body: JSON.stringify({ input })
       }));
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Profile planning failed.");
+      setError(caughtError instanceof Error ? caughtError.message : "Candidate search needs review.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function generateAi(event: React.FormEvent<HTMLFormElement>) {
+  async function searchAndGenerate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setMode("generate");
     setError(null);
     setResult(null);
     try {
-      const generated = await apiRequest<ProfileGenerationResponse>("/api/profiles/generate-ai", {
+      const generated = await apiRequest<SearchAndGenerateResponse>("/api/profiles/search-and-generate", {
         method: "POST",
-        body: JSON.stringify({ input, reviewPlan: false })
+        body: JSON.stringify({ input, autoSelect: true })
       });
-      setResult(generated);
-      if (generated.plan) {
-        setPlanResult({ plan: generated.plan, llmUsed: Boolean(generated.llmUsed), warnings: generated.warnings });
+      if (generated.needsSelection || generated.candidates) {
+        setResolution({
+          rawInput: generated.rawInput ?? input,
+          queryType: generated.queryType ?? "unknown",
+          candidates: generated.candidates ?? [],
+          autoSelectedCandidateId: generated.autoSelectedCandidateId,
+          needsSelection: Boolean(generated.needsSelection),
+          warnings: generated.warnings ?? []
+        });
+      } else {
+        setResult(generated);
+        setResolution(generated.resolution ?? null);
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Profile generation failed.");
+      setError(caughtError instanceof Error ? caughtError.message : "Some sources could not be imported.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function generateCandidate(candidate: ProfileCandidate) {
+    setIsLoading(true);
+    setMode("candidate");
+    setError(null);
+    try {
+      setResult(await apiRequest<ProfileGenerationResponse>("/api/profiles/generate-from-candidate", {
+        method: "POST",
+        body: JSON.stringify({ candidateId: candidate.id, rawInput: input, candidate })
+      }));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Some sources could not be imported.");
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +125,7 @@ export function ProfileGenerateForm() {
         body: JSON.stringify({ displayName, handle, headline, sources })
       }));
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Profile generation failed.");
+      setError(caughtError instanceof Error ? caughtError.message : "Some sources could not be imported.");
     } finally {
       setIsLoading(false);
     }
@@ -108,13 +133,13 @@ export function ProfileGenerateForm() {
 
   return (
     <section className="ai-generate-panel">
-      <form className="ai-generate-form" onSubmit={generateAi}>
+      <form className="ai-generate-form" onSubmit={searchAndGenerate}>
         <div className="ai-prompt-shell">
           <textarea
             aria-label="Profile generation input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Paste a URL, GitHub handle, ORCID, arXiv id, website, or describe the person..."
+            placeholder="Search a person, describe them, or paste a source..."
           />
           <div className="example-chips" aria-label="Examples">
             {EXAMPLES.map((example) => (
@@ -126,16 +151,16 @@ export function ProfileGenerateForm() {
         </div>
         <div className="actions">
           <button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading && mode === "generate" ? "Generating" : "Generate profile"}
+            {isLoading && mode === "generate" ? "Searching" : "Search & generate"}
           </button>
-          <button className="secondary-button" type="button" disabled={isLoading || !input.trim()} onClick={previewPlan}>
-            {isLoading && mode === "plan" ? "Planning" : "Preview plan"}
+          <button className="secondary-button" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
+            {isLoading && mode === "resolve" ? "Searching" : "Preview candidates"}
           </button>
         </div>
       </form>
 
-      {error ? <p className="status error">{error}</p> : null}
-      {planResult ? <PlanPreview response={planResult} /> : null}
+      {error ? <p className="status warning">{error}</p> : null}
+      {resolution ? <CandidateResolution response={resolution} onGenerate={generateCandidate} disabled={isLoading} /> : null}
       {result ? <GenerationResult result={result} input={input} /> : null}
 
       <details className="advanced-sources">
@@ -203,45 +228,53 @@ export function ProfileGenerateForm() {
   );
 }
 
-function PlanPreview({ response }: { response: ProfilePlanResponse }) {
-  const { plan } = response;
-  const manualOnly = plan.intent === "manual_profile" && !plan.sources.some((source) => source.evidenceStatus === "explicit");
+function CandidateResolution({ response, onGenerate, disabled }: { response: ProfileResolutionResponse; onGenerate: (candidate: ProfileCandidate) => void; disabled: boolean }) {
   return (
     <div className="plan-preview">
       <div className="result-strip">
-        <span>{response.llmUsed ? "LLM planned" : "Local fallback plan"}</span>
-        <span>{manualOnly ? "Needs public source" : plan.intent}</span>
-        <span>{Math.round(plan.confidence * 100)}% confidence</span>
+        <span>{response.queryType}</span>
+        <span>{response.needsSelection ? "Candidate requires confirmation" : response.autoSelectedCandidateId ? "Auto-selected candidate" : "No public candidate yet"}</span>
+        <span>{response.candidates.length} people</span>
       </div>
       {response.warnings.length ? <p className="status warning">{response.warnings.join(" ")}</p> : null}
-      <div className="plan-grid">
-        <div>
-          <strong>Subject</strong>
-          <span>{plan.subject.displayName ?? "Unknown"}</span>
-          {plan.subject.handle ? <span>{plan.subject.handle}</span> : null}
-          {plan.subject.headline ? <span>{plan.subject.headline}</span> : null}
+      {response.candidates.length ? (
+        <div className="candidate-grid">
+          {response.candidates.map((candidate) => (
+            <article className="candidate-card" key={candidate.id}>
+              <div className="candidate-card-header">
+                <div>
+                  <strong>{candidate.displayName}</strong>
+                  {candidate.headline ? <span>{candidate.headline}</span> : null}
+                  {candidate.sourceUrl ? <span>{candidate.sourceUrl}</span> : null}
+                </div>
+                <span>{Math.round(candidate.confidence * 100)}%</span>
+              </div>
+              <div className="result-strip">
+                {candidateSources(candidate).map((source) => (
+                  <span key={`${candidate.id}-${source}`}>{source}</span>
+                ))}
+                {candidate.handle ? <span>{candidate.handle}</span> : null}
+              </div>
+              {candidate.evidencePreview.length ? (
+                <div className="candidate-evidence">
+                  {candidate.evidencePreview.slice(0, 3).map((item) => <span key={`${candidate.id}-${item.id}`}>{item.title}</span>)}
+                </div>
+              ) : null}
+              {candidate.reasons.length ? <p>{candidate.reasons.join(" ")}</p> : null}
+              {candidate.warnings.length ? <p className="status warning">{candidate.warnings.join(" ")}</p> : null}
+              <button type="button" disabled={disabled} onClick={() => onGenerate(candidate)}>
+                Generate this profile
+              </button>
+            </article>
+          ))}
         </div>
-        <div>
-          <strong>Public sources to import</strong>
-          {plan.sources.length ? plan.sources.map((source) => (
-            <span key={`${source.type}-${JSON.stringify(source.input)}`}>{source.evidenceStatus === "user_provided" ? "No public source supplied; using your input as a review seed." : `${source.type}: ${typeof source.input === "string" ? source.input : JSON.stringify(source.input)}`}</span>
-          )) : <span>No reliable public source yet</span>}
-        </div>
-      </div>
-      {plan.userProvidedClaims.length ? (
-        <div className="plan-grid">
-          <div>
-            <strong>Review seed from your input</strong>
-            {plan.userProvidedClaims.map((claim) => <span key={claim.text}>{claim.text}</span>)}
-          </div>
-          <div>
-            <strong>Evidence to add next</strong>
-            {plan.missingEvidence.map((item) => <span key={item.need}>{item.need}: {item.suggestedSource ?? item.reason}</span>)}
-          </div>
-        </div>
-      ) : null}
+      ) : <p className="status warning">No public candidate found yet. OpenDinq can still create a review workspace from your description.</p>}
     </div>
   );
+}
+
+function candidateSources(candidate: ProfileCandidate): string[] {
+  return [...new Set((candidate.sources?.map((source) => source.sourceType) ?? [candidate.sourceType]))];
 }
 
 function GenerationResult({ result, input }: { result: ProfileGenerationResponse; input: string }) {
@@ -252,7 +285,7 @@ function GenerationResult({ result, input }: { result: ProfileGenerationResponse
       <p className="eyebrow">{needsReview ? "Review workspace created" : "Generation completed"}</p>
       <div className="result-strip">
         <span>{needsReview ? "needs review" : result.status}</span>
-        <span>{result.llmUsed ? (manualOnly ? "LLM planned review" : "LLM used") : "Local fallback plan"}</span>
+        <span>{result.llmUsed ? (manualOnly ? "LLM planned review" : "LLM used") : "Using local candidate search"}</span>
         <span>{result.artifactsImported} artifacts</span>
         <span>{result.claimsGenerated} claims</span>
         <span>{result.cardsGenerated} cards</span>

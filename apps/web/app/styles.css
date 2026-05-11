@@ -171,6 +171,38 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.candidate-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.candidate-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.candidate-card-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.candidate-card-header div,
+.candidate-evidence {
+  display: grid;
+  gap: 5px;
+}
+
+.candidate-card-header span,
+.candidate-evidence span {
+  color: var(--muted);
+}
+
 .plan-grid > div {
   background: #fffaf0;
   border: 1px solid var(--line);

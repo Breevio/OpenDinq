@@ -14,6 +14,19 @@ export type GitHubUser = {
   twitter_username?: string | null;
 };
 
+export type GitHubUserSearchResult = {
+  total_count?: number;
+  incomplete_results?: boolean;
+  items?: Array<{
+    login: string;
+    id: number;
+    html_url: string;
+    avatar_url?: string;
+    type?: string;
+    score?: number;
+  }>;
+};
+
 export type GitHubRepo = {
   id: number;
   name: string;
@@ -46,4 +59,3 @@ export class GitHubConnectorError extends Error {
     this.name = "GitHubConnectorError";
   }
 }
-

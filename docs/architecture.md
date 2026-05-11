@@ -93,11 +93,13 @@ The score breakdown includes claim, card, artifact, skill, evidence, publish boo
 
 ## Optional LLM Layer
 
-LLM generation is disabled by default. When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API uses an LLM-first planner to convert raw input into one `ProfileGenerationPlan`. `OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL` may point directly at a provider endpoint; `OPEN_DINQ_LLM_BASE_URL` remains supported. Slow or invalid provider responses fall back to local planning with `llmUsed: false`; `OPEN_DINQ_LLM_TIMEOUT_MS` and `OPEN_DINQ_LLM_MAX_TOKENS` can tune provider behavior.
+LLM generation is disabled by default. The `/generate` product flow is search-first: `ProfileCandidateResolver` converts raw input into existing-profile, direct-source, or connector-confirmed candidates before generation. URLs are optional shortcuts, not required inputs. Ambiguous candidates require user selection; a single clear candidate can auto-generate.
+
+When `OPEN_DINQ_ENABLE_LLM_GENERATION=true`, `OPEN_DINQ_LLM_MODEL`, and `OPEN_DINQ_LLM_API_KEY` are present, the API can use an LLM for intent classification, connector query suggestions, candidate ranking explanations, and evidence-backed claim synthesis. `OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL` may point directly at a provider endpoint; `OPEN_DINQ_LLM_BASE_URL` remains supported. Slow or invalid provider responses fall back to local candidate search with `llmUsed: false`; `OPEN_DINQ_LLM_TIMEOUT_MS` and `OPEN_DINQ_LLM_MAX_TOKENS` can tune provider behavior.
 
 LLM rewrite is separately gated by `OPEN_DINQ_ENABLE_LLM_REWRITE=true`. Generated cards are still deterministic first; the helper validates used claim/evidence ids and falls back to deterministic content on failure or unsupported output.
 
-OpenDinq does not invent sources and does not perform browser scraping or production web-wide entity search. Person-name input can trigger safe source discovery through existing public connectors, currently OpenAlex author search. Natural-language input still becomes user-provided claims plus missing-evidence prompts when discovery finds no usable public source. Connector failures should create a reviewable workspace instead of failing the whole run.
+OpenDinq does not invent sources and does not perform browser scraping or production web-wide entity search. Person-name input can trigger safe source discovery through existing public connectors: OpenAlex author search, GitHub user search, ORCID public record search, and arXiv paper search. Natural-language input can create a review workspace with user-provided claims and missing-evidence prompts when discovery finds no usable public candidate. Connector failures add warnings instead of blocking the workflow.
 
 ## MCP
 

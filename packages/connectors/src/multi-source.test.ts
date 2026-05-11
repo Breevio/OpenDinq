@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   fetchArxivPaper,
+  searchArxivPapers,
   searchOpenAlexAuthors,
+  searchOrcidRecords,
   fetchWebsiteMetadata,
   normalizeArxivPaperToArtifact,
   normalizeOpenAlexAuthorToIdentitySource,
@@ -123,6 +125,32 @@ describe("arXiv connector", () => {
       })
     });
   });
+
+  it("searches arXiv papers by author-style query", async () => {
+    const papers = await searchArxivPapers("Jiajun Wu", {
+      fetchImpl: async (url) => {
+        expect(String(url)).toContain("export.arxiv.org/api/query");
+        expect(String(url)).toContain("search_query=au%3A%22Jiajun+Wu%22");
+        return new Response(`
+          <feed>
+            <entry>
+              <id>https://arxiv.org/abs/2601.01234</id>
+              <title>3D Scene Understanding</title>
+              <summary>Scene understanding paper.</summary>
+              <author><name>Jiajun Wu</name></author>
+              <category term="cs.CV" />
+            </entry>
+          </feed>
+        `);
+      }
+    });
+
+    expect(papers[0]).toMatchObject({
+      id: "2601.01234",
+      title: "3D Scene Understanding",
+      authors: ["Jiajun Wu"]
+    });
+  });
 });
 
 describe("ORCID connector", () => {
@@ -162,5 +190,29 @@ describe("ORCID connector", () => {
         url: "https://example.com/paper"
       })
     ]);
+  });
+
+  it("searches ORCID public records", async () => {
+    const records = await searchOrcidRecords("Jiajun Wu", {
+      fetchImpl: async (url) => {
+        expect(String(url)).toContain("pub.orcid.org/v3.0/expanded-search/");
+        expect(String(url)).toContain("q=Jiajun+Wu");
+        return Response.json({
+          "expanded-result": [
+            {
+              "orcid-id": "0000-0002-1825-0097",
+              "given-names": "Jiajun",
+              "family-names": "Wu",
+              institution: ["Stanford University"]
+            }
+          ]
+        });
+      }
+    });
+
+    expect(records[0]).toMatchObject({
+      "orcid-id": "0000-0002-1825-0097",
+      "given-names": "Jiajun"
+    });
   });
 });

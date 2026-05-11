@@ -173,7 +173,7 @@ export function createProfileGenerator(options: ProfileGeneratorOptions) {
           warnings
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Profile generation failed.";
+        const message = error instanceof Error ? error.message : "Profile generation could not complete.";
         await options.store.updateProfileRun(runId, {
           status: "failed",
           errorJson: { message },

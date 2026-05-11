@@ -16,6 +16,17 @@ export type OrcidRecord = {
   };
 };
 
+export type OrcidSearchResult = {
+  "expanded-result"?: Array<{
+    "orcid-id"?: string;
+    "given-names"?: string;
+    "family-names"?: string;
+    "credit-name"?: string;
+    institution?: string[];
+    "other-name"?: string[];
+  }>;
+};
+
 export type OrcidWorkGroup = {
   "work-summary"?: Array<{
     title?: {
@@ -65,6 +76,29 @@ export async function fetchOrcidRecord(input: string, options: OrcidFetchOptions
   }
 
   return response.json() as Promise<OrcidRecord>;
+}
+
+export async function searchOrcidRecords(query: string, options: OrcidFetchOptions = {}): Promise<NonNullable<OrcidSearchResult["expanded-result"]>> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const url = new URL("https://pub.orcid.org/v3.0/expanded-search/");
+  url.searchParams.set("q", trimmed);
+  url.searchParams.set("rows", "5");
+  const response = await (options.fetchImpl ?? fetch)(url, {
+    headers: {
+      accept: "application/vnd.orcid+json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`ORCID search failed with status ${response.status}.`);
+  }
+
+  const body = await response.json() as OrcidSearchResult;
+  return body["expanded-result"] ?? [];
 }
 
 export function normalizeOrcidRecordToIdentitySource(record: OrcidRecord) {

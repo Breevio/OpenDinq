@@ -2,6 +2,9 @@ export type OpenAlexAuthor = {
   id: string;
   display_name: string;
   orcid?: string | null;
+  last_known_institutions?: Array<{
+    display_name?: string;
+  }>;
   works_count?: number;
   cited_by_count?: number;
   summary_stats?: {

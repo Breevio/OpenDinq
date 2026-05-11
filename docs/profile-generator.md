@@ -6,18 +6,25 @@ The generator is the primary OpenDinq product flow.
 Generate Profile -> Workspace -> Cards -> Public Profile -> Discover
 ```
 
-## Input
+## Search-First Input
 
-`POST /api/profiles/generate-ai` accepts one input and plans sources before generation.
+`/generate` accepts one primary input. A user can enter a name, describe a person, or paste a public source. OpenDinq resolves candidates first, then generates from the selected or high-confidence candidate.
 
 ```json
 {
-  "input": "Generate a profile from https://github.com/torvalds",
-  "reviewPlan": false
+  "input": "jiajun wu"
 }
 ```
 
+Primary APIs:
+
+- `POST /api/profiles/resolve`: returns candidate people/sources and ambiguity state.
+- `POST /api/profiles/search-and-generate`: resolves and auto-generates only when one candidate is clearly strongest.
+- `POST /api/profiles/generate-from-candidate`: generates after the user chooses a candidate.
+
 `POST /api/profiles/plan` previews the plan without persisting a profile.
+
+`POST /api/profiles/generate-ai` remains compatible for plan-plus-generate behavior.
 
 `POST /api/profiles/generate` remains available for advanced deterministic source entry. It accepts identity fields and one or more explicit sources.
 
@@ -67,9 +74,15 @@ OPEN_DINQ_LLM_MAX_TOKENS=1200 # optional
 
 The planner outputs strict JSON with intent, confidence, subject, explicit sources, user-provided claims, missing evidence, warnings, and questions. OpenDinq validates the JSON and rejects hallucinated URLs that were not present in the input.
 
-For person-name input without a URL or id, OpenDinq now attempts public source discovery using existing connectors before falling back to manual review. The first discovery path is OpenAlex author search. Discovered sources are imported as reviewable public evidence candidates; users should review them before publishing because names can be ambiguous.
+For candidate resolution, the LLM can help classify the query, propose connector search strings, rank confirmed candidates, and explain ambiguity. It cannot fabricate candidates. Only existing profiles, direct public sources, or connector/tool results can become `ProfileCandidate` records.
 
-If no LLM is configured, the LLM times out, or the provider returns unusable JSON, OpenDinq returns `llmUsed: false` and uses local fallback planning. Natural-language-only input becomes a manual evidence seed and still creates a reviewable workspace. User-provided claims are not verified evidence.
+If no LLM is configured, the LLM times out, or the provider returns unusable JSON, OpenDinq returns `llmUsed: false` and uses local candidate search. Natural-language input with no candidate can still create a `needs_review` workspace from user-provided information. User-provided claims are not verified evidence.
+
+## Candidate Resolution
+
+`ProfileCandidateResolver` searches existing OpenDinq profiles first, handles direct GitHub/website/OpenAlex/arXiv/ORCID inputs, and uses available public connector search for names and person descriptions. Current public candidate search covers OpenAlex authors, GitHub users, ORCID public records, and arXiv papers. Connector failures add warnings and do not fail resolution.
+
+Multiple similarly ranked candidates set `needsSelection: true`. A single clear match may set `autoSelectedCandidateId`. If no candidate is found, the response includes a friendly warning and the search-and-generate flow can create a review workspace when the input is descriptive enough.
 
 ## Output
 

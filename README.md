@@ -68,17 +68,20 @@ Open:
 
 ### Generate Your First Profile
 
-Open http://localhost:3000/generate, fill in a display name and handle, add at least one source, and click **Generate profile**.
+1. Open http://localhost:3000/generate.
+2. Search for a person by name, describe the kind of person you want, or paste a public source.
+3. Click **Preview candidates** when you want to confirm matches first, or **Search & generate** to auto-generate from a high-confidence match.
+4. If the name is ambiguous, choose a candidate and click **Generate this profile**.
+5. Open the generated workspace.
 
 For the simplest first run, use only manual data:
 
 ```text
-Display name: Ada Builder
-Handle: ada-builder
-Headline: AI product engineer
-Manual link title: Built an agent workflow
-Manual link URL: https://example.com/agent-workflow
-Manual note: Designed and shipped an evidence-backed AI workflow for profile generation.
+https://github.com/torvalds
+Jiajun Wu
+Linus Torvalds
+AI agent builders working on MCP
+Stanford researcher working on 3D scene understanding
 ```
 
 After generation, open:
@@ -233,7 +236,57 @@ Search:
 curl "http://localhost:3001/api/search?q=AI%20product%20engineer%20agent%20workflow"
 ```
 
-## Development
+## API Routes
+
+Profile generation:
+
+```text
+POST /api/profiles/plan
+POST /api/profiles/resolve
+POST /api/profiles/search-and-generate
+POST /api/profiles/generate-from-candidate
+POST /api/profiles/generate-ai
+POST /api/profiles/generate
+GET  /api/profile-runs/:runId
+```
+
+Profiles and workspace:
+
+```text
+GET   /api/people/:handle
+GET   /api/people/:handle/workspace
+PATCH /api/people/:handle/publish
+```
+
+Claims:
+
+```text
+GET   /api/people/:handle/claims
+PATCH /api/claims/:claimId
+```
+
+Cards:
+
+```text
+GET   /api/people/:handle/cards
+PATCH /api/cards/:cardId
+POST  /api/cards/:cardId/regenerate
+POST  /api/people/:handle/cards/manual-note
+```
+
+Search:
+
+```text
+GET /api/search?q=...
+```
+
+Compatibility:
+
+```text
+POST /api/import/github
+```
+
+## Development Commands
 
 ```bash
 pnpm dev              # Start API and web app

@@ -38,6 +38,28 @@ export async function fetchArxivPaper(input: string, options: ArxivFetchOptions 
   return parseArxivAtom(await response.text(), id);
 }
 
+export async function searchArxivPapers(query: string, options: ArxivFetchOptions = {}): Promise<ArxivPaper[]> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const url = new URL("https://export.arxiv.org/api/query");
+  url.searchParams.set("search_query", arxivSearchQuery(trimmed));
+  url.searchParams.set("start", "0");
+  url.searchParams.set("max_results", "5");
+  url.searchParams.set("sortBy", "submittedDate");
+  url.searchParams.set("sortOrder", "descending");
+
+  const response = await (options.fetchImpl ?? fetch)(url);
+
+  if (!response.ok) {
+    throw new Error(`arXiv search failed with status ${response.status}.`);
+  }
+
+  return parseArxivSearchAtom(await response.text());
+}
+
 export function normalizeArxivPaperToArtifact(paper: ArxivPaper) {
   return {
     type: "paper",
@@ -73,6 +95,33 @@ function parseArxivAtom(xml: string, requestedId: string): ArxivPaper {
     authors: [...entry.matchAll(/<author>\s*<name>([\s\S]*?)<\/name>\s*<\/author>/gi)].map((match) => cleanText(match[1] ?? "")),
     categories: [...entry.matchAll(/<category[^>]+term=["']([^"']+)["'][^>]*\/>/gi)].map((match) => match[1] ?? "")
   };
+}
+
+function parseArxivSearchAtom(xml: string): ArxivPaper[] {
+  return [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/gi)].map((match) => parseArxivEntry(match[1] ?? ""));
+}
+
+function parseArxivEntry(entry: string): ArxivPaper {
+  const idUrl = readTag(entry, "id") ?? "";
+
+  return {
+    id: idUrl.split("/").at(-1) ?? idUrl,
+    title: cleanText(readTag(entry, "title") ?? "Untitled arXiv paper"),
+    summary: cleanText(readTag(entry, "summary") ?? ""),
+    url: idUrl,
+    published: readTag(entry, "published"),
+    updated: readTag(entry, "updated"),
+    authors: [...entry.matchAll(/<author>\s*<name>([\s\S]*?)<\/name>\s*<\/author>/gi)].map((match) => cleanText(match[1] ?? "")),
+    categories: [...entry.matchAll(/<category[^>]+term=["']([^"']+)["'][^>]*\/>/gi)].map((match) => match[1] ?? "")
+  };
+}
+
+function arxivSearchQuery(query: string): string {
+  return personLikeInput(query) ? `au:"${query.replaceAll("\"", "")}"` : `all:"${query.replaceAll("\"", "")}"`;
+}
+
+function personLikeInput(input: string): boolean {
+  return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(input.trim());
 }
 
 function readTag(xml: string, tagName: string): string | undefined {

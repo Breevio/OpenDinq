@@ -545,6 +545,189 @@ describe("OpenDinq API", () => {
     expect(profileJson.artifacts).toEqual(expect.arrayContaining([expect.objectContaining({ type: "paper" })]));
   });
 
+  it("resolves candidates and requires selection for ambiguous names", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "ambiguous person" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      rawInput: "ambiguous person",
+      queryType: "person_name",
+      needsSelection: true
+    });
+    expect(json.candidates.length).toBeGreaterThan(1);
+  });
+
+  it("resolves person-name candidates across public connector searches", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.queryType).toBe("person_name");
+    expect(json.candidates.length).toBeLessThanOrEqual(8);
+    expect(json.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        displayName: "Jiajun Wu",
+        sources: expect.arrayContaining([
+          expect.objectContaining({ sourceType: "openalex" }),
+          expect.objectContaining({ sourceType: "orcid" })
+        ])
+      }),
+      expect.objectContaining({ sourceType: "github", handle: "jiajun-wu" }),
+      expect.objectContaining({ sourceType: "arxiv", displayName: "Jiajun Wu" })
+    ]));
+    expect(json.needsSelection).toBe(true);
+
+    const merged = json.candidates.find((item: { sources?: Array<{ sourceType: string }> }) => item.sources?.some((source) => source.sourceType === "openalex") && item.sources?.some((source) => source.sourceType === "orcid"));
+    const generateResponse = await app.request("/api/profiles/generate-from-candidate", {
+      method: "POST",
+      body: JSON.stringify({ input: "jiajun wu", rawInput: "jiajun wu", candidateId: merged.id, candidate: merged }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(generateResponse.status).toBe(200);
+    const generated = await generateResponse.json();
+    const profileResponse = await app.request(`/api/people/${generated.handle}/workspace`);
+    const profileJson = await profileResponse.json();
+    expect(profileJson.profile.sources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "openalex" }),
+      expect.objectContaining({ type: "orcid" })
+    ]));
+  });
+
+  it("creates direct candidates for GitHub URLs and can generate from selected candidates", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const resolveResponse = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://github.com/demo-agent-builder" }),
+      headers: { "content-type": "application/json" }
+    });
+    const resolveJson = await resolveResponse.json();
+    expect(resolveJson).toMatchObject({
+      needsSelection: false,
+      candidates: [expect.objectContaining({ sourceType: "github", sourceId: "demo-agent-builder" })]
+    });
+
+    const generateResponse = await app.request("/api/profiles/generate-from-candidate", {
+      method: "POST",
+      body: JSON.stringify({ rawInput: "https://github.com/demo-agent-builder", candidateId: resolveJson.candidates[0].id }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(generateResponse.status).toBe(200);
+    await expect(generateResponse.json()).resolves.toMatchObject({
+      handle: "demo-agent-builder",
+      workspaceUrl: "/u/demo-agent-builder/workspace"
+    });
+  });
+
+  it("creates direct website candidates", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const response = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "https://example.com/" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      queryType: "source_url",
+      needsSelection: false,
+      candidates: [expect.objectContaining({ sourceType: "website", sourceUrl: "https://example.com/" })]
+    });
+  });
+
+  it("adds connector warnings without failing candidate resolution", async () => {
+    const app = createApp({
+      fetchImpl: async (url) => {
+        const textUrl = String(url);
+        if (
+          textUrl.startsWith("https://api.openalex.org/authors?")
+          || textUrl.startsWith("https://api.github.com/search/users?")
+          || textUrl.startsWith("https://pub.orcid.org/v3.0/expanded-search/")
+          || textUrl.startsWith("https://export.arxiv.org/api/query")
+        ) {
+          return new Response("rate limited", { status: 429 });
+        }
+        return fixtureFetch(url);
+      }
+    });
+
+    const response = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "connector failure person" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.candidates).toEqual([]);
+    expect(json.warnings.join(" ")).toContain("OpenAlex candidate search was unavailable");
+    expect(json.warnings.join(" ")).toContain("GitHub candidate search was unavailable");
+    expect(json.warnings.join(" ")).toContain("ORCID candidate search was unavailable");
+    expect(json.warnings.join(" ")).toContain("arXiv candidate search was unavailable");
+  });
+
+  it("does not convert LLM-only suggestions into resolver candidates", async () => {
+    const llmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        candidates: [{ displayName: "Invented Person", sourceType: "github", sourceUrl: "https://github.com/invented" }]
+      })
+    };
+    const app = createApp({ fetchImpl: fixtureFetch, llmClient });
+
+    const response = await app.request("/api/profiles/resolve", {
+      method: "POST",
+      body: JSON.stringify({ input: "Invented Person" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.candidates).toEqual([]);
+    expect(llmClient.completeJson).not.toHaveBeenCalled();
+  });
+
+  it("search-and-generate returns candidates for ambiguous queries and creates review workspaces when no candidates are found", async () => {
+    const app = createApp({ fetchImpl: fixtureFetch });
+
+    const ambiguousResponse = await app.request("/api/profiles/search-and-generate", {
+      method: "POST",
+      body: JSON.stringify({ input: "ambiguous person", autoSelect: true }),
+      headers: { "content-type": "application/json" }
+    });
+    const ambiguousJson = await ambiguousResponse.json();
+    expect(ambiguousJson).toMatchObject({
+      status: "needs_selection",
+      needsSelection: true
+    });
+    expect(ambiguousJson.candidates.length).toBeGreaterThan(1);
+
+    const noCandidateResponse = await app.request("/api/profiles/search-and-generate", {
+      method: "POST",
+      body: JSON.stringify({ input: "AI product engineer who built an evidence-backed workflow", autoSelect: true }),
+      headers: { "content-type": "application/json" }
+    });
+    expect(noCandidateResponse.status).toBe(200);
+    await expect(noCandidateResponse.json()).resolves.toMatchObject({
+      status: "needs_review",
+      workspaceUrl: "/u/ai-product-engineer-who-built-an-evidence-backed/workspace"
+    });
+  });
+
   it("creates a reviewable workspace from natural language without treating user-provided claims as verified evidence", async () => {
     const llmClient = {
       completeJson: vi.fn().mockResolvedValueOnce({
@@ -665,13 +848,37 @@ async function fixtureFetch(url: string | URL | Request) {
     return Response.json({
       id: "https://openalex.org/A5018878364",
       display_name: "Jiajun Wu",
+      orcid: "https://orcid.org/0000-0002-1825-0097",
+      last_known_institutions: [{ display_name: "Stanford University" }],
       works_count: 120,
       cited_by_count: 9000
     });
   }
 
   if (textUrl.startsWith("https://api.openalex.org/authors?")) {
-    if (!textUrl.includes("Jiajun")) {
+    const decodedUrl = decodeURIComponent(textUrl).toLowerCase();
+    if (textUrl.includes("ambiguous")) {
+      return Response.json({
+        results: [
+          {
+            id: "https://openalex.org/A111",
+            display_name: "Ambiguous Person",
+            works_count: 12,
+            cited_by_count: 100
+          },
+          {
+            id: "https://openalex.org/A222",
+            display_name: "Ambiguous Person",
+            works_count: 10,
+            cited_by_count: 96
+          }
+        ]
+      });
+    }
+    if (textUrl.includes("Invented")) {
+      return Response.json({ results: [] });
+    }
+    if (!decodedUrl.includes("jiajun")) {
       return Response.json({ results: [] });
     }
     return Response.json({
@@ -679,6 +886,8 @@ async function fixtureFetch(url: string | URL | Request) {
         {
           id: "https://openalex.org/A5018878364",
           display_name: "Jiajun Wu",
+          orcid: "https://orcid.org/0000-0002-1825-0097",
+          last_known_institutions: [{ display_name: "Stanford University" }],
           works_count: 120,
           cited_by_count: 9000
         }
@@ -702,19 +911,72 @@ async function fixtureFetch(url: string | URL | Request) {
   }
 
   if (textUrl.startsWith("https://export.arxiv.org/api/query")) {
+    if (textUrl.includes("id_list=")) {
+      return new Response(`
+        <feed>
+          <entry>
+            <id>https://arxiv.org/abs/2601.01234</id>
+            <title>Agent Search Systems</title>
+            <summary>Evidence-backed people search.</summary>
+            <published>2026-01-02T00:00:00Z</published>
+            <updated>2026-01-03T00:00:00Z</updated>
+            <author><name>Ethan Shi</name></author>
+            <category term="cs.AI" />
+          </entry>
+        </feed>
+      `);
+    }
+    if (!decodeURIComponent(textUrl).toLowerCase().includes("jiajun")) {
+      return new Response("<feed></feed>");
+    }
     return new Response(`
       <feed>
         <entry>
           <id>https://arxiv.org/abs/2601.01234</id>
-          <title>Agent Search Systems</title>
-          <summary>Evidence-backed people search.</summary>
+          <title>3D Scene Understanding with Structured World Models</title>
+          <summary>Research on scene understanding and embodied perception.</summary>
           <published>2026-01-02T00:00:00Z</published>
           <updated>2026-01-03T00:00:00Z</updated>
-          <author><name>Ethan Shi</name></author>
-          <category term="cs.AI" />
+          <author><name>Jiajun Wu</name></author>
+          <author><name>Demo Coauthor</name></author>
+          <category term="cs.CV" />
         </entry>
       </feed>
     `);
+  }
+
+  if (textUrl.startsWith("https://api.github.com/search/users?")) {
+    if (!decodeURIComponent(textUrl).toLowerCase().includes("jiajun")) {
+      return Response.json({ items: [] });
+    }
+    return Response.json({
+      items: [
+        {
+          login: "jiajun-wu",
+          id: 501,
+          html_url: "https://github.com/jiajun-wu",
+          type: "User",
+          score: 42
+        }
+      ]
+    });
+  }
+
+  if (textUrl.startsWith("https://pub.orcid.org/v3.0/expanded-search/")) {
+    if (!decodeURIComponent(textUrl).toLowerCase().includes("jiajun")) {
+      return Response.json({ "expanded-result": [] });
+    }
+    return Response.json({
+      "expanded-result": [
+        {
+          "orcid-id": "0000-0002-1825-0097",
+          "given-names": "Jiajun",
+          "family-names": "Wu",
+          "credit-name": "Jiajun Wu",
+          institution: ["Stanford University"]
+        }
+      ]
+    });
   }
 
   if (textUrl.endsWith("/0000-0002-1825-0097/record")) {
