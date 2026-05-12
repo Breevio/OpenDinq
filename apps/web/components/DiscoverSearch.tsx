@@ -4,6 +4,34 @@ import { useState } from "react";
 import { apiRequest, type SearchResult } from "../lib/api";
 import { EvidenceList } from "./EvidenceList";
 
+function initialsFor(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "OD";
+}
+
+function evidenceSignalCount(result: SearchResult) {
+  return [
+    ...(result.evidence ?? []),
+    ...(result.matchedClaims ?? []),
+    ...(result.matchedCards ?? []),
+    ...(result.matchedArtifacts ?? [])
+  ].length;
+}
+
+function primaryEvidenceTitle(result: SearchResult) {
+  return (
+    result.matchedArtifacts?.[0]?.title ??
+    result.matchedCards?.[0]?.title ??
+    result.matchedClaims?.[0]?.text ??
+    result.evidence?.[0]?.title ??
+    "Evidence-backed profile"
+  );
+}
+
 export function DiscoverSearch() {
   const [query, setQuery] = useState(() => {
     if (typeof window === "undefined") {
@@ -68,43 +96,65 @@ export function DiscoverSearch() {
 
       <div className="result-list">
         {results.map((result) => (
-          <article className="result-card" key={result.person.handle}>
-            <div>
-              <a className="result-title" href={result.profileUrl ?? `/u/${result.person.handle}`}>
+          <article className="people-card" key={result.person.handle}>
+            <div className="people-card-hero">
+              <div className="people-card-metric metric-left">
+                <strong>{evidenceSignalCount(result)}</strong>
+                <span>Evidence signals</span>
+              </div>
+              <a className="people-card-avatar" href={result.profileUrl ?? `/u/${result.person.handle}`}>
+                {result.person.avatarUrl ? (
+                  <img src={result.person.avatarUrl} alt="" />
+                ) : (
+                  <span>{initialsFor(result.person.displayName)}</span>
+                )}
+              </a>
+              <div className="people-card-metric metric-right">
+                <strong>{Math.round(result.score * 100)}%</strong>
+                <span>Match</span>
+              </div>
+            </div>
+
+            <div className="people-card-body">
+              <a className="people-card-name" href={result.profileUrl ?? `/u/${result.person.handle}`}>
                 {result.person.displayName}
               </a>
-              <p>{result.explanation}</p>
+              {result.person.headline ? <p className="people-card-headline">{result.person.headline}</p> : null}
+              <p className="people-card-summary">{result.explanation}</p>
+
               {result.topSkills?.length ? (
                 <div className="skill-strip compact">
-                  {result.topSkills.slice(0, 6).map((skill) => (
+                  {result.topSkills.slice(0, 4).map((skill) => (
                     <span key={skill}>{skill}</span>
                   ))}
                 </div>
               ) : null}
+
+              <div className="people-card-path" aria-label="Primary matched evidence">
+                <span>{primaryEvidenceTitle(result)}</span>
+                <strong>matched</strong>
+                <span>{result.person.displayName}</span>
+              </div>
+
               {result.matchedClaims?.length ? (
-                <div className="evidence-list">
+                <div className="people-card-evidence">
+                  <strong>Matched claims</strong>
                   {result.matchedClaims.slice(0, 3).map((claim) => (
                     <span key={claim.id ?? claim.text}>{claim.text}</span>
                   ))}
                 </div>
               ) : null}
-              {result.matchedCards?.length ? (
-                <div className="matched-block">
-                  <strong>Matched cards</strong>
-                  {result.matchedCards.slice(0, 2).map((card) => (
-                    <span key={card.id ?? card.title}>{card.title}</span>
-                  ))}
-                </div>
-              ) : null}
+
               {result.matchedArtifacts?.length ? (
-                <div className="matched-block">
+                <div className="people-card-evidence">
                   <strong>Matched artifacts</strong>
                   {result.matchedArtifacts.slice(0, 2).map((artifact) => (
                     artifact.url ? <a href={artifact.url} key={artifact.id ?? artifact.url}>{artifact.title}</a> : <span key={artifact.id ?? artifact.title}>{artifact.title}</span>
                   ))}
                 </div>
               ) : null}
-              <div className="matched-block compact-breakdown" aria-label="Score breakdown">
+
+              <div className="people-card-evidence compact-breakdown" aria-label="Score breakdown">
                 <strong>Why matched</strong>
                 <span>claims {Math.round(result.scoreBreakdown.claimScore * 100)}%</span>
                 <span>cards {Math.round(result.scoreBreakdown.cardScore * 100)}%</span>
@@ -112,8 +162,11 @@ export function DiscoverSearch() {
                 <span>evidence {Math.round(result.scoreBreakdown.evidenceScore * 100)}%</span>
               </div>
             </div>
-            <span className="score">{Math.round(result.score * 100)}%</span>
-            <EvidenceList evidence={result.evidence.slice(0, 3)} compact />
+
+            <details className="people-card-evidence evidence-footer">
+              <summary>Source evidence ({result.evidence.length})</summary>
+              <EvidenceList evidence={result.evidence.slice(0, 3)} compact />
+            </details>
           </article>
         ))}
       </div>
