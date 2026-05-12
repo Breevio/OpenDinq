@@ -311,7 +311,6 @@ apps/
   web/      Next.js app
   api/      Hono API
   mcp/      MCP server
-  worker/   worker placeholder
 
 packages/
   core/        store contract and MemoryStore

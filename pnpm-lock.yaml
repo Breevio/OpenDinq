@@ -95,12 +95,6 @@ importers:
         specifier: ^19.1.2
         version: 19.2.3(@types/react@19.2.14)
 
-  apps/worker:
-    dependencies:
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-
   packages/cards:
     dependencies:
       '@opendinq/shared':
