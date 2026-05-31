@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Person {
+  id          String           @id @default(cuid())
+  handle      String           @unique
+  displayName String
+  headline    String?
+  bio         String?
+  location    String?
+  avatarUrl   String?
+  publicStatus String           @default("draft")
+  publishedAt DateTime?
+  shareSlug   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  sources     IdentitySource[]
+  artifacts   Artifact[]
+  cards       Card[]
+  skills      PersonSkill[]
+  profileSources ProfileSource[]
+  claims      ProfileClaim[]
+  runs        ProfileGenerationRun[]
+
+  @@index([publicStatus])
+  @@index([shareSlug])
+}
+
+model IdentitySource {
+  id         String    @id @default(cuid())
+  personId   String
+  type       String
+  url        String
+  externalId String?
+  rawJson    Json?
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([type, url])
+  @@index([personId])
+}
+
+model ProfileGenerationRun {
+  id                String   @id
+  personId          String?
+  targetHandle      String
+  displayName       String
+  status            String
+  inputJson         Json
+  sourceSummaryJson Json?
+  warningsJson      Json?
+  errorJson         Json?
+  generatedProfileHandle String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  person            Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+  sources           ProfileSource[]
+
+  @@index([targetHandle])
+  @@index([status])
+}
+
+model ProfileSource {
+  id             String   @id @default(cuid())
+  personId       String?
+  runId          String?
+  type           String
+  url            String?
+  status         String
+  rawJson        Json?
+  normalizedJson Json?
+  warningsJson   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  person         Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  run            ProfileGenerationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  claims         ProfileClaim[]
+
+  @@index([personId])
+  @@index([runId])
+  @@index([type])
+}
+
+model Artifact {
+  id          String   @id @default(cuid())
+  personId    String
+  sourceId    String?
+  type        String
+  title       String
+  description String?
+  url         String?
+  metadata    Json?
+  evidenceRaw Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  claims      ProfileClaim[]
+
+  @@unique([personId, type, url])
+  @@index([personId])
+}
+
+model ProfileClaim {
+  id           String   @id @default(cuid())
+  personId     String
+  sourceId     String?
+  artifactId   String?
+  type         String
+  text         String
+  confidence   Float
+  qualityScore Float?
+  status       String   @default("approved")
+  evidenceJson Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  source       ProfileSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  artifact     Artifact? @relation(fields: [artifactId], references: [id], onDelete: SetNull)
+
+  @@index([personId])
+  @@index([sourceId])
+  @@index([artifactId])
+}
+
+model Card {
+  id           String   @id @default(cuid())
+  personId     String
+  type         String
+  title        String
+  contentMd    String
+  dataJson     Json?
+  evidenceJson Json
+  sourceIds    Json?
+  claimIds     Json?
+  confidence   Float?
+  visibility   String   @default("public")
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+}
+
+model SkillTag {
+  id     String        @id @default(cuid())
+  name   String        @unique
+  people PersonSkill[]
+}
+
+model PersonSkill {
+  personId     String
+  skillTagId   String
+  score        Float
+  evidenceJson Json
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  skillTag     SkillTag @relation(fields: [skillTagId], references: [id], onDelete: Cascade)
+
+  @@id([personId, skillTagId])
+}
+
+model SearchQuery {
+  id         String         @id @default(cuid())
+  queryText  String
+  parsedJson Json?
+  createdAt  DateTime       @default(now())
+  results    SearchResult[]
+}
+
+model SearchResult {
+  id           String      @id @default(cuid())
+  queryId      String
+  personId     String
+  score        Float
+  explanation  String
+  evidenceJson Json
+  query        SearchQuery @relation(fields: [queryId], references: [id], onDelete: Cascade)
+
+  @@index([queryId])
+  @@index([personId])
+}

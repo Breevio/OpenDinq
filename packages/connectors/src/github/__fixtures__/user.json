@@ -1,0 +1,16 @@
+{
+  "id": 12345,
+  "login": "demo-agent-builder",
+  "name": "Demo Agent Builder",
+  "bio": "AI agent engineer building TypeScript MCP tools",
+  "location": "San Francisco, CA",
+  "avatar_url": "https://avatars.githubusercontent.com/u/12345?v=4",
+  "html_url": "https://github.com/demo-agent-builder",
+  "public_repos": 42,
+  "followers": 128,
+  "following": 12,
+  "company": "OpenDinq Labs",
+  "blog": "https://example.com",
+  "twitter_username": "demo_builder"
+}
+

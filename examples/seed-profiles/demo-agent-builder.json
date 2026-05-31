@@ -1,0 +1,6 @@
+{
+  "handle": "demo-agent-builder",
+  "displayName": "Demo Agent Builder",
+  "headline": "AI agent engineer building MCP tools",
+  "demoQueries": ["AI agent developers using TypeScript and MCP"]
+}
