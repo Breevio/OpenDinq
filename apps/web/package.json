@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "NEXT_DIST_DIR=.next-dev next dev",
+    "dev": "next dev",
     "lint": "node -e \"console.log('web lint: covered by next build')\"",
     "test": "vitest run --passWithNoTests",
     "typecheck": "node -e \"console.log('web typecheck: covered by next build')\""

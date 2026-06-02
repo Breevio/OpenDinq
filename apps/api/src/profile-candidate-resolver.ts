@@ -99,7 +99,7 @@ export class ProfileCandidateResolver {
     }
 
     const filtered = contextualizeCandidateConfidence(filterLowRelevanceCandidates(dedupeCandidates(candidates), rawInput, queryType), rawInput, queryType);
-    const ranked = clusterPersonCandidates(filtered, rawInput)
+    const ranked = limitOrdinaryPersonAcademicNoise(clusterPersonCandidates(filtered, rawInput), rawInput, queryType)
       .toSorted((left, right) =>
         contextualRankScore(right, rawInput, queryType) - contextualRankScore(left, rawInput, queryType)
         || sourcePriority(left) - sourcePriority(right)
@@ -530,6 +530,59 @@ function contextualRankScore(candidate: ProfileCandidate, rawInput: string, quer
     return Math.min(candidate.confidence, 0.78);
   }
   return candidate.confidence;
+}
+
+function limitOrdinaryPersonAcademicNoise(
+  candidates: ProfileCandidate[],
+  rawInput: string,
+  queryType: ProfileResolutionResult["queryType"]
+): ProfileCandidate[] {
+  if (
+    queryType !== "person_name"
+    || sourceCandidateFromInput(rawInput)
+    || !personNameHint(rawInput)
+    || hasAcademicIntent(rawInput)
+    || !hasStrongPublicBiographyCandidate(candidates)
+  ) {
+    return candidates;
+  }
+
+  const nonAcademic = candidates.filter((item) =>
+    !isAcademicCandidate(item)
+    && (item.sourceType !== "github" || isStrongPersonNameGithubCandidate(item, rawInput))
+  );
+  const strongestAcademic = candidates
+    .filter((item) => isAcademicCandidate(item))
+    .toSorted((left, right) =>
+      contextualRankScore(right, rawInput, queryType) - contextualRankScore(left, rawInput, queryType)
+      || sourcePriority(left) - sourcePriority(right)
+    )[0];
+
+  return strongestAcademic ? [...nonAcademic, strongestAcademic] : nonAcademic;
+}
+
+function hasStrongPublicBiographyCandidate(candidates: ProfileCandidate[]): boolean {
+  return candidates.some((item) =>
+    (item.kind === "biography" || item.sourceType === "website")
+    && !isAcademicCandidate(item)
+    && item.confidence >= 0.84
+  );
+}
+
+function isStrongPersonNameGithubCandidate(candidate: ProfileCandidate, rawInput: string): boolean {
+  if (candidate.sourceType !== "github") {
+    return true;
+  }
+  const hint = personNameHint(rawInput);
+  const handle = candidate.handle ?? candidate.sourceId ?? candidate.displayName;
+  if (!hint || !handle) {
+    return false;
+  }
+  const compactHandle = compactIdentifier(handle);
+  const terms = meaningfulTerms(hint);
+  const surname = terms.at(-1);
+  return compactHandle === compactIdentifier(hint)
+    || Boolean(surname && compactHandle === compactIdentifier(surname));
 }
 
 function isOrdinaryPersonNameAcademicCandidate(candidate: ProfileCandidate, rawInput: string): boolean {

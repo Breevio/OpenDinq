@@ -1798,7 +1798,8 @@ describe("OpenDinq API", () => {
         if (textUrl.startsWith("https://api.github.com/search/users?")) {
           return Response.json({
             items: [
-              { login: "elonmusk", id: 42, html_url: "https://github.com/elonmusk", type: "User", score: 100 }
+              { login: "elonmusk", id: 42, html_url: "https://github.com/elonmusk", type: "User", score: 100 },
+              { login: "elonmuskceo", id: 43, html_url: "https://github.com/elonmuskceo", type: "User", score: 99 }
             ]
           });
         }
@@ -1841,6 +1842,7 @@ describe("OpenDinq API", () => {
     expect(json.needsSelection).toBe(true);
     expect(json.autoSelectedCandidateId).toBeUndefined();
     expect(json.candidates[0]).toMatchObject({ sourceType: "github", handle: "elonmusk" });
+    expect(json.candidates.map((candidate: { sourceUrl?: string }) => candidate.sourceUrl)).not.toContain("https://github.com/elonmuskceo");
     expect(json.candidates).toEqual(expect.arrayContaining([expect.objectContaining({
       sourceType: "website",
       sourceUrl: "https://en.wikipedia.org/wiki/Elon_Musk",
@@ -1850,6 +1852,7 @@ describe("OpenDinq API", () => {
     const firstAcademicIndex = json.candidates.findIndex((candidate: { sourceType: string }) => ["openalex", "orcid", "arxiv"].includes(candidate.sourceType));
     expect(websiteIndex).toBeGreaterThanOrEqual(0);
     expect(firstAcademicIndex).toBeGreaterThan(websiteIndex);
+    expect(json.candidates.filter((candidate: { sourceType: string }) => ["openalex", "orcid", "arxiv"].includes(candidate.sourceType))).toHaveLength(1);
     const openAlexCandidate = json.candidates.find((candidate: { sourceType: string }) => candidate.sourceType === "openalex");
     expect(openAlexCandidate.confidence).toBeLessThan(0.86);
     expect(openAlexCandidate).toMatchObject({
