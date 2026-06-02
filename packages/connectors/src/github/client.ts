@@ -97,7 +97,7 @@ async function requestGitHubUncached<T>(
     }
 
     if (isGitHubRateLimited(response)) {
-      const error = new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited");
+      const error = new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited");
       const cooldownMs = rateLimitCooldownMs(response) ?? (!token ? GITHUB_ANONYMOUS_RATE_LIMIT_COOLDOWN_MS : undefined);
       if (cooldownMs !== undefined) {
         writeRateLimitCooldown(fetchImpl, githubRateLimitKey(token), error, cooldownMs);

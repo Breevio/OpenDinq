@@ -75,15 +75,18 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
         method: "POST",
         body: JSON.stringify({ input: normalizedInput })
       });
-      if (generated.needsSelection || generated.candidates) {
+      const candidates = generated.candidates ?? [];
+      if (generated.needsSelection || candidates.length > 0) {
         setResolution({
           rawInput: generated.rawInput ?? normalizedInput,
           queryType: generated.queryType ?? "unknown",
-          candidates: generated.candidates ?? [],
+          candidates,
           autoSelectedCandidateId: generated.autoSelectedCandidateId,
           needsSelection: Boolean(generated.needsSelection),
           warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
         });
+      } else if (!generated.handle) {
+        setError([...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])].join(" ") || "No public candidate matched this input. Try a person name, handle, or public source URL.");
       } else {
         setResult(generated);
         setResolution(generated.resolution ?? null);

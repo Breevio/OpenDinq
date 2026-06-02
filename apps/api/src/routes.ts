@@ -734,7 +734,7 @@ async function runAgentSearch(
       if (!selectedCandidate && result.candidates.length === 0 && result.queryType === "role_search") {
         return {
           ...result,
-          status: "needs_selection",
+          status: "needs_public_source",
           llmUsed: true,
           agentUsed: true,
           toolCalls,
@@ -879,6 +879,14 @@ async function runDeterministicSearchAndGenerate(
         resolution
       };
     }
+  }
+  if (resolution.candidates.length === 0) {
+    return {
+      ...resolution,
+      status: "needs_public_source",
+      llmUsed: false,
+      warnings: resolution.warnings
+    };
   }
   return { ...resolution, status: "needs_selection", llmUsed: false, warnings: resolution.warnings };
 }
@@ -1704,7 +1712,7 @@ function isWarningResult(value: unknown): value is { warnings: string[] } {
 }
 
 function githubImportRecoveryAdvice(warnings: string[]): ImportRecoveryAdvice | undefined {
-  if (!warnings.some((warning) => /github api rate limit exceeded/i.test(warning))) {
+  if (!warnings.some((warning) => /github .*rate limit|github .*api limit|github anonymous api limit/i.test(warning))) {
     return undefined;
   }
 

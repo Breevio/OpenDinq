@@ -168,7 +168,7 @@ describe("GitHub API client", () => {
           })
       })
     ).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
   });
 
@@ -181,10 +181,10 @@ describe("GitHub API client", () => {
     );
 
     await expect(fetchGitHubUser("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
     await expect(fetchGitHubUser("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -199,10 +199,10 @@ describe("GitHub API client", () => {
     );
 
     await expect(fetchGitHubUser("limited", { fetchImpl, token: "token" })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
     await expect(fetchGitHubUser("limited", { fetchImpl, token: "token" })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -217,10 +217,10 @@ describe("GitHub API client", () => {
     );
 
     await expect(fetchGitHubUser("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
     await expect(fetchGitHubRepos("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -238,13 +238,13 @@ describe("GitHub API client", () => {
     );
 
     await expect(fetchGitHubUser("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
 
     vi.advanceTimersByTime(1001);
 
     await expect(fetchGitHubUser("limited", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -271,7 +271,7 @@ describe("GitHub API client", () => {
     vi.advanceTimersByTime(61_000);
 
     await expect(fetchGitHubRepos("demo-agent-builder", { fetchImpl })).rejects.toMatchObject(
-      new GitHubConnectorError("GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry.", "rate_limited")
+      new GitHubConnectorError("GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness.", "rate_limited")
     );
     await expect(fetchGitHubUser("demo-agent-builder", { fetchImpl })).resolves.toMatchObject({
       login: "demo-agent-builder"

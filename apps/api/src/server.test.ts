@@ -335,7 +335,7 @@ describe("OpenDinq API", () => {
       status: "needs_review",
       cardCount: expect.any(Number),
       artifactCount: expect.any(Number),
-      warnings: ["github: GitHub API rate limit exceeded. Set GITHUB_TOKEN and retry."],
+      warnings: ["github: GitHub anonymous API limit reached. OpenDinq can continue with public web evidence; add GITHUB_TOKEN to improve GitHub completeness."],
       recoveryAdvice: {
         kind: "github_token_setup",
         title: "Add a GitHub token for stronger imports",
@@ -1589,7 +1589,7 @@ describe("OpenDinq API", () => {
         url: "https://github.com/elonmusk"
       })
     ]));
-    expect(json.warnings.join(" ")).toContain("GitHub API rate limit exceeded");
+    expect(json.warnings.join(" ")).toContain("GitHub anonymous API limit reached");
     expect(json.recoveryAdvice).toMatchObject({
       kind: "github_token_setup",
       title: "Add a GitHub token for stronger imports",
@@ -1649,7 +1649,7 @@ describe("OpenDinq API", () => {
         kind: "github_token_setup",
         title: "Add a GitHub token for stronger imports"
       }),
-      warnings: expect.arrayContaining([expect.stringContaining("GitHub API rate limit exceeded")])
+      warnings: expect.arrayContaining([expect.stringContaining("GitHub anonymous API limit reached")])
     });
   });
 
@@ -1665,7 +1665,7 @@ describe("OpenDinq API", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       rawInput: "Research unknownpersonzz and return profile cards.",
-      status: "needs_selection",
+      status: "needs_public_source",
       agentUsed: false,
       llmUsed: false,
       candidates: [],
@@ -2235,7 +2235,7 @@ describe("OpenDinq API", () => {
     expect(response.status).toBe(200);
     const json = await response.json();
     expect(json).toMatchObject({
-      status: "needs_selection",
+      status: "needs_public_source",
       candidates: [],
       warnings: expect.arrayContaining([expect.stringContaining("No public candidate matched this role search")])
     });

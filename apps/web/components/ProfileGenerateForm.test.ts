@@ -102,6 +102,12 @@ describe("/generate search-first UI", () => {
     expect(source).toContain("new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])");
   });
 
+  it("does not render candidate selection for empty candidate responses", () => {
+    expect(source).toContain("const candidates = generated.candidates ?? []");
+    expect(source).toContain("generated.needsSelection || candidates.length > 0");
+    expect(source).toContain("!generated.handle");
+  });
+
   it("uses human-readable candidate source labels instead of raw source type ids", () => {
     expect(source).toContain("Existing profile");
     expect(source).toContain("Web result");
