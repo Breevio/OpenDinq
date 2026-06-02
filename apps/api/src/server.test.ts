@@ -296,7 +296,13 @@ describe("OpenDinq API", () => {
     const searchResponse = await app.request("/api/search?q=AI%20agent%20TypeScript%20MCP");
     expect(searchResponse.status).toBe(200);
     const searchJson = await searchResponse.json();
-    expect(searchJson.results).toEqual([]);
+    expect(searchJson.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        person: expect.objectContaining({
+          handle: "demo-agent-builder"
+        })
+      })
+    ]));
   });
 
   it("returns review status and workspace links when GitHub import degrades into source review", async () => {
@@ -484,7 +490,7 @@ describe("OpenDinq API", () => {
     });
   });
 
-  it("seeds demo profiles without exposing them through public search", async () => {
+  it("seeds demo profiles and exposes them through local public search", async () => {
     const app = createApp();
 
     const seedResponse = await app.request("/api/seed/demo", { method: "POST" });
@@ -497,7 +503,13 @@ describe("OpenDinq API", () => {
     const searchResponse = await app.request("/api/search?q=systems%20programming%20open%20source%20maintainers");
     expect(searchResponse.status).toBe(200);
     const searchJson = await searchResponse.json();
-    expect(searchJson.results).toEqual([]);
+    expect(searchJson.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        person: expect.objectContaining({
+          handle: "demo-systems-maintainer"
+        })
+      })
+    ]));
   });
 
   it("generates profiles through the first-class profile generator", async () => {

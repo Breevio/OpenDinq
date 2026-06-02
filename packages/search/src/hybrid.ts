@@ -22,6 +22,7 @@ const PROVIDER_WEIGHTS = {
   fullText: 0.25,
   provider: 0.2
 } as const;
+const RESULT_EVIDENCE_LIMIT = 8;
 
 export async function hybridSearchPeople(
   queryText: string,
@@ -62,26 +63,44 @@ export async function hybridSearchPeople(
         continue;
       }
 
-      const scoreBreakdown = buildScoreBreakdown(document, result.evidence, result.score);
+      const dedupedEvidence = dedupeEvidence(result.evidence);
+      const scoreBreakdown = buildScoreBreakdown(document, dedupedEvidence, result.score);
       const ranked: RankedSearchResult = {
         person: document.person,
         score: scoreBreakdown.finalScore,
         scoreBreakdown,
         explanation: mergeExplanations(document.person.displayName, result.explanations),
-        evidence: dedupeEvidence(result.evidence),
-        matchedClaims: matchedClaims(document, result.evidence),
-        matchedCards: matchedCards(document, result.evidence),
-        matchedArtifacts: matchedArtifacts(document, result.evidence),
+        evidence: compactResultEvidence(dedupedEvidence),
+        matchedClaims: matchedClaims(document, dedupedEvidence),
+        matchedCards: matchedCards(document, dedupedEvidence),
+        matchedArtifacts: matchedArtifacts(document, dedupedEvidence),
         topSkills: topSkills(document),
         profileUrl: `/u/${document.person.handle}`
       };
 
-      if (ranked.score > 0 && ranked.evidence.length > 0 && hasStrongEnoughEvidence(parsedQuery.queryText, parsedQuery.terms, ranked.evidence)) {
+      if (ranked.score > 0 && dedupedEvidence.length > 0 && hasStrongEnoughEvidence(parsedQuery.queryText, parsedQuery.terms, dedupedEvidence)) {
         results.push(ranked);
       }
   }
 
   return results.sort((left, right) => right.score - left.score || left.person.handle.localeCompare(right.person.handle));
+}
+
+function compactResultEvidence(evidence: SearchEvidenceRef[]): SearchEvidenceRef[] {
+  const seenSources = new Set<string>();
+  const compact: SearchEvidenceRef[] = [];
+  for (const item of evidence) {
+    const sourceKey = `${item.type}:${item.id}:${item.url ?? ""}:${item.title}`;
+    if (seenSources.has(sourceKey) && !/semantic|provider|fixture/i.test(item.reason)) {
+      continue;
+    }
+    seenSources.add(sourceKey);
+    compact.push(item);
+    if (compact.length >= RESULT_EVIDENCE_LIMIT) {
+      break;
+    }
+  }
+  return compact;
 }
 
 function addWeightedMatch(

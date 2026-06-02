@@ -461,7 +461,6 @@ export function createApiRoutes(options: ApiRouteOptions) {
       const profiles = await options.store.listProfiles();
       const documents: PersonSearchDocument[] = profiles
         .map((profile) => toPublicProfile(profile))
-        .filter((profile) => isSearchVisibleProfile(profile.person.handle))
         .map((profile) => ({
           person: profile.person,
           artifacts: profile.artifacts,
@@ -2253,8 +2252,4 @@ function workspaceDiscoverQuery(profile: PersonProfileRecord): string {
     })
     .slice(0, 3);
   return [headline, ...skills].filter(Boolean).join(" ") || profile.person.displayName;
-}
-
-function isSearchVisibleProfile(handle: string) {
-  return !handle.startsWith("demo-");
 }
