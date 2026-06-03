@@ -244,8 +244,29 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   const json = await response.json();
 
   if (!response.ok) {
-    throw new Error(json?.error?.message ?? "OpenDinq API request failed.");
+    throw new Error(readableApiError(json?.error?.message));
   }
 
   return json as T;
+}
+
+function readableApiError(message: unknown) {
+  if (typeof message !== "string") {
+    return "OpenDinq API request failed.";
+  }
+
+  try {
+    const parsed = JSON.parse(message) as Array<{ code?: string; path?: string[]; message?: string }>;
+    const firstIssue = Array.isArray(parsed) ? parsed[0] : undefined;
+    if (firstIssue?.path?.includes("input")) {
+      return "Enter a search input, public source, or profile URL.";
+    }
+    if (firstIssue?.message) {
+      return firstIssue.message;
+    }
+  } catch {
+    // Non-JSON API errors are already product copy from the API.
+  }
+
+  return message;
 }

@@ -24,4 +24,12 @@ describe("/import GitHub UI", () => {
     expect(source).toContain("useState(\"\")");
     expect(source).not.toContain("demo-agent-builder");
   });
+
+  it("shows a readable required-input error before calling the API", () => {
+    expect(source).toContain("const normalizedInput = input.trim()");
+    expect(source).toContain("Enter a GitHub username or profile URL.");
+    expect(source).toContain("body: JSON.stringify({ input: normalizedInput })");
+    expect(source).toContain("if (error)");
+    expect(source).toContain("setError(null)");
+  });
 });

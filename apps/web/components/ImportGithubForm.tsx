@@ -11,6 +11,13 @@ export function ImportGithubForm() {
   const [result, setResult] = useState<GitHubImportResponse | null>(null);
 
   async function runImport() {
+    const normalizedInput = input.trim();
+    if (!normalizedInput) {
+      setError("Enter a GitHub username or profile URL.");
+      setResult(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -18,7 +25,7 @@ export function ImportGithubForm() {
     try {
       const imported = await apiRequest<GitHubImportResponse>("/api/import/github", {
         method: "POST",
-        body: JSON.stringify({ input })
+        body: JSON.stringify({ input: normalizedInput })
       });
       setResult(imported);
       if ((imported.status === "needs_review" || imported.warnings.length > 0) && typeof window !== "undefined") {
@@ -44,7 +51,12 @@ export function ImportGithubForm() {
           <input
             id="github-input"
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value);
+              if (error) {
+                setError(null);
+              }
+            }}
             placeholder="torvalds or https://github.com/torvalds"
           />
           <button type="submit" disabled={isLoading}>
