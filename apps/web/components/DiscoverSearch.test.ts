@@ -23,11 +23,15 @@ describe("/discover search UI", () => {
 
   it("uses product-facing result copy instead of raw scoring diagnostics", () => {
     expect(source).toContain("discoverResultSummary(result)");
-    expect(source).toContain("Profile cards");
-    expect(source).toContain("Source artifacts");
-    expect(source).toContain("Strong match");
-    expect(source).toContain("Good match");
-    expect(source).toContain("Possible match");
+    expect(source).toContain("Best evidence");
+    expect(source).toContain("Relevant");
+    expect(source).toContain("Review");
+    expect(source).toContain("evidence-backed claim");
+    expect(source).not.toContain("Profile cards");
+    expect(source).not.toContain("Source artifacts");
+    expect(source).not.toContain("Strong match");
+    expect(source).not.toContain("Good match");
+    expect(source).not.toContain("Possible match");
     expect(source).not.toContain("Why matched");
     expect(source).not.toContain("claims {Math.round(result.scoreBreakdown.claimScore * 100)}%");
     expect(source).not.toContain("Matched cards");

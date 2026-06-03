@@ -78,67 +78,67 @@ export function DiscoverSearch() {
       ) : null}
 
       <div className="result-list">
-        {results.map((result) => (
-          <article className="result-card" key={result.person.handle}>
-            <div>
-              <a className="result-title" href={result.profileUrl ?? `/u/${result.person.handle}`}>
-                {result.person.displayName}
-              </a>
-              {result.person.headline ? <p>{result.person.headline}</p> : null}
-              <p>{discoverResultSummary(result)}</p>
-              {result.topSkills?.length ? (
-                <div className="skill-strip compact">
-                  {result.topSkills.slice(0, 6).map((skill) => (
-                    <span key={skill}>{skill}</span>
-                  ))}
+        {results.map((result) => {
+          const claimSnippets = discoverClaimSnippets(result);
+
+          return (
+            <article className="result-card" key={result.person.handle}>
+              <div>
+                <div className="result-card-header">
+                  <div>
+                    <a className="result-title" href={result.profileUrl ?? `/u/${result.person.handle}`}>
+                      {result.person.displayName}
+                    </a>
+                    {result.person.headline ? <p>{result.person.headline}</p> : null}
+                  </div>
+                  <span className="score">{discoverMatchLabel(result.score)}</span>
                 </div>
-              ) : null}
-              {result.matchedClaims?.length ? (
-                <div className="evidence-list">
-                  {result.matchedClaims.slice(0, 3).map((claim) => (
-                    <span key={claim.id ?? claim.text}>{claim.text}</span>
-                  ))}
-                </div>
-              ) : null}
-              {result.matchedCards?.length ? (
-                <div className="matched-block">
-                  <strong>Profile cards</strong>
-                  {result.matchedCards.slice(0, 2).map((card) => (
-                    <span key={card.id ?? card.title}>{card.title}</span>
-                  ))}
-                </div>
-              ) : null}
-              {result.matchedArtifacts?.length ? (
-                <div className="matched-block">
-                  <strong>Source artifacts</strong>
-                  {result.matchedArtifacts.slice(0, 2).map((artifact) => (
-                    artifact.url ? <a href={artifact.url} key={artifact.id ?? artifact.url}>{artifact.title}</a> : <span key={artifact.id ?? artifact.title}>{artifact.title}</span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <span className="score">{discoverMatchLabel(result.score)}</span>
-            <EvidenceList evidence={result.evidence.slice(0, 3)} compact />
-          </article>
-        ))}
+                <p>{discoverResultSummary(result)}</p>
+                {result.topSkills?.length ? (
+                  <div className="skill-strip compact">
+                    {result.topSkills.slice(0, 4).map((skill) => (
+                      <span key={skill}>{skill}</span>
+                    ))}
+                  </div>
+                ) : null}
+                {claimSnippets.length ? (
+                  <div className="evidence-list">
+                    {claimSnippets.map((claim) => (
+                      <span key={claim}>{claim}</span>
+                    ))}
+                  </div>
+                ) : null}
+                <EvidenceList evidence={result.evidence.slice(0, 2)} compact />
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function discoverClaimSnippets(result: SearchResult) {
+  const skillNames = new Set((result.topSkills ?? []).map((skill) => skill.toLowerCase()));
+  return (result.matchedClaims ?? [])
+    .map((claim) => claim.text)
+    .filter((claimText) => !skillNames.has(claimText.toLowerCase()))
+    .slice(0, 2);
 }
 
 function discoverResultSummary(result: SearchResult) {
   const parts: string[] = [];
 
   if (result.topSkills?.length) {
-    parts.push(`Matched skills like ${result.topSkills.slice(0, 2).join(" and ")}.`);
+    parts.push(`Matches ${result.topSkills.slice(0, 2).join(" and ")}.`);
   }
 
   if (result.matchedClaims?.length) {
-    parts.push(`Found ${result.matchedClaims.length} supporting claim${result.matchedClaims.length === 1 ? "" : "s"}.`);
+    parts.push(`${result.matchedClaims.length} evidence-backed claim${result.matchedClaims.length === 1 ? "" : "s"}.`);
   }
 
   if (result.matchedArtifacts?.length) {
-    parts.push(`Linked ${result.matchedArtifacts.length} public artifact${result.matchedArtifacts.length === 1 ? "" : "s"}.`);
+    parts.push(`${result.matchedArtifacts.length} public source${result.matchedArtifacts.length === 1 ? "" : "s"}.`);
   }
 
   if (parts.length > 0) {
@@ -150,10 +150,10 @@ function discoverResultSummary(result: SearchResult) {
 
 function discoverMatchLabel(score: number) {
   if (score >= 0.9) {
-    return "Strong match";
+    return "Best evidence";
   }
   if (score >= 0.7) {
-    return "Good match";
+    return "Relevant";
   }
-  return "Possible match";
+  return "Review";
 }
