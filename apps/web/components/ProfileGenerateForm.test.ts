@@ -104,6 +104,13 @@ describe("/generate search-first UI", () => {
     expect(source).toContain("new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])");
   });
 
+  it("uses agent-aware empty-search messaging for natural-language prompts", () => {
+    expect(source).toContain("function agentSearchFailureMessage(response: SearchAndGenerateResponse)");
+    expect(source).toContain("Agent search did not find a reliable public match for this prompt.");
+    expect(source).toContain("Narrow the description or add a public source as supporting evidence.");
+    expect(source).not.toContain("No public candidate matched this input. Try a person name, handle, or public source URL.");
+  });
+
   it("does not render candidate selection for empty candidate responses", () => {
     expect(source).toContain("const candidates = generated.candidates ?? []");
     expect(source).toContain("if (generated.handle)");

@@ -111,7 +111,7 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
           warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
         });
       } else if (!generated.handle) {
-        setError([...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])].join(" ") || "No public candidate matched this input. Try a person name, handle, or public source URL.");
+        setError(agentSearchFailureMessage(generated));
       } else {
         setResult(generated);
         setResolution(generated.resolution ?? null);
@@ -305,6 +305,32 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
       </details>
     </section>
   );
+}
+
+function agentSearchFailureMessage(response: SearchAndGenerateResponse): string {
+  const warnings = [...new Set([...(response.warnings ?? []), ...(response.agentWarnings ?? [])])]
+    .filter((warning) => !/try a person name, handle, or public source/i.test(warning))
+    .filter((warning) => !/no public candidate matched this role search/i.test(warning));
+
+  if (response.status === "needs_configuration") {
+    return warnings.join(" ") || "Agent search is not configured for free-form prompts yet.";
+  }
+
+  if (
+    response.status === "needs_public_source"
+    || response.agentUsed
+    || response.llmUsed
+    || response.queryType === "role_search"
+    || response.queryType === "natural_language"
+  ) {
+    return [
+      "Agent search did not find a reliable public match for this prompt.",
+      "Narrow the description or add a public source as supporting evidence.",
+      ...warnings
+    ].join(" ");
+  }
+
+  return warnings.join(" ") || "Search did not find a reliable public match. Try a clearer prompt or add a public source.";
 }
 
 function CandidateResolution({ response, onGenerate, disabled, generatingId }: { response: ProfileResolutionResponse; onGenerate: (candidate: ProfileCandidate) => void; disabled: boolean; generatingId?: string }) {
