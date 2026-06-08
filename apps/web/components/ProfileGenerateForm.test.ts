@@ -8,11 +8,11 @@ describe("/generate search-first UI", () => {
   it("uses a single primary input and candidate preview action", () => {
     expect(source).toContain("initialQuery = \"\"");
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("Paste a public profile URL, enter a handle, or describe the person you want to research");
-    expect(source).toContain("Source</span>");
-    expect(source).toContain("Match</span>");
-    expect(source).toContain("Cards</span>");
-    expect(source).toContain("Preview candidates");
+    expect(source).toContain("Name, handle, or public URL");
+    expect(source).toContain("aria-label=\"Source\"");
+    expect(source).toContain("aria-label=\"Match\"");
+    expect(source).toContain("aria-label=\"Cards\"");
+    expect(source).toContain("Preview");
     expect(source).toContain("/api/profiles/resolve");
     expect(source).toContain("/api/profiles/agent-search");
     expect(source).toContain("const queryFromUrl = initialQuery.trim()");
