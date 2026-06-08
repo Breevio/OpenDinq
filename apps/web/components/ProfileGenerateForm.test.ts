@@ -8,9 +8,9 @@ describe("/generate search-first UI", () => {
   it("uses a single primary input and candidate preview action", () => {
     expect(source).toContain("initialQuery = \"\"");
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("GitHub URL, handle, or name");
+    expect(source).toContain("Find an agent builder with strong GitHub evidence");
     expect(source).toContain("Generation workflow");
-    expect(source).toContain("Source");
+    expect(source).toContain("Prompt");
     expect(source).toContain("Match");
     expect(source).toContain("Cards");
     expect(source).toContain("Preview");

@@ -215,7 +215,7 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
               aria-label="Profile generation input"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="GitHub URL, handle, or name"
+              placeholder="Find an agent builder with strong GitHub evidence"
             />
             <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
               <Icon name={isLoading && mode === "generate" ? "loader" : "search"} />
@@ -224,7 +224,7 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
           </div>
           <div className="generate-form-footer">
             <div className="generate-workflow" aria-label="Generation workflow">
-              <span><Icon name="link" />Source</span>
+              <span><Icon name="search" />Prompt</span>
               <Icon name="arrow" />
               <span><Icon name="users" />Match</span>
               <Icon name="arrow" />
