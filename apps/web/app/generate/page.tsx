@@ -22,7 +22,7 @@ async function GeneratePageBody({
     : resolvedSearchParams.q ?? "";
 
   return (
-    <main className="page-shell">
+    <main className="page-shell generate-shell">
       <AppNav />
       <div className="page-heading">
         <p className="eyebrow">Generate</p>
