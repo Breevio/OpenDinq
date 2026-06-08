@@ -23,6 +23,29 @@ describe("LLM profile intent planner", () => {
     expect(plan.missingEvidence).toEqual(expect.arrayContaining([expect.objectContaining({ need: expect.stringContaining("Public evidence") })]));
   });
 
+  it("does not treat GitHub activity wording as an explicit GitHub handle", async () => {
+    const client: JsonLlmClient = {
+      completeJson: vi.fn().mockResolvedValue({
+        rawInput: "Research torvalds and generate evidence-backed profile cards from public GitHub activity",
+        intent: "generate_profile",
+        confidence: 0.8,
+        subject: { displayName: "activity", handle: "activity" },
+        sources: [{ type: "github", input: "activity", reason: "Misread GitHub activity as a handle", confidence: 0.8, evidenceStatus: "explicit" }],
+        userProvidedClaims: [{ text: "Research torvalds and generate evidence-backed profile cards from public GitHub activity", type: "summary", confidence: 0.5, evidenceStatus: "user_provided" }],
+        missingEvidence: [],
+        warnings: [],
+        questions: []
+      })
+    };
+
+    const plan = await planProfileGeneration("Research torvalds and generate evidence-backed profile cards from public GitHub activity", { client });
+
+    expect(plan.intent).toBe("manual_profile");
+    expect(plan.sources).not.toEqual(expect.arrayContaining([expect.objectContaining({ type: "github", input: "activity" })]));
+    expect(plan.subject).toMatchObject({ displayName: "Torvalds", handle: "torvalds" });
+    expect(plan.warnings).toEqual(expect.arrayContaining([expect.stringContaining("Ignored github source because it was not explicitly provided")]));
+  });
+
   it("uses valid mocked LLM JSON", async () => {
     const client: JsonLlmClient = {
       completeJson: vi.fn().mockResolvedValue({

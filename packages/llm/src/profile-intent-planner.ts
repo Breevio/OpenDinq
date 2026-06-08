@@ -209,6 +209,10 @@ function sanitizePlan(plan: ProfileGenerationPlan, rawInput: string): ProfileGen
       warnings.push(`Ignored ${source.type} source because input was not a string.`);
       return false;
     }
+    if (source.type === "github" && !sourceWasExplicit(source.type, source.input, rawInput)) {
+      warnings.push(`Ignored github source because it was not explicitly provided by the user: ${source.input}`);
+      return false;
+    }
     if ((source.type === "website" || source.type === "github") && isUrl(source.input) && !rawInput.includes(source.input)) {
       warnings.push(`Ignored invented source URL: ${source.input}`);
       return false;
@@ -364,16 +368,32 @@ function sanitizeUnsupportedWarningFacts(warnings: string[]): string[] {
 }
 
 function sourceWasExplicit(type: string, input: string, rawInput: string): boolean {
+  if (type === "github") {
+    const normalizedInput = githubInput(input) ?? input;
+    return githubInput(rawInput) === normalizedInput;
+  }
   if (rawInput.includes(input)) return true;
-  if (type === "github" && githubInput(rawInput) === input) return true;
   return false;
 }
 
 function githubInput(input: string): string | undefined {
   const githubUrl = input.match(/^https?:\/\/(?:www\.)?github\.com\/([A-Za-z0-9-]+)\/?$/i);
   if (githubUrl?.[1]) return githubUrl[1];
-  return /^[A-Za-z0-9-]{2,39}$/.test(input) && !isOpenAlexId(input) ? input : undefined;
+  return /^[A-Za-z0-9-]{2,39}$/.test(input) && !isOpenAlexId(input) && !githubHandleStopwords.has(input.toLowerCase()) ? input : undefined;
 }
+
+const githubHandleStopwords = new Set([
+  "activity",
+  "card",
+  "cards",
+  "evidence",
+  "github",
+  "profile",
+  "public",
+  "research",
+  "source",
+  "sources"
+]);
 
 function isUrl(input: string): boolean {
   try {

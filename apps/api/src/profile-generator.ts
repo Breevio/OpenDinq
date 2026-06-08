@@ -478,10 +478,13 @@ function mergePerson(
   identities: Array<Partial<PersonRecord> | undefined>
 ): PersonRecord {
   const identity = identities.find((item) => item?.displayName || item?.avatarUrl || item?.bio) ?? {};
+  const inputHeadline = input.headline && !shouldReplaceGenericGitHubHeadline({ handle, displayName, headline: input.headline })
+    ? input.headline
+    : undefined;
   return {
     handle: input.handle ? slugifyHandle(input.handle) : identity.handle ?? handle,
     displayName: input.displayName ?? identity.displayName ?? displayName,
-    headline: input.headline ?? identity.headline ?? identity.bio,
+    headline: inputHeadline ?? identity.headline ?? identity.bio,
     bio: identity.bio,
     location: identity.location,
     avatarUrl: identity.avatarUrl
@@ -489,7 +492,10 @@ function mergePerson(
 }
 
 function shouldReplaceGenericGitHubHeadline(person: PersonRecord): boolean {
-  return typeof person.headline === "string" && /^GitHub developer with \d+ public repositories$/i.test(person.headline);
+  return typeof person.headline === "string" && (
+    /^GitHub developer with \d+ public repositories$/i.test(person.headline)
+    || /^GitHub user search result$/i.test(person.headline)
+  );
 }
 
 function inferredHeadlineFromArtifacts(artifacts: ArtifactRecord[]): string | undefined {

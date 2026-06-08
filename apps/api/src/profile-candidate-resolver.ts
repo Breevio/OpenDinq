@@ -300,7 +300,7 @@ function embeddedSourceCandidate(input: string): ProfileCandidate | undefined {
   }
 
   const githubMention = text.match(/(?:github\.com\/|github\s+(?:user|profile|handle)?\s*[:=]?\s*)([A-Za-z0-9][A-Za-z0-9-]{1,38})/i)?.[1];
-  if (githubMention) {
+  if (githubMention && !meaninglessQueryTerm(githubMention)) {
     return directSourceCandidate(`https://github.com/${githubMention}`);
   }
 
@@ -1002,7 +1002,7 @@ function candidateSearchQuery(input: string): string {
     return url.replace(/[),.;]+$/, "");
   }
   const githubMention = text.match(/(?:github\.com\/|github\s+(?:user|profile|handle)?\s*[:=]?\s*)([A-Za-z0-9-]{2,39})/i)?.[1];
-  if (githubMention) {
+  if (githubMention && !meaninglessQueryTerm(githubMention)) {
     return githubMention;
   }
   const explicitMention = text.match(/(?:^|\s)@([A-Za-z0-9][A-Za-z0-9-]{1,38})(?:\s|$)/)?.[1];
@@ -1146,7 +1146,7 @@ function compactTermMatches(term: string, compactContext: string): boolean {
 }
 
 function meaningfulTerms(input: string): string[] {
-  const stop = new Set(["a", "an", "the", "for", "from", "who", "with", "and", "or", "on", "in", "of", "to", "working", "works", "work", "citations", "citation", "index", "researcher", "builder", "engineer", "person", "profile", "research", "return", "cards", "card", "find", "search", "look", "lookup", "generate"]);
+  const stop = new Set(["a", "an", "the", "for", "from", "who", "with", "and", "or", "on", "in", "of", "to", "working", "works", "work", "activity", "backed", "citations", "citation", "evidence", "github", "index", "public", "researcher", "builder", "engineer", "person", "profile", "research", "return", "cards", "card", "find", "search", "look", "lookup", "generate", "source", "sources"]);
   return input.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 1 && !/^\d+$/.test(term) && term !== "h" && !stop.has(term));
 }
 

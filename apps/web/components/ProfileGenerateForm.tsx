@@ -76,7 +76,17 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
         body: JSON.stringify({ input: normalizedInput })
       });
       const candidates = generated.candidates ?? [];
-      if (generated.needsSelection || candidates.length > 0) {
+      if (generated.handle) {
+        setResult(generated);
+        setResolution(generated.needsSelection ? {
+          rawInput: generated.rawInput ?? normalizedInput,
+          queryType: generated.queryType ?? "unknown",
+          candidates,
+          autoSelectedCandidateId: generated.autoSelectedCandidateId,
+          needsSelection: Boolean(generated.needsSelection),
+          warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
+        } : null);
+      } else if (generated.needsSelection || candidates.length > 0) {
         setResolution({
           rawInput: generated.rawInput ?? normalizedInput,
           queryType: generated.queryType ?? "unknown",

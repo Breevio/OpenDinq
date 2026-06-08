@@ -104,6 +104,9 @@ describe("/generate search-first UI", () => {
 
   it("does not render candidate selection for empty candidate responses", () => {
     expect(source).toContain("const candidates = generated.candidates ?? []");
+    expect(source).toContain("if (generated.handle)");
+    expect(source).toContain("setResult(generated)");
+    expect(source).toContain("setResolution(generated.needsSelection ? {");
     expect(source).toContain("generated.needsSelection || candidates.length > 0");
     expect(source).toContain("!generated.handle");
   });

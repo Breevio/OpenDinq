@@ -2311,6 +2311,84 @@ describe("OpenDinq API", () => {
     expect(json.artifactsImported).toBeGreaterThan(0);
   });
 
+  it("does not mistake task wording like GitHub activity for the target handle", async () => {
+    const app = createApp({
+      fetchImpl: async (url) => {
+        const textUrl = String(url);
+        if (textUrl.startsWith("https://api.github.com/search/users?")) {
+          return Response.json({
+            items: [
+              {
+                login: "torvalds",
+                id: 1024025,
+                html_url: "https://github.com/torvalds",
+                type: "User",
+                score: 100
+              }
+            ]
+          });
+        }
+        if (textUrl === "https://api.github.com/users/torvalds") {
+          return Response.json({
+            login: "torvalds",
+            name: "Linus Torvalds",
+            html_url: "https://github.com/torvalds",
+            public_repos: 8,
+            bio: "Creator of Linux and Git",
+            location: "Portland, OR"
+          });
+        }
+        if (textUrl === "https://api.github.com/users/torvalds/repos?per_page=100&sort=updated&type=owner") {
+          return Response.json([
+            {
+              id: 1,
+              name: "linux",
+              full_name: "torvalds/linux",
+              html_url: "https://github.com/torvalds/linux",
+              description: "Linux kernel source tree",
+              language: "C",
+              stargazers_count: 200000,
+              forks_count: 55000,
+              topics: ["kernel", "linux"],
+              pushed_at: "2026-01-01T00:00:00Z",
+              updated_at: "2026-01-01T00:00:00Z"
+            }
+          ]);
+        }
+        return fixtureFetch(url);
+      }
+    });
+
+    const response = await app.request("/api/profiles/agent-search", {
+      method: "POST",
+      body: JSON.stringify({ input: "Research torvalds and generate evidence-backed profile cards from public GitHub activity" }),
+      headers: { "content-type": "application/json" }
+    });
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({
+      status: "completed",
+      agentUsed: false,
+      llmUsed: false,
+      handle: "torvalds",
+      profileUrl: "/u/torvalds",
+      workspaceUrl: "/u/torvalds/workspace",
+      cardsGenerated: expect.any(Number),
+      artifactsImported: expect.any(Number)
+    });
+    expect(json.handle).not.toBe("activity");
+    expect(json.cardsGenerated).toBeGreaterThanOrEqual(3);
+    expect(json.profile.person.headline).toBe("Creator of Linux and Git");
+    expect(json.profile.cards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "summary" }),
+      expect.objectContaining({ type: "works" })
+    ]));
+    expect(json.profile.artifacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "repo", title: "torvalds/linux" })
+    ]));
+  });
+
   it("returns ambiguous public candidates before calling a configured LLM", async () => {
     const llmClient = {
       completeJson: vi.fn().mockRejectedValue(new Error("LLM should not be called for ambiguous candidate preflight."))
