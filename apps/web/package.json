@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--conditions=development next dev",
     "lint": "node -e \"console.log('web lint: covered by next build')\"",
-    "test": "vitest run --passWithNoTests",
-    "typecheck": "node -e \"console.log('web typecheck: covered by next build')\""
+    "test": "NODE_OPTIONS=--conditions=development vitest run --passWithNoTests",
+    "typecheck": "node -e \"console.log('web typecheck: covered by next build')\"",
+    "start": "next start"
   },
   "dependencies": {
     "@opendinq/shared": "workspace:*",

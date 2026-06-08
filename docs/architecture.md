@@ -13,7 +13,7 @@ apps/web
 apps/api
   Profile generation API
   People/search/cards/claims/publish API
-  Legacy GitHub import wrapper
+  GitHub import compatibility route
 
 apps/mcp
   API-backed MCP tools
@@ -45,6 +45,8 @@ packages/llm
   Evidence-constrained claim synthesis
   Optional evidence-constrained card rewrite helper
 ```
+
+Internal packages expose source files under the `development` export condition and compiled `dist/` files by default. Local dev/test commands set the development condition; production start commands use the compiled package outputs from `pnpm build`.
 
 ## Product Flow
 
