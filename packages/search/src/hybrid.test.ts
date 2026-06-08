@@ -132,6 +132,7 @@ describe("hybridSearchPeople", () => {
     expect(results[0]?.score).toBeGreaterThan(0);
     expect(results[0]?.evidence.length).toBeLessThanOrEqual(8);
     expect(results[0]?.evidence.filter((item) => item.id === "repo-agent")).toHaveLength(1);
+    expect(results[0]?.topSkills).toEqual(expect.arrayContaining(["AI Agents", "MCP"]));
   });
 
   it("accepts optional vector-like providers without changing result shape", async () => {

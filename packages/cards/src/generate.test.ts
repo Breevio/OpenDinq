@@ -58,7 +58,7 @@ describe("deterministic card generation", () => {
   it("generates a skills card from evidence only", () => {
     const card = generateSkillsCard(person, artifacts);
 
-    expect(card.dataJson?.skills).toEqual(["Ai Agents", "Mcp", "Rust", "Search", "TypeScript"]);
+    expect(card.dataJson?.skills).toEqual(["AI Agents", "MCP", "Rust", "Search", "TypeScript"]);
     expect(card.contentMd).not.toContain("Kubernetes");
     expect(card.evidence.length).toBeGreaterThan(0);
   });

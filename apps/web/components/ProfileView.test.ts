@@ -35,7 +35,7 @@ describe("public profile card visibility", () => {
     expect(source).toContain("function expandInlineSeries(block: string, cardTitle: string)");
     expect(source).toContain("function cleanCardLine(value: string)");
     expect(source).toContain(".replace(/^(profile|skills|selected works|timeline)\\s*[:\\-]\\s*/i, \"\")");
-    expect(source).toContain(".replace(/\\((?:\\d+% confidence|confidence:[^)]+|evidence:[^)]+)\\)/gi, \"\")");
+    expect(source).toContain(".replace(/\\((?:\\d+% confidence(?:,\\s*evidence:[^)]+)?|confidence:[^)]+|evidence:[^)]+)\\)/gi, \"\")");
     expect(source).toContain(".replace(/,\\s*evidence:\\s*.+$/i, \"\")");
     expect(source).toContain("rest.split(/\\s+-\\s+/)");
     expect(source).not.toContain("<p key={index}>{stripInlineMarkdown(block)}</p>");

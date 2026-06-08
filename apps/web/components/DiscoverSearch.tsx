@@ -27,6 +27,11 @@ export function DiscoverSearch() {
     await runSearch(query);
   }
 
+  async function searchSuggestion(suggestion: string) {
+    setQuery(suggestion);
+    await runSearch(suggestion);
+  }
+
   async function runSearch(searchQuery: string) {
     setIsLoading(true);
     setError(null);
@@ -70,7 +75,7 @@ export function DiscoverSearch() {
             "systems engineering",
             "product design"
           ].map((suggestion) => (
-            <button key={suggestion} type="button" onClick={() => setQuery(suggestion)}>
+            <button key={suggestion} type="button" onClick={() => void searchSuggestion(suggestion)}>
               {suggestion}
             </button>
           ))}

@@ -1653,7 +1653,8 @@ describe("OpenDinq API", () => {
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    const json = await response.json();
+    expect(json).toMatchObject({
       handle: "elonmusk",
       status: "needs_review",
       artifactsImported: expect.any(Number),
@@ -1662,6 +1663,14 @@ describe("OpenDinq API", () => {
         title: "Add a GitHub token for stronger imports"
       }),
       warnings: expect.arrayContaining([expect.stringContaining("GitHub anonymous API limit reached")])
+    });
+
+    const workspaceResponse = await app.request("/api/people/elonmusk/workspace");
+    expect(workspaceResponse.status).toBe(200);
+    const workspaceJson = await workspaceResponse.json();
+    expect(workspaceJson.readiness.checks).toContainEqual({
+      label: "Show key profile cards",
+      complete: true
     });
   });
 

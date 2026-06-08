@@ -2222,10 +2222,14 @@ function profileReadiness(profile: PersonProfileRecord) {
   const claims = profile.claims ?? [];
   const visibleCards = publicCards(profile.cards);
   const approved = approvedClaims(profile);
+  const hasKeyProfileCards = visibleCards.length >= 3 || (
+    visibleCards.some((card) => card.type === "summary") &&
+    visibleCards.some((card) => card.type === "works")
+  );
   const checks = [
     { label: "Add a public source", complete: profile.sources.length > 0 },
     { label: "Review highlighted details", complete: claims.length > 0 && claims.every((claim) => claim.status && claim.status !== "pending") },
-    { label: "Show key profile cards", complete: visibleCards.length >= 3 },
+    { label: "Show key profile cards", complete: hasKeyProfileCards },
     { label: "Add a clear headline", complete: Boolean(profile.person.headline) },
     { label: "Add a profile note", complete: profile.cards.some((card) => card.type === "note") },
     { label: "Attach supporting evidence", complete: approved.some((claim) => claim.evidence.length > 0) && visibleCards.some((card) => card.evidence.length > 0) }

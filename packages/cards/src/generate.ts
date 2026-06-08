@@ -337,8 +337,26 @@ function formatSkill(value: string): string {
   return value
     .split(/[-_\s]+/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(formatSkillPart)
     .join(" ");
+}
+
+function formatSkillPart(part: string): string {
+  const acronyms: Record<string, string> = {
+    ai: "AI",
+    api: "API",
+    cli: "CLI",
+    css: "CSS",
+    html: "HTML",
+    llm: "LLM",
+    mcp: "MCP",
+    ml: "ML",
+    sdk: "SDK",
+    ui: "UI",
+    ux: "UX"
+  };
+  const normalized = part.toLowerCase();
+  return acronyms[normalized] ?? part.charAt(0).toUpperCase() + part.slice(1);
 }
 
 function evidenceFromClaims(claims: CardClaim[]): EvidenceRef[] {

@@ -14,6 +14,8 @@ describe("/discover search UI", () => {
 
   it("starts from an empty, product-facing search state instead of an internal demo query", () => {
     expect(source).toContain("return \"\";");
+    expect(source).toContain("async function searchSuggestion(suggestion: string)");
+    expect(source).toContain("await runSearch(suggestion)");
     expect(source).toContain("Search profiles");
     expect(source).toContain("placeholder=\"Search by skill, role, claim, artifact, or topic\"");
     expect(source).toContain("open-source infrastructure");

@@ -243,7 +243,7 @@ function cleanCardLine(value: string) {
   const withoutHeading = value.replace(/^heading:/, "").trim();
   const withoutLead = withoutHeading
     .replace(/^(profile|skills|selected works|timeline)\s*[:\-]\s*/i, "")
-    .replace(/\((?:\d+% confidence|confidence:[^)]+|evidence:[^)]+)\)/gi, "")
+    .replace(/\((?:\d+% confidence(?:,\s*evidence:[^)]+)?|confidence:[^)]+|evidence:[^)]+)\)/gi, "")
     .replace(/,\s*evidence:\s*.+$/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
