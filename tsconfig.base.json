@@ -12,10 +12,10 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
-    "outDir": "dist",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2023"
+    "target": "ES2023",
+    "customConditions": ["development"]
   }
 }

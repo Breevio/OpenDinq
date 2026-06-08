@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "pnpm -r --workspace-concurrency=1 build",
+    "build": "pnpm clean && pnpm -r --workspace-concurrency=1 build",
     "check": "./scripts/check.sh",
     "db:generate": "pnpm --filter @opendinq/db db:generate",
     "db:validate": "pnpm --filter @opendinq/db db:validate",
@@ -20,7 +20,11 @@
     "test:scripts": "vitest run scripts/*.test.mjs",
     "test": "pnpm -r --workspace-concurrency=1 test",
     "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
-    "verify:db": "pnpm --dir apps/api exec tsx ../../scripts/verify-db-runtime.ts"
+    "verify:db": "pnpm --dir apps/api exec tsx ../../scripts/verify-db-runtime.ts",
+    "clean": "node scripts/clean.mjs",
+    "start:api": "pnpm --filter @opendinq/api start",
+    "start:web": "pnpm --filter @opendinq/web start",
+    "start:mcp": "pnpm --filter @opendinq/mcp start"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

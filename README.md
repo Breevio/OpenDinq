@@ -70,6 +70,7 @@ You can also use **Discover** to search profiles that already exist.
 ## More docs
 
 - [Architecture](./docs/architecture.md)
+- [Deployment](./docs/deployment.md)
 - [Profile Generator](./docs/profile-generator.md)
 - [Profile Workspace](./docs/profile-workspace.md)
 - [Evidence Model](./docs/evidence-model.md)
