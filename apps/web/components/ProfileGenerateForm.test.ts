@@ -9,7 +9,9 @@ describe("/generate search-first UI", () => {
     expect(source).toContain("initialQuery = \"\"");
     expect(source).toContain("Profile generation input");
     expect(source).toContain("Paste a public profile URL, enter a handle, or describe the person you want to research");
-    expect(source).toContain("OpenDinq will show likely matches before it generates cards.");
+    expect(source).toContain("Source</span>");
+    expect(source).toContain("Match</span>");
+    expect(source).toContain("Cards</span>");
     expect(source).toContain("Preview candidates");
     expect(source).toContain("/api/profiles/resolve");
     expect(source).toContain("/api/profiles/agent-search");
@@ -55,10 +57,9 @@ describe("/generate search-first UI", () => {
     expect(source).toContain("Review this source");
     expect(source).toContain("Best current source");
     expect(source).toContain("Compare before generating");
-    expect(source).toContain("source snippet");
     expect(source).toContain("function candidateDecisionReason(candidate: ProfileCandidate)");
-    expect(source).toContain("Use this when the name and source are the intended person.");
-    expect(source).toContain("Check the source identity against the other candidates.");
+    expect(source).toContain("Best match.");
+    expect(source).toContain("Check identity.");
     expect(source).toContain("/api/profiles/generate-from-candidate");
     expect(source).not.toContain("Math.round(candidate.confidence * 100)");
     expect(source).not.toContain("source preview");
@@ -145,8 +146,8 @@ describe("/generate search-first UI", () => {
   });
 
   it("keeps the completion panel product-facing instead of tool-facing", () => {
-    expect(source).toContain("Ready to review");
-    expect(source).toContain("Search related profiles");
+    expect(source).toContain("Ready");
+    expect(source).toContain("Related");
     expect(source).not.toContain("Agent called OpenDinq tools");
     expect(source).not.toContain("tool calls");
     expect(source).not.toContain("Search in Discover");
@@ -176,6 +177,9 @@ describe("/generate search-first UI", () => {
 
   it("keeps candidate cards terse instead of rendering source explainer paragraphs", () => {
     expect(source).toContain("candidateEvidenceLabel(candidate)");
+    expect(source).toContain("lucide-react");
+    expect(source).toContain("function Icon({ name }: { name: IconName })");
+    expect(source).toContain("<Component className=\"ui-icon\"");
     expect(source).not.toContain("Public GitHub profile found for");
     expect(source).not.toContain("Public OpenAlex author record found.");
     expect(source).not.toContain("Public ORCID record found.");
@@ -183,5 +187,6 @@ describe("/generate search-first UI", () => {
     expect(source).not.toContain("Public website source found.");
     expect(source).not.toContain("Public web result found.");
     expect(source).not.toContain("const reasons = candidate.reasons.filter");
+    expect(source).not.toContain("<svg className=\"ui-icon\"");
   });
 });

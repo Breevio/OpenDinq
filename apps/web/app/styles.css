@@ -513,10 +513,14 @@ p {
 }
 
 .actions a {
+  align-items: center;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(16, 18, 21, 0.14);
   border-radius: 999px;
+  display: inline-flex;
+  gap: 8px;
   font-weight: 800;
+  justify-content: center;
   padding: 10px 14px;
   text-decoration: none;
 }
@@ -569,6 +573,32 @@ p {
   gap: 14px;
 }
 
+.ai-prompt-shell {
+  position: relative;
+}
+
+.prompt-icon,
+.source-icon,
+.completion-icon,
+.recovery-icon {
+  align-items: center;
+  background: #101215;
+  border-radius: 12px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.prompt-icon {
+  left: 14px;
+  position: absolute;
+  top: 14px;
+  z-index: 1;
+}
+
 .ai-prompt-shell textarea {
   background: #fff;
   border: 1px solid rgba(16, 18, 21, 0.16);
@@ -576,7 +606,29 @@ p {
   box-shadow: 0 14px 34px rgba(33, 60, 94, 0.08);
   font-size: 1.04rem;
   min-height: 96px;
-  padding: 16px;
+  padding: 16px 16px 16px 62px;
+}
+
+.input-guidance,
+.metric-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.input-guidance span,
+.metric-strip span {
+  align-items: center;
+  background: rgba(238, 246, 255, 0.9);
+  border: 1px solid rgba(16, 18, 21, 0.08);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 800;
+  gap: 6px;
+  padding: 7px 10px;
 }
 
 .example-chips {
@@ -666,37 +718,31 @@ p {
   align-items: flex-start;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
-.candidate-card-header > span {
+.source-icon {
   background: rgba(238, 246, 255, 0.95);
   border: 1px solid rgba(16, 18, 21, 0.08);
-  border-radius: 999px;
   color: #3f4857;
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  font-weight: 900;
-  line-height: 1.15;
-  max-width: 118px;
-  padding: 8px 10px;
-  text-align: center;
 }
 
-.candidate-strong .candidate-card-header > span {
+.candidate-strong .source-icon {
   background: #0067ff;
   border-color: #0067ff;
   color: #fff;
 }
 
 .candidate-ribbon {
+  align-items: center;
   background: #101215;
   border-radius: 6px;
   color: #fff;
+  display: inline-flex;
   font-size: 0.76rem;
   font-weight: 900;
+  gap: 5px;
   justify-self: start;
-  letter-spacing: 0.02em;
   padding: 6px 9px;
   text-transform: uppercase;
 }
@@ -731,11 +777,19 @@ p {
   overflow-wrap: anywhere;
 }
 
+.candidate-card-header .source-icon {
+  color: #3f4857;
+}
+
+.candidate-strong .candidate-card-header .source-icon {
+  color: #fff;
+}
+
 .candidate-verdict {
   background: #f4f7fa;
   border-left: 3px solid #0067ff;
   border-radius: 0 8px 8px 0;
-  padding: 10px 11px;
+  padding: 8px 10px;
 }
 
 .candidate-verdict span {
@@ -765,6 +819,36 @@ p {
   display: grid;
   gap: 8px;
   padding: 12px;
+}
+
+.completion-header,
+.recovery-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.completion-header strong,
+.recovery-header strong {
+  display: block;
+  line-height: 1.35;
+}
+
+.completion-icon {
+  background: #0067ff;
+}
+
+.recovery-panel {
+  background: #fff7e8;
+  border: 1px solid rgba(152, 97, 0, 0.18);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.recovery-icon {
+  background: #986100;
 }
 
 .warning-step {
@@ -846,13 +930,17 @@ textarea {
 }
 
 button {
+  align-items: center;
   background: var(--ink);
   border: 1px solid var(--ink);
   border-radius: 14px;
   color: var(--paper);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-weight: 700;
+  gap: 8px;
+  justify-content: center;
   padding: 13px 18px;
 }
 
@@ -904,12 +992,15 @@ button:disabled {
 .result-strip a,
 .result-strip button,
 .score {
+  align-items: center;
   background: rgba(238, 246, 255, 0.9);
   border: 1px solid rgba(16, 18, 21, 0.08);
   border-radius: 999px;
   color: var(--ink);
+  display: inline-flex;
   font-size: 0.86rem;
   font-weight: 700;
+  gap: 6px;
   padding: 7px 10px;
   text-decoration: none;
 }
@@ -1129,6 +1220,23 @@ pre {
 .completion-panel {
   border-top: 1px solid rgba(16, 18, 21, 0.1);
   padding-top: 16px;
+}
+
+.ui-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 1em;
+  stroke: currentColor;
+  vertical-align: -0.14em;
+  width: 1em;
+}
+
+.prompt-icon .ui-icon,
+.source-icon .ui-icon,
+.completion-icon .ui-icon,
+.recovery-icon .ui-icon {
+  height: 18px;
+  width: 18px;
 }
 
 .check-list,

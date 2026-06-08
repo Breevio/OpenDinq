@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { RecoveryAdvice } from "../lib/api";
 
 export function GitHubRecoveryPanel({
@@ -12,18 +13,21 @@ export function GitHubRecoveryPanel({
   retryLabel?: string;
 }) {
   return (
-    <div className="tool-panel">
-      <p className="eyebrow">GitHub imports can be stronger</p>
-      <p><strong>{advice.title}</strong></p>
-      <p className="status">{advice.message}</p>
-      <div className="result-strip">
-        <span>Current result is still reviewable</span>
-        <span>Add a GitHub token for richer data</span>
-        <span>Retry this action</span>
+    <div className="recovery-panel">
+      <div className="recovery-header">
+        <span className="recovery-icon" aria-hidden="true">
+          <AlertTriangle className="ui-icon" strokeWidth={2.2} />
+        </span>
+        <div>
+          <p className="eyebrow">GitHub import limited</p>
+          <strong>{advice.title}</strong>
+        </div>
       </div>
+      <p className="status">{advice.message}</p>
       {onRetry ? (
         <div className="actions">
           <button type="button" className="secondary-button" onClick={onRetry}>
+            <RefreshCw className="ui-icon" aria-hidden="true" strokeWidth={2.2} />
             {retryLabel ?? "Retry"}
           </button>
         </div>
