@@ -597,15 +597,22 @@ p {
 
 .ai-generate-panel {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 253, 255, 0.94));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 253, 255, 0.96));
   border: 1px solid rgba(22, 184, 178, 0.18);
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow:
     0 28px 70px rgba(6, 34, 74, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.96);
   display: grid;
-  gap: 18px;
-  padding: clamp(18px, 2.5vw, 26px);
+  gap: 20px;
+  overflow: hidden;
+  padding: clamp(12px, 1.6vw, 16px);
+}
+
+.generate-workbench {
+  display: grid;
+  gap: clamp(14px, 2vw, 18px);
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 285px);
 }
 
 .ai-generate-form,
@@ -615,8 +622,83 @@ p {
   gap: 14px;
 }
 
+.ai-generate-form {
+  align-content: start;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(6, 34, 74, 0.08);
+  border-radius: 14px;
+  padding: clamp(14px, 2vw, 18px);
+}
+
 .ai-prompt-shell {
   position: relative;
+}
+
+.generate-sidecar {
+  background:
+    radial-gradient(circle at 82% 12%, rgba(22, 184, 178, 0.32), transparent 34%),
+    linear-gradient(160deg, #061b3a 0%, #06224a 58%, #0a356d 100%);
+  border: 1px solid rgba(22, 184, 178, 0.22);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.sidecar-kicker,
+.sidecar-proof {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.sidecar-kicker {
+  color: #9ff2ef;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sidecar-step {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 12px;
+}
+
+.sidecar-step span {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 10px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.sidecar-step strong {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.sidecar-proof {
+  align-self: end;
+  background: rgba(159, 242, 239, 0.12);
+  border: 1px solid rgba(159, 242, 239, 0.2);
+  border-radius: 999px;
+  color: #dffdfb;
+  font-size: 0.84rem;
+  font-weight: 800;
+  justify-self: start;
+  margin-top: 8px;
+  padding: 8px 10px;
 }
 
 .prompt-icon,
@@ -1429,6 +1511,14 @@ pre {
   .tool-panel,
   .profile-header {
     padding: 18px;
+  }
+
+  .generate-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .sidecar-step {
+    grid-template-columns: auto 1fr;
   }
 
   .ai-prompt-shell textarea {

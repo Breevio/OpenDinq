@@ -208,34 +208,53 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
 
   return (
     <section className="ai-generate-panel">
-      <form className="ai-generate-form" onSubmit={searchAndGenerate}>
-        <div className="ai-prompt-shell">
-          <div className="prompt-icon" aria-hidden="true">
-            <Icon name="search" />
+      <div className="generate-workbench">
+        <form className="ai-generate-form" onSubmit={searchAndGenerate}>
+          <div className="ai-prompt-shell">
+            <div className="prompt-icon" aria-hidden="true">
+              <Icon name="search" />
+            </div>
+            <textarea
+              aria-label="Profile generation input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="Paste a public profile URL, enter a handle, or describe the person you want to research..."
+            />
+            <div className="input-guidance">
+              <span><Icon name="link" /> Source</span>
+              <span><Icon name="spark" /> Match</span>
+              <span><Icon name="card" /> Cards</span>
+            </div>
           </div>
-          <textarea
-            aria-label="Profile generation input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Paste a public profile URL, enter a handle, or describe the person you want to research..."
-          />
-          <div className="input-guidance">
-            <span><Icon name="link" /> Source</span>
-            <span><Icon name="spark" /> Match</span>
-            <span><Icon name="card" /> Cards</span>
+          <div className="actions">
+            <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
+              <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
+              {isLoading && mode === "generate" ? "Searching" : "Search & generate profile"}
+            </button>
+            <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
+              <Icon name="users" />
+              {isLoading && mode === "resolve" ? "Searching" : "Preview candidates"}
+            </button>
           </div>
-        </div>
-        <div className="actions">
-          <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
-            <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
-            {isLoading && mode === "generate" ? "Searching" : "Search & generate profile"}
-          </button>
-          <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
-            <Icon name="users" />
-            {isLoading && mode === "resolve" ? "Searching" : "Preview candidates"}
-          </button>
-        </div>
-      </form>
+        </form>
+
+        <aside className="generate-sidecar" aria-label="Generation workflow">
+          <div className="sidecar-kicker"><Icon name="spark" /> Workflow</div>
+          <div className="sidecar-step">
+            <span><Icon name="link" /></span>
+            <strong>Source</strong>
+          </div>
+          <div className="sidecar-step">
+            <span><Icon name="users" /></span>
+            <strong>Identity</strong>
+          </div>
+          <div className="sidecar-step">
+            <span><Icon name="card" /></span>
+            <strong>Cards</strong>
+          </div>
+          <div className="sidecar-proof"><Icon name="check" /> Evidence attached</div>
+        </aside>
+      </div>
 
       {error ? <p className="status warning">{error}</p> : null}
       {resolution ? <CandidateResolution response={resolution} onGenerate={generateCandidate} disabled={isLoading} generatingId={isLoading && retryAction?.kind === "candidate" ? retryAction.candidate.id : undefined} /> : null}
