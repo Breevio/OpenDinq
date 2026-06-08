@@ -226,11 +226,11 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
           </div>
         </div>
         <div className="actions">
-          <button type="submit" disabled={isLoading || !input.trim()}>
+          <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
             <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
             {isLoading && mode === "generate" ? "Searching" : "Search & generate profile"}
           </button>
-          <button className="secondary-button" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
+          <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
             <Icon name="users" />
             {isLoading && mode === "resolve" ? "Searching" : "Preview candidates"}
           </button>
