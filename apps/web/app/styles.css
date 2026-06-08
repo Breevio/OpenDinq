@@ -557,9 +557,60 @@ p {
 }
 
 .generate-shell {
+  --generate-accent: #19bdb6;
+  --generate-accent-dark: #0b6f6a;
+  --generate-accent-soft: #e8fbf8;
+  --generate-ink: #102326;
+  --generate-line: rgba(16, 35, 38, 0.14);
+  --generate-muted: #687477;
+  --generate-paper: #f3f8f7;
+  --generate-surface: #fffffe;
   align-content: start;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   max-width: 1240px;
+  position: relative;
+}
+
+.generate-shell::after {
+  background:
+    linear-gradient(180deg, rgba(232, 251, 248, 0.7), rgba(248, 250, 252, 0.86) 46%, rgba(243, 248, 247, 0.96)),
+    var(--generate-paper);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: -2;
+}
+
+.page-shell.generate-shell::before {
+  background-image:
+    radial-gradient(circle at center, rgba(23, 184, 177, 0.22) 1px, transparent 1.5px),
+    linear-gradient(rgba(17, 23, 25, 0.018) 1px, transparent 1px);
+  background-size: 18px 18px, 36px 36px;
+  inset: 0;
+  mask-image: linear-gradient(180deg, black 0%, rgba(0, 0, 0, 0.42) 48%, transparent 78%);
+  opacity: 0.42;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+}
+
+.generate-shell .app-brand,
+.generate-shell .app-nav-links {
+  background: rgba(255, 255, 254, 0.88);
+  border-color: rgba(17, 23, 25, 0.1);
+  box-shadow:
+    0 18px 46px rgba(17, 23, 25, 0.08),
+    0 0 0 1px rgba(23, 184, 177, 0.04);
+}
+
+.generate-shell .app-nav-links a {
+  color: #3f484b;
+}
+
+.generate-shell .app-nav-links a:hover {
+  background: var(--generate-ink);
+  color: #ffffff;
 }
 
 .generate-shell .page-heading {
@@ -570,16 +621,16 @@ p {
 }
 
 .generate-shell .page-heading h1 {
-  color: #101318;
-  font-size: clamp(3.25rem, 7.2vw, 6.2rem);
+  color: var(--generate-ink);
+  font-size: clamp(3.35rem, 7.4vw, 6.35rem);
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
   line-height: 0.95;
   max-width: 980px;
 }
 
 .generate-shell .page-heading p:last-child {
-  color: #7b7f87;
+  color: var(--generate-muted);
   font-size: clamp(1rem, 1.6vw, 1.22rem);
   line-height: 1.45;
   max-width: 760px;
@@ -595,9 +646,9 @@ p {
 }
 
 .generate-shell .secondary-button:not(:disabled):hover {
-  background: #f3ffff;
-  border-color: var(--accent-line);
-  color: var(--accent-strong);
+  background: var(--generate-accent-soft);
+  border-color: rgba(23, 184, 177, 0.38);
+  color: var(--generate-ink);
 }
 
 .ai-generate-panel {
@@ -637,44 +688,18 @@ p {
 
 .ai-prompt-shell {
   align-items: center;
-  background: #ffffff;
-  border: 1.5px solid #101318;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 254, 0.98), rgba(248, 253, 252, 0.98));
+  border: 1.5px solid rgba(16, 35, 38, 0.94);
   border-radius: 999px;
-  box-shadow: 0 24px 70px rgba(17, 24, 39, 0.12);
+  box-shadow:
+    0 28px 72px rgba(17, 23, 25, 0.13),
+    0 18px 42px rgba(23, 184, 177, 0.08);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 72px;
   padding: 6px;
   position: relative;
-}
-
-.generate-workflow {
-  align-items: center;
-  color: #6f747c;
-  display: inline-flex;
-  gap: 8px;
-  justify-content: center;
-  min-width: 0;
-}
-
-.generate-workflow span {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  display: inline-flex;
-  gap: 6px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  justify-content: flex-start;
-  min-height: 0;
-  padding: 0;
-}
-
-.generate-workflow .ui-icon {
-  color: #101318;
-  height: 15px;
-  width: 15px;
 }
 
 .source-icon,
@@ -696,7 +721,7 @@ p {
   border: 0;
   border-radius: 999px;
   box-shadow: none;
-  color: #101318;
+  color: var(--generate-ink);
   font-size: clamp(1.04rem, 1.8vw, 1.18rem);
   height: 58px;
   line-height: 1.25;
@@ -711,30 +736,31 @@ p {
 }
 
 .ai-prompt-shell textarea::placeholder {
-  color: #858b96;
+  color: #7f898c;
 }
 
 .ai-prompt-shell .primary-action {
+  background: var(--generate-ink);
+  border-color: var(--generate-ink);
   border-radius: 999px;
-  font-size: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  gap: 8px;
   height: 58px;
   min-height: 58px;
-  padding: 0;
-  width: 58px;
+  padding: 0 22px;
+  width: auto;
 }
 
 .ai-prompt-shell .primary-action .ui-icon {
-  height: 24px;
-  width: 24px;
+  height: 19px;
+  width: 19px;
 }
 
-.ai-prompt-shell .primary-action span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
+.ai-prompt-shell .primary-action:not(:disabled):hover {
+  background: #0f7f79;
+  border-color: #0f7f79;
+  box-shadow: 0 12px 28px rgba(14, 124, 119, 0.26);
 }
 
 .generate-form-footer {
@@ -1100,18 +1126,18 @@ button:disabled {
 }
 
 .ai-prompt-shell .primary-action:disabled {
-  background: #101318;
-  border-color: #101318;
+  background: var(--generate-ink);
+  border-color: var(--generate-ink);
   color: #ffffff;
   cursor: not-allowed;
   opacity: 1;
 }
 
 .generate-form-footer .secondary-action {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(17, 24, 39, 0.16);
+  background: rgba(255, 255, 254, 0.76);
+  border-color: rgba(23, 184, 177, 0.2);
   border-radius: 999px;
-  color: #101318;
+  color: var(--generate-ink);
   font-size: 0.9rem;
   font-weight: 700;
   min-height: 42px;
@@ -1119,15 +1145,32 @@ button:disabled {
 }
 
 .generate-form-footer .secondary-action:not(:disabled):hover {
-  background: #ffffff;
-  border-color: #101318;
-  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.12);
-  color: #101318;
+  background: var(--generate-accent-soft);
+  border-color: rgba(23, 184, 177, 0.44);
+  box-shadow: 0 10px 24px rgba(14, 124, 119, 0.12);
+  color: var(--generate-ink);
 }
 
 .generate-form-footer .secondary-action:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+.generate-shell .advanced-sources {
+  border-top-color: rgba(17, 23, 25, 0.1);
+}
+
+.generate-shell .advanced-sources summary {
+  color: var(--generate-ink);
+}
+
+.generate-shell .status.warning {
+  background: rgba(232, 251, 248, 0.88);
+  border: 1px solid rgba(23, 184, 177, 0.24);
+  border-radius: 14px;
+  color: #365154;
+  line-height: 1.5;
+  padding: 12px 14px;
 }
 
 .generate-shell .actions .primary-action {
@@ -1578,22 +1621,13 @@ pre {
   .ai-prompt-shell .primary-action {
     height: 54px;
     min-height: 54px;
-    width: 54px;
+    padding: 0 14px;
   }
 
   .generate-form-footer {
     align-items: center;
     flex-direction: column;
     gap: 12px;
-  }
-
-  .generate-workflow {
-    gap: 7px;
-  }
-
-  .generate-workflow span {
-    font-size: 0.78rem;
-    gap: 5px;
   }
 
   .generate-shell .actions {

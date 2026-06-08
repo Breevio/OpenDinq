@@ -8,12 +8,11 @@ describe("/generate search-first UI", () => {
   it("uses a single primary input and candidate preview action", () => {
     expect(source).toContain("initialQuery = \"\"");
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("Find an agent builder with strong GitHub evidence");
-    expect(source).toContain("Generation workflow");
-    expect(source).toContain("Prompt");
-    expect(source).toContain("Match");
-    expect(source).toContain("Cards");
-    expect(source).toContain("Preview");
+    expect(source).toContain("Profile an agent builder with GitHub evidence");
+    expect(source).toContain("Generate");
+    expect(source).toContain("Review matches");
+    expect(source).not.toContain("Generation workflow");
+    expect(source).not.toContain(">Prompt<");
     expect(source).toContain("/api/profiles/resolve");
     expect(source).toContain("/api/profiles/agent-search");
     expect(source).toContain("const queryFromUrl = initialQuery.trim()");

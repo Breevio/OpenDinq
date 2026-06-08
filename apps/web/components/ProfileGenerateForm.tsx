@@ -215,24 +215,17 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
               aria-label="Profile generation input"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Find an agent builder with strong GitHub evidence"
+              placeholder="Profile an agent builder with GitHub evidence"
             />
             <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
-              <Icon name={isLoading && mode === "generate" ? "loader" : "search"} />
-              <span>{isLoading && mode === "generate" ? "Searching" : "Search"}</span>
+              <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
+              <span>{isLoading && mode === "generate" ? "Generating" : "Generate"}</span>
             </button>
           </div>
           <div className="generate-form-footer">
-            <div className="generate-workflow" aria-label="Generation workflow">
-              <span><Icon name="search" />Prompt</span>
-              <Icon name="arrow" />
-              <span><Icon name="users" />Match</span>
-              <Icon name="arrow" />
-              <span><Icon name="card" />Cards</span>
-            </div>
             <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
               <Icon name="users" />
-              {isLoading && mode === "resolve" ? "Searching" : "Preview"}
+              {isLoading && mode === "resolve" ? "Reviewing" : "Review matches"}
             </button>
           </div>
         </form>

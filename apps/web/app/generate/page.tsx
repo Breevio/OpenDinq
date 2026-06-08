@@ -25,8 +25,8 @@ async function GeneratePageBody({
     <main className="page-shell generate-shell">
       <AppNav />
       <div className="page-heading">
-        <h1>Describe who to find</h1>
-        <p>Natural language in. Evidence-backed profile cards out.</p>
+        <h1>Generate a profile</h1>
+        <p>Describe the person or evidence. OpenDinq finds public sources before building cards.</p>
       </div>
       <ProfileGenerateForm initialQuery={initialQuery} />
     </main>
