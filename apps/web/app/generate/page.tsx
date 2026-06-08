@@ -25,9 +25,8 @@ async function GeneratePageBody({
     <main className="page-shell generate-shell">
       <AppNav />
       <div className="page-heading">
-        <p className="eyebrow">Generate</p>
-        <h1>Generate profile</h1>
-        <p>Use a public source to create evidence-backed cards.</p>
+        <h1>Find a profile</h1>
+        <p>Search public sources. Generate cards with evidence.</p>
       </div>
       <ProfileGenerateForm initialQuery={initialQuery} />
     </main>

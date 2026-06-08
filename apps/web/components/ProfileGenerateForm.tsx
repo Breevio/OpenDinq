@@ -209,35 +209,27 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
   return (
     <section className="ai-generate-panel">
       <div className="generate-workbench">
-        <div className="generate-workflow" aria-label="Generation workflow">
-          <span aria-label="Source"><Icon name="link" /></span>
-          <span aria-label="Identity"><Icon name="users" /></span>
-          <span aria-label="Cards"><Icon name="card" /></span>
-          <strong aria-label="Evidence attached"><Icon name="check" /></strong>
-        </div>
-
         <form className="ai-generate-form" onSubmit={searchAndGenerate}>
           <div className="ai-prompt-shell">
-            <div className="prompt-icon" aria-hidden="true">
-              <Icon name="search" />
-            </div>
             <textarea
               aria-label="Profile generation input"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Name, handle, or public URL"
+              placeholder="GitHub URL, handle, or name"
             />
-            <div className="input-guidance">
-              <span aria-label="Source"><Icon name="link" /></span>
-              <span aria-label="Match"><Icon name="spark" /></span>
-              <span aria-label="Cards"><Icon name="card" /></span>
-            </div>
-          </div>
-          <div className="actions">
             <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
-              <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
-              {isLoading && mode === "generate" ? "Searching" : "Generate"}
+              <Icon name={isLoading && mode === "generate" ? "loader" : "search"} />
+              <span>{isLoading && mode === "generate" ? "Searching" : "Search"}</span>
             </button>
+          </div>
+          <div className="generate-form-footer">
+            <div className="generate-workflow" aria-label="Generation workflow">
+              <span><Icon name="link" />Source</span>
+              <Icon name="arrow" />
+              <span><Icon name="users" />Match</span>
+              <Icon name="arrow" />
+              <span><Icon name="card" />Cards</span>
+            </div>
             <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
               <Icon name="users" />
               {isLoading && mode === "resolve" ? "Searching" : "Preview"}
