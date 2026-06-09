@@ -22,12 +22,11 @@ async function GeneratePageBody({
     : resolvedSearchParams.q ?? "";
 
   return (
-    <main className="page-shell">
+    <main className="page-shell generate-shell">
       <AppNav />
       <div className="page-heading">
-        <p className="eyebrow">Generate</p>
-        <h1>Search, verify, generate.</h1>
-        <p>Start with a person or public source. Pick the right match before cards are created.</p>
+        <h1>Generate a profile</h1>
+        <p>Describe the person or evidence. OpenDinq finds public sources before building cards.</p>
       </div>
       <ProfileGenerateForm initialQuery={initialQuery} />
     </main>

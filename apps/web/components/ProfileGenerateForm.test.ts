@@ -8,9 +8,11 @@ describe("/generate search-first UI", () => {
   it("uses a single primary input and candidate preview action", () => {
     expect(source).toContain("initialQuery = \"\"");
     expect(source).toContain("Profile generation input");
-    expect(source).toContain("Paste a public profile URL, enter a handle, or describe the person you want to research");
-    expect(source).toContain("OpenDinq will show likely matches before it generates cards.");
-    expect(source).toContain("Preview candidates");
+    expect(source).toContain("Profile an agent builder with GitHub evidence");
+    expect(source).toContain("Generate");
+    expect(source).toContain("Review matches");
+    expect(source).not.toContain("Generation workflow");
+    expect(source).not.toContain(">Prompt<");
     expect(source).toContain("/api/profiles/resolve");
     expect(source).toContain("/api/profiles/agent-search");
     expect(source).toContain("const queryFromUrl = initialQuery.trim()");
@@ -55,10 +57,9 @@ describe("/generate search-first UI", () => {
     expect(source).toContain("Review this source");
     expect(source).toContain("Best current source");
     expect(source).toContain("Compare before generating");
-    expect(source).toContain("source snippet");
     expect(source).toContain("function candidateDecisionReason(candidate: ProfileCandidate)");
-    expect(source).toContain("Use this when the name and source are the intended person.");
-    expect(source).toContain("Check the source identity against the other candidates.");
+    expect(source).toContain("Best match.");
+    expect(source).toContain("Check identity.");
     expect(source).toContain("/api/profiles/generate-from-candidate");
     expect(source).not.toContain("Math.round(candidate.confidence * 100)");
     expect(source).not.toContain("source preview");
@@ -100,6 +101,13 @@ describe("/generate search-first UI", () => {
   it("preserves agent warnings when search returns candidates that need selection", () => {
     expect(source).toContain("generated.agentWarnings");
     expect(source).toContain("new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])");
+  });
+
+  it("uses agent-aware empty-search messaging for natural-language prompts", () => {
+    expect(source).toContain("function agentSearchFailureMessage(response: SearchAndGenerateResponse)");
+    expect(source).toContain("Agent search did not find a reliable public match for this prompt.");
+    expect(source).toContain("Narrow the description or add a public source as supporting evidence.");
+    expect(source).not.toContain("No public candidate matched this input. Try a person name, handle, or public source URL.");
   });
 
   it("does not render candidate selection for empty candidate responses", () => {
@@ -145,8 +153,8 @@ describe("/generate search-first UI", () => {
   });
 
   it("keeps the completion panel product-facing instead of tool-facing", () => {
-    expect(source).toContain("Ready to review");
-    expect(source).toContain("Search related profiles");
+    expect(source).toContain("Ready");
+    expect(source).toContain("Related");
     expect(source).not.toContain("Agent called OpenDinq tools");
     expect(source).not.toContain("tool calls");
     expect(source).not.toContain("Search in Discover");
@@ -176,6 +184,9 @@ describe("/generate search-first UI", () => {
 
   it("keeps candidate cards terse instead of rendering source explainer paragraphs", () => {
     expect(source).toContain("candidateEvidenceLabel(candidate)");
+    expect(source).toContain("lucide-react");
+    expect(source).toContain("function Icon({ name }: { name: IconName })");
+    expect(source).toContain("<Component className=\"ui-icon\"");
     expect(source).not.toContain("Public GitHub profile found for");
     expect(source).not.toContain("Public OpenAlex author record found.");
     expect(source).not.toContain("Public ORCID record found.");
@@ -183,5 +194,6 @@ describe("/generate search-first UI", () => {
     expect(source).not.toContain("Public website source found.");
     expect(source).not.toContain("Public web result found.");
     expect(source).not.toContain("const reasons = candidate.reasons.filter");
+    expect(source).not.toContain("<svg className=\"ui-icon\"");
   });
 });

@@ -1,6 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  Check,
+  GitBranch,
+  Globe2,
+  IdCard,
+  Link2,
+  Loader2,
+  Search,
+  Sparkles,
+  User,
+  Users
+} from "lucide-react";
 import { apiRequest, type ProfileCandidate, type ProfileGenerationResponse, type ProfileResolutionResponse, type SearchAndGenerateResponse } from "../lib/api";
 import { GitHubRecoveryPanel } from "./GitHubRecoveryPanel";
 
@@ -96,7 +111,7 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
           warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
         });
       } else if (!generated.handle) {
-        setError([...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])].join(" ") || "No public candidate matched this input. Try a person name, handle, or public source URL.");
+        setError(agentSearchFailureMessage(generated));
       } else {
         setResult(generated);
         setResolution(generated.resolution ?? null);
@@ -193,27 +208,28 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
 
   return (
     <section className="ai-generate-panel">
-      <form className="ai-generate-form" onSubmit={searchAndGenerate}>
-        <div className="ai-prompt-shell">
-          <textarea
-            aria-label="Profile generation input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Paste a public profile URL, enter a handle, or describe the person you want to research..."
-          />
-          <p className="input-guidance">
-            Use a public source, a known handle, or a short description. OpenDinq will show likely matches before it generates cards.
-          </p>
-        </div>
-        <div className="actions">
-          <button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading && mode === "generate" ? "Searching" : "Search & generate profile"}
-          </button>
-          <button className="secondary-button" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
-            {isLoading && mode === "resolve" ? "Searching" : "Preview candidates"}
-          </button>
-        </div>
-      </form>
+      <div className="generate-workbench">
+        <form className="ai-generate-form" onSubmit={searchAndGenerate}>
+          <div className="ai-prompt-shell">
+            <textarea
+              aria-label="Profile generation input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder="Profile an agent builder with GitHub evidence"
+            />
+            <button className="primary-action" type="submit" disabled={isLoading || !input.trim()}>
+              <Icon name={isLoading && mode === "generate" ? "loader" : "spark"} />
+              <span>{isLoading && mode === "generate" ? "Generating" : "Generate"}</span>
+            </button>
+          </div>
+          <div className="generate-form-footer">
+            <button className="secondary-button secondary-action" type="button" disabled={isLoading || !input.trim()} onClick={previewCandidates}>
+              <Icon name="users" />
+              {isLoading && mode === "resolve" ? "Reviewing" : "Review matches"}
+            </button>
+          </div>
+        </form>
+      </div>
 
       {error ? <p className="status warning">{error}</p> : null}
       {resolution ? <CandidateResolution response={resolution} onGenerate={generateCandidate} disabled={isLoading} generatingId={isLoading && retryAction?.kind === "candidate" ? retryAction.candidate.id : undefined} /> : null}
@@ -284,6 +300,32 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
   );
 }
 
+function agentSearchFailureMessage(response: SearchAndGenerateResponse): string {
+  const warnings = [...new Set([...(response.warnings ?? []), ...(response.agentWarnings ?? [])])]
+    .filter((warning) => !/try a person name, handle, or public source/i.test(warning))
+    .filter((warning) => !/no public candidate matched this role search/i.test(warning));
+
+  if (response.status === "needs_configuration") {
+    return warnings.join(" ") || "Agent search is not configured for free-form prompts yet.";
+  }
+
+  if (
+    response.status === "needs_public_source"
+    || response.agentUsed
+    || response.llmUsed
+    || response.queryType === "role_search"
+    || response.queryType === "natural_language"
+  ) {
+    return [
+      "Agent search did not find a reliable public match for this prompt.",
+      "Narrow the description or add a public source as supporting evidence.",
+      ...warnings
+    ].join(" ");
+  }
+
+  return warnings.join(" ") || "Search did not find a reliable public match. Try a clearer prompt or add a public source.";
+}
+
 function CandidateResolution({ response, onGenerate, disabled, generatingId }: { response: ProfileResolutionResponse; onGenerate: (candidate: ProfileCandidate) => void; disabled: boolean; generatingId?: string }) {
   const summary = response.needsSelection
     ? `Review ${response.candidates.length} match${response.candidates.length === 1 ? "" : "es"}`
@@ -300,7 +342,7 @@ function CandidateResolution({ response, onGenerate, disabled, generatingId }: {
   return (
     <div className="plan-preview">
       <div className="result-strip">
-        <span>{summary}</span>
+        <span><Icon name="users" /> {summary}</span>
       </div>
       {visibleWarnings.map((warning) => <p className="status warning" key={warning}>{warning}</p>)}
       {response.candidates.length ? (
@@ -308,10 +350,11 @@ function CandidateResolution({ response, onGenerate, disabled, generatingId }: {
           {visibleCandidates(response.candidates).map((candidate) => (
             <article className={`candidate-card ${candidateTrustLevel(candidate)}`} key={candidate.id}>
               <div className="candidate-meta-row">
-                <span className="candidate-ribbon">{candidateDecisionLabel(candidate)}</span>
-                <span>{candidateEvidenceLabel(candidate)}</span>
+                <span className="candidate-ribbon"><Icon name={candidate.confidence >= 0.86 ? "check" : "alert"} /> {candidateDecisionLabel(candidate)}</span>
+                <span><Icon name="link" /> {candidateEvidenceLabel(candidate)}</span>
               </div>
               <div className="candidate-card-header">
+                <span className="source-icon" aria-hidden="true"><Icon name={candidateIconName(candidate)} /></span>
                 <div>
                   <strong>{candidate.displayName}</strong>
                   {candidateSubtitle(candidate) ? <span>{candidateSubtitle(candidate)}</span> : null}
@@ -335,6 +378,7 @@ function CandidateResolution({ response, onGenerate, disabled, generatingId }: {
               ) : null}
               {visibleCandidateWarnings(candidate).map((warning) => <p className="status warning" key={`${candidate.id}-${warning}`}>{warning}</p>)}
               <button type="button" disabled={disabled} onClick={() => onGenerate(candidate)}>
+                <Icon name={generatingId === candidate.id ? "loader" : "arrow"} />
                 {generatingId === candidate.id ? "Generating" : candidate.confidence >= 0.86 ? "Use recommended source" : "Review this source"}
               </button>
             </article>
@@ -457,6 +501,24 @@ function candidateSubtitle(candidate: ProfileCandidate): string | undefined {
   return undefined;
 }
 
+function candidateIconName(candidate: ProfileCandidate): IconName {
+  switch (candidate.sourceType) {
+    case "github":
+      return "github";
+    case "openalex":
+    case "orcid":
+    case "arxiv":
+      return "book";
+    case "website":
+    case "web":
+      return "globe";
+    case "existing_profile":
+      return "user";
+    default:
+      return "link";
+  }
+}
+
 function formatSourceLabel(sourceType: ProfileCandidate["sourceType"]): string {
   switch (sourceType) {
     case "github":
@@ -515,14 +577,13 @@ function candidateVerdict(candidate: ProfileCandidate): string {
 }
 
 function candidateDecisionReason(candidate: ProfileCandidate): string {
-  const snippets = `${candidateEvidenceCount(candidate)} source snippet${candidateEvidenceCount(candidate) === 1 ? "" : "s"}`;
   if (candidate.confidence >= 0.86) {
-    return `Use this when the name and source are the intended person. ${snippets}.`;
+    return "Best match.";
   }
   if (candidate.confidence >= 0.72) {
-    return `Check the source identity against the other candidates. ${snippets}.`;
+    return "Check identity.";
   }
-  return `Only continue if the source clearly identifies the person. ${snippets}.`;
+  return "Low confidence.";
 }
 
 function candidateEvidenceLabel(candidate: ProfileCandidate): string {
@@ -564,12 +625,17 @@ function GenerationResult({ result, input, onRetry }: { result: SearchAndGenerat
       : "OpenDinq used direct source matching";
   return (
     <div className="completion-panel">
-      <p className="eyebrow">{needsReview ? "Review workspace created" : "Generation completed"}</p>
-      <div className="result-strip">
-        <span>{needsReview ? "Needs review" : "Ready to review"}</span>
-        <span>{generationSummary}</span>
-        <span>{result.artifactsImported} source{result.artifactsImported === 1 ? "" : "s"}</span>
-        <span>{result.cardsGenerated} card{result.cardsGenerated === 1 ? "" : "s"}</span>
+      <div className="completion-header">
+        <span className="completion-icon" aria-hidden="true"><Icon name={needsReview ? "alert" : "check"} /></span>
+        <div>
+          <p className="eyebrow">{needsReview ? "Review workspace created" : "Generation completed"}</p>
+          <strong>{generationSummary}</strong>
+        </div>
+      </div>
+      <div className="metric-strip">
+        <span><Icon name={needsReview ? "alert" : "check"} /> {needsReview ? "Needs review" : "Ready"}</span>
+        <span><Icon name="link" /> {result.artifactsImported} source{result.artifactsImported === 1 ? "" : "s"}</span>
+        <span><Icon name="card" /> {result.cardsGenerated} card{result.cardsGenerated === 1 ? "" : "s"}</span>
       </div>
       {result.warnings.length ? <p className="status warning">{result.warnings.join(" ")}</p> : null}
       {result.recoveryAdvice ? (
@@ -594,10 +660,34 @@ function GenerationResult({ result, input, onRetry }: { result: SearchAndGenerat
         </div>
       ) : null}
       <div className="actions">
-        <a href={result.workspaceUrl ?? `/u/${result.handle}/workspace`}>Open workspace</a>
-        <a href={result.profileUrl}>View public profile</a>
-        <a href={`/discover?q=${encodeURIComponent(input)}`}>Search related profiles</a>
+        <a href={result.workspaceUrl ?? `/u/${result.handle}/workspace`}><Icon name="arrow" /> Open workspace</a>
+        <a href={result.profileUrl}><Icon name="user" /> View profile</a>
+        <a href={`/discover?q=${encodeURIComponent(input)}`}><Icon name="search" /> Related</a>
       </div>
     </div>
+  );
+}
+
+type IconName = "alert" | "arrow" | "book" | "card" | "check" | "github" | "globe" | "link" | "loader" | "search" | "spark" | "user" | "users";
+
+function Icon({ name }: { name: IconName }) {
+  const icons: Record<IconName, typeof Search> = {
+    alert: AlertTriangle,
+    arrow: ArrowRight,
+    book: BookOpen,
+    card: IdCard,
+    check: Check,
+    github: GitBranch,
+    globe: Globe2,
+    link: Link2,
+    loader: Loader2,
+    search: Search,
+    spark: Sparkles,
+    user: User,
+    users: Users
+  };
+  const Component = icons[name];
+  return (
+    <Component className="ui-icon" aria-hidden="true" strokeWidth={2.2} />
   );
 }
