@@ -99,7 +99,6 @@ async function createRuntimeStore(seedDemo: boolean): Promise<OpenDinqStore> {
 }
 
 export const app = createApp();
-export const seededApp = createApp({ seedDemo: process.env.OPENDINQ_AUTO_SEED !== "false" });
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const runtimeApp = await createRuntimeApp();

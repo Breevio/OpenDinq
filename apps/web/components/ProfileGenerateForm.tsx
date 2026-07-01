@@ -16,7 +16,7 @@ import {
   User,
   Users
 } from "lucide-react";
-import { apiRequest, type ProfileCandidate, type ProfileGenerationResponse, type ProfileResolutionResponse, type SearchAndGenerateResponse } from "../lib/api";
+import { apiRequest, streamAgentSearch, type AgentResearchStep, type ProfileCandidate, type ProfileGenerationResponse, type ProfileResolutionResponse, type SearchAndGenerateResponse } from "../lib/api";
 import { GitHubRecoveryPanel } from "./GitHubRecoveryPanel";
 
 type RetryAction =
@@ -43,7 +43,10 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
   const [resolution, setResolution] = useState<ProfileResolutionResponse | null>(null);
   const [result, setResult] = useState<ProfileGenerationResponse | null>(null);
   const [retryAction, setRetryAction] = useState<RetryAction | null>(null);
+  const [agentSteps, setAgentSteps] = useState<AgentResearchStep[]>([]);
+  const [agentToolCalls, setAgentToolCalls] = useState<Array<{ tool: string; input: Record<string, unknown> }>>([]);
   const autoRunQueryRef = useRef<string | null>(null);
+  const streamCancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const queryFromUrl = initialQuery.trim();
@@ -84,43 +87,56 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
     setMode("generate");
     setError(null);
     setResult(null);
+    setAgentSteps([]);
+    setAgentToolCalls([]);
     setRetryAction({ kind: "search" });
-    try {
-      const generated = await apiRequest<SearchAndGenerateResponse>("/api/profiles/agent-search", {
-        method: "POST",
-        body: JSON.stringify({ input: normalizedInput })
-      });
-      const candidates = generated.candidates ?? [];
-      if (generated.handle) {
-        setResult(generated);
-        setResolution(generated.needsSelection ? {
-          rawInput: generated.rawInput ?? normalizedInput,
-          queryType: generated.queryType ?? "unknown",
-          candidates,
-          autoSelectedCandidateId: generated.autoSelectedCandidateId,
-          needsSelection: Boolean(generated.needsSelection),
-          warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
-        } : null);
-      } else if (generated.needsSelection || candidates.length > 0) {
-        setResolution({
-          rawInput: generated.rawInput ?? normalizedInput,
-          queryType: generated.queryType ?? "unknown",
-          candidates,
-          autoSelectedCandidateId: generated.autoSelectedCandidateId,
-          needsSelection: Boolean(generated.needsSelection),
-          warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
-        });
-      } else if (!generated.handle) {
-        setError(agentSearchFailureMessage(generated));
-      } else {
-        setResult(generated);
-        setResolution(generated.resolution ?? null);
+
+    streamCancelRef.current = streamAgentSearch(
+      normalizedInput,
+      (event) => {
+        if (event.event === "step") {
+          setAgentSteps((prev) => [...prev, event.data]);
+        } else if (event.event === "tool_call") {
+          setAgentToolCalls((prev) => [...prev, event.data]);
+        } else if (event.event === "complete") {
+          const generated = event.data;
+          const candidates = generated.candidates ?? [];
+          if (generated.handle) {
+            setResult(generated);
+            setResolution(generated.needsSelection ? {
+              rawInput: generated.rawInput ?? normalizedInput,
+              queryType: generated.queryType ?? "unknown",
+              candidates,
+              autoSelectedCandidateId: generated.autoSelectedCandidateId,
+              needsSelection: Boolean(generated.needsSelection),
+              warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
+            } : null);
+          } else if (generated.needsSelection || candidates.length > 0) {
+            setResolution({
+              rawInput: generated.rawInput ?? normalizedInput,
+              queryType: generated.queryType ?? "unknown",
+              candidates,
+              autoSelectedCandidateId: generated.autoSelectedCandidateId,
+              needsSelection: Boolean(generated.needsSelection),
+              warnings: [...new Set([...(generated.warnings ?? []), ...(generated.agentWarnings ?? [])])]
+            });
+          } else if (!generated.handle) {
+            setError(agentSearchFailureMessage(generated));
+          } else {
+            setResult(generated);
+            setResolution(generated.resolution ?? null);
+          }
+          setIsLoading(false);
+        } else if (event.event === "error") {
+          setError(event.data.message);
+          setIsLoading(false);
+        }
+      },
+      (error) => {
+        setError(error.message);
+        setIsLoading(false);
       }
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Some sources could not be imported.");
-    } finally {
-      setIsLoading(false);
-    }
+    );
   }
 
   async function searchAndGenerate(event: React.FormEvent<HTMLFormElement>) {
@@ -232,6 +248,53 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
       </div>
 
       {error ? <p className="status warning">{error}</p> : null}
+      {agentSteps.length > 0 ? (
+        <div className="agent-steps-panel" aria-label="Agent research progress">
+          <div className="agent-steps-header">
+            <Icon name="loader" />
+            <span>Agent is researching…</span>
+          </div>
+          <div className="agent-steps-list">
+            {agentSteps.map((step, index) => (
+              <article
+                className={step.status === "warning" ? "agent-step warning-step" : "agent-step"}
+                key={`${step.tool}-${index}`}
+              >
+                <div className="agent-step-header">
+                  <strong>{step.title}</strong>
+                  <span className={`agent-step-status ${step.status}`}>{step.status}</span>
+                </div>
+                <p className="agent-step-summary">{step.summary}</p>
+                {step.evidence.length > 0 ? (
+                  <div className="agent-step-evidence">
+                    {step.evidence.slice(0, 3).map((item) => (
+                      <span key={`${step.tool}-${item.id}`} className="agent-step-evidence-item">
+                        {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a> : item.title}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {step.warnings.length > 0 ? (
+                  <p className="status warning">{step.warnings.join(" ")}</p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          {agentToolCalls.length > 0 ? (
+            <details className="agent-tool-trace">
+              <summary>Tool call trace ({agentToolCalls.length})</summary>
+              <ol className="agent-tool-list">
+                {agentToolCalls.map((call, index) => (
+                  <li key={index} className="agent-tool-item">
+                    <code>{call.tool}</code>
+                    <code className="agent-tool-input">{JSON.stringify(call.input)}</code>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       {resolution ? <CandidateResolution response={resolution} onGenerate={generateCandidate} disabled={isLoading} generatingId={isLoading && retryAction?.kind === "candidate" ? retryAction.candidate.id : undefined} /> : null}
       {result ? <GenerationResult result={result} input={input} onRetry={() => { void retryLatestAction(); }} /> : null}
 

@@ -15,7 +15,6 @@ import {
   normalizeOrcidRecordToArtifacts,
   normalizeOrcidRecordToIdentitySource,
   normalizeWebsiteToArtifact,
-  parseArxivId,
   parseGitHubProfileUrl
 } from "@opendinq/connectors";
 import { generateProfileCards, type CardClaim } from "@opendinq/cards";

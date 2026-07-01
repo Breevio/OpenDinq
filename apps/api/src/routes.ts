@@ -1,4 +1,4 @@
-import { generateProfileCards, type CardClaim } from "@opendinq/cards";
+import { generateProfileCards, generateSearchMatchCard, type CardClaim } from "@opendinq/cards";
 import { parseGitHubProfileUrl, searchOpenAlexAuthors } from "@opendinq/connectors";
 import { publicRankedClaims } from "@opendinq/core";
 import type { ArtifactRecord, CardRecord, EvidenceRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord, ProfileSourceRecord } from "@opendinq/core";
@@ -17,7 +17,8 @@ import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
 import { ApiNotFoundError, errorResponse } from "./errors.js";
 import { ProfileCandidateResolver, type ProfileCandidate } from "./profile-candidate-resolver.js";
-import { createProfileGenerator, getProfileRunSummary } from "./profile-generator.js";
+import { createProfileGenerator, getProfileRunSummary, type ProfileGenerationSummary } from "./profile-generator.js";
+import { compactIdentifier, isHttpUrl, personLikeInput, withTimeout } from "./utils.js";
 
 export type ApiRouteOptions = {
   store: OpenDinqStore;
@@ -279,6 +280,48 @@ export function createApiRoutes(options: ApiRouteOptions) {
     } catch (error) {
       return errorResponse(context, error);
     }
+  });
+
+  routes.post("/profiles/agent-search-stream", async (context) => {
+    let body: { input: string };
+    try {
+      body = agentSearchSchema.parse(await context.req.json());
+    } catch (error) {
+      return errorResponse(context, error);
+    }
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        const send = (event: string, data: unknown) => {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        };
+
+        try {
+          await runAgentSearchStreamed(body.input, {
+            store: options.store,
+            generator,
+            llmClient,
+            fetchImpl: options.fetchImpl,
+            onStep: (step) => send("step", step),
+            onToolCall: (call) => send("tool_call", call),
+            onToolResult: (result) => send("tool_result", result)
+          }).then((result) => send("complete", result));
+        } catch (error) {
+          send("error", { message: error instanceof Error ? error.message : "Agent search failed." });
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive"
+      }
+    });
   });
 
   routes.post("/profiles/web-search", async (context) => {
@@ -671,6 +714,32 @@ async function runAgentSearch(
     fetchImpl?: typeof fetch;
   }
 ) {
+  return runAgentSearchStreamed(input, options);
+}
+
+type AgentStreamCallbacks = {
+  onStep?: (step: AgentResearchStep) => void;
+  onToolCall?: (call: AgentToolCall) => void;
+  onToolResult?: (result: AgentToolResult) => void;
+};
+
+async function runAgentSearchStreamed(
+  input: string,
+  options: {
+    store: OpenDinqStore;
+    generator: ReturnType<typeof createProfileGenerator>;
+    llmClient: JsonLlmClient | undefined;
+    fetchImpl?: typeof fetch;
+  } & AgentStreamCallbacks
+) {
+  const callbacks: AgentStreamCallbacks = {
+    onStep: options.onStep,
+    onToolCall: options.onToolCall,
+    onToolResult: options.onToolResult
+  };
+
+  // Re-run the agent search with streaming callbacks injected.
+  // We inline the logic here to emit events as each tool call completes.
   const preflight = shouldPreflightAmbiguousPersonSearch(input) || shouldPreflightDirectPublicSourceSearch(input)
     ? await runDeterministicCandidatePreflight(input, options)
     : undefined;
@@ -715,8 +784,10 @@ async function runAgentSearch(
   let selectedCandidate: ProfileCandidate | undefined;
   let webEvidence: AgentWebEvidence[] = [];
   const warnings: string[] = [...toolPlan.warnings];
+  const llmPlanned = toolPlan.llmPlanned;
 
   for (const call of toolCalls) {
+    callbacks.onToolCall?.(call);
     const result = await executeAgentToolCallSafely(input, call, {
       store: options.store,
       generator: options.generator,
@@ -726,15 +797,20 @@ async function runAgentSearch(
       selectedCandidate,
       webEvidence
     });
-    researchSteps.push(buildAgentResearchStep(call.tool, result));
-    toolResults.push({ tool: call.tool, result: summarizeAgentToolResult(result) });
+    const step = buildAgentResearchStep(call.tool, result);
+    researchSteps.push(step);
+    callbacks.onStep?.(step);
+    const toolResult: AgentToolResult = { tool: call.tool, result: summarizeAgentToolResult(result) };
+    toolResults.push(toolResult);
+    callbacks.onToolResult?.(toolResult);
+
     if (isCandidateResolutionResult(result)) {
       selectedCandidate = result.selectedCandidate;
       if (!selectedCandidate && result.candidates.length === 0 && result.queryType === "role_search") {
         return {
           ...result,
           status: "needs_public_source",
-          llmUsed: true,
+          llmUsed: llmPlanned,
           agentUsed: true,
           toolCalls,
           toolResults,
@@ -750,7 +826,7 @@ async function runAgentSearch(
         return {
           ...result,
           status: "needs_selection",
-          llmUsed: true,
+          llmUsed: llmPlanned,
           agentUsed: true,
           toolCalls,
           toolResults,
@@ -804,7 +880,57 @@ async function runAgentSearch(
     search = profile ? await searchProfiles(input, [profile]) : [];
   }
   const usedAgent = toolCalls.length > 0;
-  const usedLlm = usedAgent && toolCalls.some((call) => call.tool === "opendinq_plan_profile_generation" || call.tool === "opendinq_generate_profile_ai");
+  const usedLlm = llmPlanned;
+
+  // Generate search_match cards from the top search results.
+  const searchMatchCards: CardRecord[] = [];
+  if (search && search.length > 0) {
+    for (const result of search.slice(0, 3)) {
+      const card = generateSearchMatchCard({
+        query: input,
+        person: {
+          handle: result.person.handle,
+          displayName: result.person.displayName,
+          headline: result.person.headline
+        },
+        matchedClaims: (result.matchedClaims ?? []).map((claim) => ({
+          id: claim.id,
+          type: claim.type,
+          text: claim.text,
+          confidence: typeof claim.confidence === "number" ? claim.confidence : 0.5,
+          evidence: (claim.evidence ?? []).map((evidence) => ({
+            id: evidence.id,
+            type: evidence.type === "artifact" || evidence.type === "claim" || evidence.type === "source" || evidence.type === "external" ? evidence.type : "external",
+            title: evidence.title,
+            url: evidence.url,
+            reason: evidence.reason
+          }))
+        })),
+        evidenceSnippets: (result.evidence ?? []).map((evidence) => ({
+          id: evidence.id,
+          type: evidence.type === "artifact" || evidence.type === "claim" || evidence.type === "source" || evidence.type === "external" ? evidence.type : "external",
+          title: evidence.title,
+          url: evidence.url,
+          reason: evidence.reason
+        })),
+        scoreBreakdown: result.scoreBreakdown,
+        finalScore: result.score
+      });
+      searchMatchCards.push({
+        id: `card-${result.person.handle}-search-match`,
+        personId: result.person.handle,
+        type: "search_match",
+        title: card.title,
+        contentMd: card.contentMd,
+        dataJson: card.dataJson,
+        evidence: card.evidence,
+        visibility: "public",
+        order: card.order ?? 70
+      });
+    }
+  }
+
+  const allCards = [...(cards ?? []), ...searchMatchCards];
 
   return {
     runId: generated?.runId,
@@ -812,7 +938,7 @@ async function runAgentSearch(
     status: manualOnly ? "needs_public_source" : generated?.status ?? (profile ? "completed" : "needs_review"),
     profileUrl: generated?.profileUrl ?? (profile ? `/u/${profile.person.handle}` : undefined),
     workspaceUrl: generated?.workspaceUrl ?? (profile ? `/u/${profile.person.handle}/workspace` : undefined),
-    cardsGenerated: generated?.cardsGenerated ?? cards?.length ?? 0,
+    cardsGenerated: generated?.cardsGenerated ?? allCards.length,
     artifactsImported: generated?.artifactsImported ?? profile?.artifacts.length ?? 0,
     claimsGenerated: generated?.claimsGenerated ?? profile?.claims?.length ?? 0,
     llmUsed: usedLlm,
@@ -821,8 +947,9 @@ async function runAgentSearch(
     toolResults,
     researchSteps,
     profile,
-    cards,
+    cards: allCards,
     searchResults: search,
+    searchMatchCards,
     warnings: [...new Set([...(generated?.warnings ?? []), ...warnings])],
     recoveryAdvice: githubImportRecoveryAdvice([...(generated?.warnings ?? []), ...warnings])
   };
@@ -932,7 +1059,7 @@ function shouldPreflightAmbiguousPersonSearch(input: string): boolean {
 
 function shouldPreflightDirectPublicSourceSearch(input: string): boolean {
   const trimmed = input.trim();
-  return isHttpUrlInput(trimmed)
+  return isHttpUrl(trimmed)
     || /https?:\/\/\S+/i.test(trimmed)
     || /\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b/i.test(trimmed)
     || /\b\d{4}\.\d{4,5}(?:v\d+)?\b/i.test(trimmed)
@@ -943,22 +1070,13 @@ function shouldPreflightDirectPublicSourceSearch(input: string): boolean {
 function canUseDeterministicAgentFallback(input: string): boolean {
   const trimmed = input.trim();
   return (
-    isHttpUrlInput(trimmed) ||
+    isHttpUrl(trimmed) ||
     /^[A-Za-z0-9-]{2,39}$/.test(trimmed) && !/^[A-Z]\d+$/i.test(trimmed) ||
     /^A\d{4,}$/i.test(trimmed) ||
     /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i.test(trimmed) ||
     /^\d{4}\.\d{4,5}(v\d+)?$/i.test(trimmed) ||
     deterministicAgentQueryTerms(trimmed).length > 0
   );
-}
-
-function isHttpUrlInput(input: string): boolean {
-  try {
-    const url = new URL(input);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function deterministicAgentQueryTerms(input: string): string[] {
@@ -995,33 +1113,23 @@ async function planAgentToolCalls(input: string, client: JsonLlmClient): Promise
   return parsed.data.toolCalls;
 }
 
-async function planAgentToolCallsSafely(input: string, client: JsonLlmClient): Promise<{ toolCalls: AgentToolCall[]; warnings: string[] }> {
+async function planAgentToolCallsSafely(input: string, client: JsonLlmClient): Promise<{ toolCalls: AgentToolCall[]; warnings: string[]; llmPlanned: boolean }> {
   try {
     return {
       toolCalls: await withTimeout(planAgentToolCalls(input, client), agentPlanningTimeoutMs(), "Agent tool planning timed out."),
-      warnings: []
+      warnings: [],
+      llmPlanned: true
     };
   } catch (error) {
     if (isLlmRuntimeError(error)) {
       return {
         toolCalls: defaultAgentToolPlan(input),
-        warnings: [`Agent tool planning failed because the LLM request did not complete: ${error instanceof Error ? error.message : "request failed"}`]
+        warnings: [`Agent tool planning failed because the LLM request did not complete: ${error instanceof Error ? error.message : "request failed"}`],
+        llmPlanned: false
       };
     }
     throw error;
   }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => reject(new Error(message)), ms);
-  });
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  });
 }
 
 function agentPlanningTimeoutMs(): number {
@@ -1273,7 +1381,7 @@ function normalizeWebSearchResults(json: unknown): AgentWebEvidence[] {
   for (const item of items) {
     const record = item as { title?: unknown; url?: unknown; link?: unknown; snippet?: unknown; description?: unknown };
     const url = typeof record.url === "string" ? record.url : typeof record.link === "string" ? record.link : undefined;
-    if (!url || !isHttpUrlInput(url)) {
+    if (!url || !isHttpUrl(url)) {
       continue;
     }
     results.push({
@@ -1288,7 +1396,7 @@ function normalizeWebSearchResults(json: unknown): AgentWebEvidence[] {
 
 function fallbackWebEvidence(query: string, selectedCandidate: ProfileCandidate | undefined): AgentWebEvidence[] {
   const sources: AgentWebEvidence[] = [];
-  if (selectedCandidate?.sourceUrl && isHttpUrlInput(selectedCandidate.sourceUrl)) {
+  if (selectedCandidate?.sourceUrl && isHttpUrl(selectedCandidate.sourceUrl)) {
     sources.push({
       title: selectedCandidate.displayName,
       url: selectedCandidate.sourceUrl,
@@ -1449,9 +1557,6 @@ function queryContainsIdentifier(normalizedQuery: string, identifier: string): b
   return normalizedQuery.split(/[^a-z0-9-]+/).includes(normalizedIdentifier);
 }
 
-function compactIdentifier(input: string): string {
-  return input.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
 
 async function resolveManualOnlyPlanCandidate(
   plan: ProfileGenerationPlan,
@@ -1902,10 +2007,6 @@ function bestOpenAlexCandidate(query: string, authors: Awaited<ReturnType<typeof
     .toSorted((left, right) => (right.cited_by_count ?? 0) - (left.cited_by_count ?? 0) || (right.works_count ?? 0) - (left.works_count ?? 0))[0];
 }
 
-function personLikeInput(input: string): string | undefined {
-  const normalized = input.replace(/^generate a profile (for|from)\s+/i, "").trim();
-  return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(normalized) ? normalized : undefined;
-}
 
 function descriptiveEnough(input: string): boolean {
   return input.trim().split(/\s+/).length >= 3;

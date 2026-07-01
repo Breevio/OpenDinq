@@ -254,6 +254,61 @@ function manualNoteCards(person: CardPerson, claims: CardClaim[]): GeneratedCard
     }));
 }
 
+export interface SearchMatchInput {
+  query: string;
+  person: CardPerson;
+  matchedClaims?: CardClaim[];
+  evidenceSnippets?: EvidenceRef[];
+  scoreBreakdown?: Record<string, number>;
+  finalScore?: number;
+}
+
+export function generateSearchMatchCard(input: SearchMatchInput): GeneratedCard {
+  const { query, person, matchedClaims = [], evidenceSnippets = [], scoreBreakdown = {}, finalScore } = input;
+  const evidence = dedupeEvidence([...evidenceFromClaims(matchedClaims), ...evidenceSnippets]);
+
+  const bullets: string[] = [];
+  for (const claim of matchedClaims.slice(0, 4)) {
+    bullets.push(`- ${claim.text}`);
+  }
+  if (evidenceSnippets.length > 0 && bullets.length === 0) {
+    for (const snippet of evidenceSnippets.slice(0, 4)) {
+      bullets.push(`- ${snippet.title}${snippet.url ? ` ([source](${snippet.url}))` : ""}`);
+    }
+  }
+  if (bullets.length === 0) {
+    bullets.push(`- Matched profile for "${query}"`);
+  }
+
+  const scoreSection = finalScore !== undefined
+    ? `Match score: ${(finalScore * 100).toFixed(0)}%`
+    : undefined;
+
+  return {
+    type: "search_match",
+    title: `${person.displayName} — search match`,
+    contentMd: [
+      `# ${person.displayName}`,
+      person.headline ?? `Matched "${query}"`,
+      ...(scoreSection ? [scoreSection] : []),
+      ...bullets
+    ].join("\n\n"),
+    dataJson: {
+      query,
+      handle: person.handle,
+      finalScore,
+      scoreBreakdown,
+      matchedClaimCount: matchedClaims.length,
+      evidenceCount: evidence.length,
+      evidence
+    },
+    evidence,
+    claimIds: claimIds(matchedClaims),
+    confidence: finalScore,
+    order: defaultCardOrder("search_match")
+  };
+}
+
 function defaultCardOrder(type: GeneratedCard["type"]): number {
   const order: Record<GeneratedCard["type"], number> = {
     summary: 10,
@@ -262,7 +317,8 @@ function defaultCardOrder(type: GeneratedCard["type"]): number {
     github: 35,
     research: 40,
     timeline: 50,
-    note: 60
+    note: 60,
+    search_match: 70
   };
   return order[type] ?? 100;
 }

@@ -26,7 +26,8 @@ export const cardTypeSchema = z.enum([
   "research",
   "timeline",
   "trajectory",
-  "note"
+  "note",
+  "search_match"
 ]);
 
 export const evidenceRefSchema = z.object({

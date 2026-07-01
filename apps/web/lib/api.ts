@@ -270,3 +270,93 @@ function readableApiError(message: unknown) {
 
   return message;
 }
+
+export type AgentResearchStep = {
+  tool: string;
+  title: string;
+  status: "completed" | "warning";
+  summary: string;
+  evidence: EvidenceRef[];
+  warnings: string[];
+};
+
+export type AgentStreamEvent =
+  | { event: "step"; data: AgentResearchStep }
+  | { event: "tool_call"; data: { tool: string; input: Record<string, unknown> } }
+  | { event: "tool_result"; data: { tool: string; result: unknown } }
+  | { event: "complete"; data: SearchAndGenerateResponse }
+  | { event: "error"; data: { message: string } };
+
+/**
+ * Subscribe to the SSE agent-search stream. Returns an unsubscribe function.
+ * Events are delivered to `onEvent` as they arrive.
+ */
+export function streamAgentSearch(
+  input: string,
+  onEvent: (event: AgentStreamEvent) => void,
+  onError?: (error: Error) => void
+): () => void {
+  const controller = new AbortController();
+  const decoder = new TextDecoder();
+
+  void fetch(`${API_BASE_URL}/api/profiles/agent-search-stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ input }),
+    signal: controller.signal
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const json = await response.json();
+        throw new Error(readableApiError(json?.error?.message));
+      }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Stream was not readable.");
+      }
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const lines = part.split("\n");
+          let event = "message";
+          let data = "";
+          for (const line of lines) {
+            if (line.startsWith("event:")) {
+              event = line.slice(6).trim();
+            } else if (line.startsWith("data:")) {
+              data += line.slice(5).trim();
+            }
+          }
+          if (!data) {
+            continue;
+          }
+          try {
+            const parsed = JSON.parse(data) as unknown;
+            onEvent({ event, data: parsed } as AgentStreamEvent);
+          } catch {
+            // Skip malformed events.
+          }
+        }
+      }
+    })
+    .catch((error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      if (onError) {
+        onError(error instanceof Error ? error : new Error("Stream failed."));
+      } else {
+        onEvent({ event: "error", data: { message: error instanceof Error ? error.message : "Stream failed." } });
+      }
+    });
+
+  return () => controller.abort();
+}

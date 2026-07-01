@@ -175,7 +175,7 @@ function mergeClaims(left: ProfileClaimRecord, right: ProfileClaimRecord): Profi
 function dedupeEvidence(evidence: EvidenceRecord[]): EvidenceRecord[] {
   const seen = new Set<string>();
   return evidence.filter((item) => {
-    const key = `${item.type}:${item.id}`;
+    const key = `${item.type}:${item.id}:${item.reason}`;
     if (seen.has(key)) {
       return false;
     }

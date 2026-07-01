@@ -14,7 +14,7 @@ describe("/generate search-first UI", () => {
     expect(source).not.toContain("Generation workflow");
     expect(source).not.toContain(">Prompt<");
     expect(source).toContain("/api/profiles/resolve");
-    expect(source).toContain("/api/profiles/agent-search");
+    expect(source).toContain("streamAgentSearch");
     expect(source).toContain("const queryFromUrl = initialQuery.trim()");
     expect(source).toContain("void runSearchAndGenerate(queryFromUrl)");
     expect(source).toContain("OpenDinq searched multiple public sources");

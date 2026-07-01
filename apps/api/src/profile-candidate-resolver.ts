@@ -7,6 +7,7 @@ import {
 } from "@opendinq/connectors";
 import type { EvidenceRecord as CoreEvidenceRecord, IdentitySourceRecord, OpenDinqStore } from "@opendinq/core";
 import { isNearTokenMatch } from "@opendinq/search";
+import { compactIdentifier, isHttpUrl, personLikeInput, withTimeout } from "./utils.js";
 
 export type ProfileCandidate = {
   id: string;
@@ -946,18 +947,6 @@ async function searchConnector(name: string, warnings: string[], run: () => Prom
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => reject(new Error(message)), ms);
-  });
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  });
-}
-
 function connectorSearchTimeoutMs(): number {
   const configured = Number(process.env.OPEN_DINQ_CONNECTOR_SEARCH_TIMEOUT_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : 8000;
@@ -1153,22 +1142,4 @@ function meaningfulTerms(input: string): string[] {
 function meaninglessQueryTerm(input: string): boolean {
   const normalized = input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   return normalized.split(/\s+/).every((term) => meaningfulTerms(term).length === 0);
-}
-
-function compactIdentifier(input: string): string {
-  return input.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function personLikeInput(input: string): string | undefined {
-  const normalized = input.replace(/^generate a profile (for|from)\s+/i, "").trim();
-  return /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){1,3}$/.test(normalized) ? normalized : undefined;
-}
-
-function isHttpUrl(input: string): boolean {
-  try {
-    const url = new URL(input);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }

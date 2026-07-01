@@ -37,7 +37,7 @@ export type CardClaim = {
 export type GeneratedCard = {
   id?: string;
   personId?: string;
-  type: "summary" | "skills" | "works" | "research" | "timeline" | "note" | "github";
+  type: "summary" | "skills" | "works" | "research" | "timeline" | "note" | "github" | "search_match";
   title: string;
   contentMd: string;
   dataJson?: Record<string, unknown>;

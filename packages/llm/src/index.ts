@@ -1,7 +1,5 @@
 import { normalizeChatCompletionsUrl } from "./openai-compatible.js";
 
-export const LLM_FEATURE_STATUS = "optional-evidence-constrained-generation-and-card-rewrite";
-
 export type RewriteEvidenceRef = {
   id: string;
   type: string;

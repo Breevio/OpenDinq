@@ -1,5 +1,3 @@
-export const DB_SCHEMA_STATUS = "implemented-for-milestone-4";
-
 export { createPrismaStore, createPrismaStoreFromGeneratedClient } from "./prisma-store.js";
 export type { PrismaStoreClient } from "./prisma-store.js";
 export {
