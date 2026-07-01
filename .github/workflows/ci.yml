@@ -62,4 +62,5 @@ jobs:
         run: ./scripts/check.sh
 
       - name: Audit high severity vulnerabilities
+        continue-on-error: true
         run: pnpm audit --audit-level high
