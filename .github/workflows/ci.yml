@@ -52,6 +52,9 @@ jobs:
       - name: Run migrations
         run: pnpm db:migrate
 
+      - name: Build packages
+        run: pnpm build
+
       - name: Verify DB runtime
         run: pnpm verify:db
 
