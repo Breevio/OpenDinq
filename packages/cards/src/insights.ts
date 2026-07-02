@@ -16,28 +16,37 @@ export type CandidateInsights = {
 };
 
 const AI_TALENT_KEYWORDS = [
-  "ai",
   "artificial intelligence",
   "machine learning",
-  "ml",
   "deep learning",
-  "neural",
-  "llm",
+  "neural network",
+  "neural net",
+  "large language model",
   "language model",
-  "transformer",
-  "nlp",
   "computer vision",
   "reinforcement learning",
-  "rag",
-  "agent",
-  "agents",
-  "mcp",
-  "model",
-  "inference",
-  "training",
+  "natural language processing",
+  "nlp",
+  "llm",
+  "llms",
+  "gpt",
+  "transformer",
   "fine-tuning",
+  "fine tuning",
   "embedding",
-  "vector",
+  "embedding model",
+  "vector database",
+  "vector search",
+  "rag",
+  "retrieval augmented",
+  "mcp",
+  "model context protocol",
+  "ai agent",
+  "ai agents",
+  "agent framework",
+  "inference",
+  "inference server",
+  "prompt engineering",
   "prompt"
 ];
 
@@ -247,7 +256,7 @@ function assessDigitalIdentitySignal(
     value: `${level} (${sources.size} source type${sources.size === 1 ? "" : "s"})`,
     confidence,
     evidence: dedupeEvidence(evidence),
-    description: `${sources.size} distinct source type${sources.size === 1 ? "" : "s"} contribute to digital identity.`
+    description: `${sources.size} distinct source type${sources.size === 1 ? "" : "s"} ${sources.size === 1 ? "contributes" : "contribute"} to digital identity.`
   };
 }
 

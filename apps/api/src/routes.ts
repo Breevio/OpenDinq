@@ -1,4 +1,4 @@
-import { generateProfileCards, generateSearchMatchCard, type CardClaim } from "@opendinq/cards";
+import { generateCandidateInsights, generateProfileCards, generateSearchMatchCard, type CardClaim } from "@opendinq/cards";
 import { parseGitHubProfileUrl, searchOpenAlexAuthors } from "@opendinq/connectors";
 import { publicRankedClaims } from "@opendinq/core";
 import type { ArtifactRecord, CardRecord, EvidenceRecord, IdentitySourceRecord, OpenDinqStore, PersonProfileRecord, ProfileClaimRecord, ProfileSourceRecord } from "@opendinq/core";
@@ -477,7 +477,17 @@ export function createApiRoutes(options: ApiRouteOptions) {
       return context.json({ error: { code: "not_found", message: "Person was not found." } }, 404);
     }
 
-    return context.json(toPublicProfile(profile));
+    const publicProfile = toPublicProfile(profile);
+    const insights = generateCandidateInsights(
+      publicProfile.person,
+      publicProfile.artifacts,
+      (publicProfile.claims ?? []) as Parameters<typeof generateCandidateInsights>[2]
+    );
+
+    return context.json({
+      ...publicProfile,
+      insights
+    });
   });
 
   routes.get("/people/:handle/workspace", async (context) => {
