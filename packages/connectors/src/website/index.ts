@@ -1,3 +1,5 @@
+import { createTimeoutFetchImpl } from "../fetch-timeout.js";
+
 export type WebsiteMetadata = {
   url: string;
   title: string;
@@ -11,7 +13,7 @@ export type WebsiteFetchOptions = {
 
 export async function fetchWebsiteMetadata(inputUrl: string, options: WebsiteFetchOptions = {}): Promise<WebsiteMetadata> {
   const url = normalizeHttpUrl(inputUrl);
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
   const response = await fetchImpl(url, {
     headers: {
       accept: "text/html,application/xhtml+xml"

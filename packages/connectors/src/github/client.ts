@@ -1,3 +1,4 @@
+import { createTimeoutFetchImpl } from "../fetch-timeout.js";
 import { GitHubConnectorError, type GitHubFetchOptions, type GitHubRepo, type GitHubUser, type GitHubUserSearchResult } from "./types.js";
 
 const GITHUB_API_BASE_URL = "https://api.github.com";
@@ -49,7 +50,7 @@ export async function searchGitHubUsers(
 }
 
 async function requestGitHub<T>(path: string, options: GitHubFetchOptions): Promise<T> {
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
   const cacheKey = githubCacheKey(path, options.token);
   const rateLimitKey = githubRateLimitKey(options.token);
   const cooldownError = readRateLimitCooldown(fetchImpl, rateLimitKey);

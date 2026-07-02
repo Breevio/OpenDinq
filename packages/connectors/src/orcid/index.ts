@@ -1,3 +1,5 @@
+import { createTimeoutFetchImpl } from "../fetch-timeout.js";
+
 export type OrcidRecord = {
   "orcid-identifier": {
     path: string;
@@ -65,7 +67,8 @@ export function parseOrcidId(input: string): string {
 
 export async function fetchOrcidRecord(input: string, options: OrcidFetchOptions = {}): Promise<OrcidRecord> {
   const id = parseOrcidId(input);
-  const response = await (options.fetchImpl ?? fetch)(`https://pub.orcid.org/v3.0/${id}/record`, {
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(`https://pub.orcid.org/v3.0/${id}/record`, {
     headers: {
       accept: "application/vnd.orcid+json"
     }
@@ -87,7 +90,8 @@ export async function searchOrcidRecords(query: string, options: OrcidFetchOptio
   const url = new URL("https://pub.orcid.org/v3.0/expanded-search/");
   url.searchParams.set("q", trimmed);
   url.searchParams.set("rows", "5");
-  const response = await (options.fetchImpl ?? fetch)(url, {
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(url, {
     headers: {
       accept: "application/vnd.orcid+json"
     }

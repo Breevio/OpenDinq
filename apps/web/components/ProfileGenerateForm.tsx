@@ -48,6 +48,13 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
   const autoRunQueryRef = useRef<string | null>(null);
   const streamCancelRef = useRef<(() => void) | null>(null);
 
+  // Cancel any in-flight SSE stream when the component unmounts.
+  useEffect(() => {
+    return () => {
+      streamCancelRef.current?.();
+    };
+  }, []);
+
   useEffect(() => {
     const queryFromUrl = initialQuery.trim();
     if (!queryFromUrl) {
@@ -83,6 +90,10 @@ export function ProfileGenerateForm({ initialQuery = "" }: { initialQuery?: stri
     if (!normalizedInput) {
       return;
     }
+    // Cancel any in-flight stream before starting a new one.
+    streamCancelRef.current?.();
+    streamCancelRef.current = null;
+
     setIsLoading(true);
     setMode("generate");
     setError(null);

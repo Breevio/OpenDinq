@@ -1,3 +1,5 @@
+import { createTimeoutFetchImpl } from "../fetch-timeout.js";
+
 export type OpenAlexAuthor = {
   id: string;
   display_name: string;
@@ -42,7 +44,8 @@ export function parseOpenAlexAuthorInput(input: string): string {
 
 export async function fetchOpenAlexAuthor(input: string, options: OpenAlexFetchOptions = {}): Promise<OpenAlexAuthor> {
   const authorId = parseOpenAlexAuthorInput(input);
-  const response = await (options.fetchImpl ?? fetch)(`https://api.openalex.org/authors/${authorId}`);
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(`https://api.openalex.org/authors/${authorId}`);
 
   if (!response.ok) {
     throw new Error(`OpenAlex author request failed with status ${response.status}.`);
@@ -61,7 +64,8 @@ export async function searchOpenAlexAuthors(query: string, options: OpenAlexFetc
   url.searchParams.set("search", trimmed);
   url.searchParams.set("per-page", "5");
 
-  const response = await (options.fetchImpl ?? fetch)(url);
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(url);
 
   if (!response.ok) {
     throw new Error(`OpenAlex author search failed with status ${response.status}.`);
@@ -78,7 +82,8 @@ export async function fetchOpenAlexWorks(authorId: string, options: OpenAlexFetc
   url.searchParams.set("sort", "cited_by_count:desc");
   url.searchParams.set("per-page", "25");
 
-  const response = await (options.fetchImpl ?? fetch)(url);
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(url);
 
   if (!response.ok) {
     throw new Error(`OpenAlex works request failed with status ${response.status}.`);

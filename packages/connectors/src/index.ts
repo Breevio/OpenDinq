@@ -1,3 +1,4 @@
+export { CONNECTOR_DEFAULT_TIMEOUT_MS, createTimeoutFetchImpl } from "./fetch-timeout.js";
 export * from "./arxiv/index.js";
 export * from "./github/index.js";
 export * from "./openalex/index.js";

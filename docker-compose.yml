@@ -15,5 +15,44 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://opendinq:opendinq@postgres:5432/opendinq
+      OPENDINQ_AUTO_SEED: "true"
+      PORT: "3011"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      OPEN_DINQ_ENABLE_LLM_GENERATION: ${OPEN_DINQ_ENABLE_LLM_GENERATION:-false}
+      OPEN_DINQ_LLM_PROVIDER: ${OPEN_DINQ_LLM_PROVIDER:-openai-compatible}
+      OPEN_DINQ_LLM_MODEL: ${OPEN_DINQ_LLM_MODEL:-gpt-4.1-mini}
+      OPEN_DINQ_LLM_API_KEY: ${OPEN_DINQ_LLM_API_KEY:-}
+      OPEN_DINQ_LLM_BASE_URL: ${OPEN_DINQ_LLM_BASE_URL:-}
+      OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL: ${OPEN_DINQ_LLM_CHAT_COMPLETIONS_URL:-}
+      OPEN_DINQ_WEB_SEARCH_URL: ${OPEN_DINQ_WEB_SEARCH_URL:-}
+      OPEN_DINQ_WEB_SEARCH_API_KEY: ${OPEN_DINQ_WEB_SEARCH_API_KEY:-}
+    ports:
+      - "3011:3011"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_OPENDINQ_API_URL: http://localhost:3011
+      OPENDINQ_API_URL: http://api:3011
+      PORT: "3012"
+    ports:
+      - "3012:3012"
+    restart: unless-stopped
+
 volumes:
   opendinq-postgres:
