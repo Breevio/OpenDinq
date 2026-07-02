@@ -1319,6 +1319,104 @@ button:disabled {
   padding: 8px 10px;
 }
 
+.filter-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.filter-toggle {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 700;
+  gap: 6px;
+  padding: 7px 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.filter-toggle:hover {
+  border-color: var(--accent, #0b63ce);
+}
+
+.filter-toggle.active {
+  background: var(--accent, #0b63ce);
+  border-color: var(--accent, #0b63ce);
+  color: #fff;
+}
+
+.filter-clear {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 8px;
+  text-decoration: underline;
+}
+
+.filter-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 18px;
+  margin-top: 12px;
+  padding: 18px;
+}
+
+.filter-group h4 {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.filter-chip {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.82rem;
+  gap: 8px;
+  margin: 4px 6px 4px 0;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+  border-color: var(--accent, #0b63ce);
+}
+
+.filter-chip.active {
+  background: var(--accent, #0b63ce);
+  border-color: var(--accent, #0b63ce);
+  color: #fff;
+}
+
+.filter-count {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.filter-chip.active .filter-count {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .skill-strip {
   display: flex;
   flex-wrap: wrap;

@@ -119,3 +119,17 @@ export type HybridSearchOptions = {
     provider: number;
   };
 };
+
+export type SearchFilters = {
+  skills?: string[];
+  locations?: string[];
+  sourceTypes?: string[];
+  minScore?: number;
+  minArtifacts?: number;
+};
+
+export type SearchFacet = {
+  field: "skill" | "location" | "sourceType";
+  label: string;
+  values: Array<{ value: string; count: number }>;
+};

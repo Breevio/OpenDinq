@@ -11,7 +11,7 @@ import {
   type ProfileGenerationPlan,
   type SynthesisClaim
 } from "@opendinq/llm";
-import { hybridSearchPeople, type PersonSearchDocument } from "@opendinq/search";
+import { hybridSearchPeople, applySearchFilters, collectFacets, type PersonSearchDocument, type SearchFilters } from "@opendinq/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { createDemoProfiles } from "./demo-data.js";
@@ -501,6 +501,35 @@ export function createApiRoutes(options: ApiRouteOptions) {
   routes.get("/search", async (context) => {
     try {
       const query = z.string().min(1).parse(context.req.query("q"));
+      const skillsParam = context.req.query("skills");
+      const locationsParam = context.req.query("locations");
+      const sourceTypesParam = context.req.query("sourceTypes");
+      const minScoreParam = context.req.query("minScore");
+      const minArtifactsParam = context.req.query("minArtifacts");
+
+      const filters: SearchFilters = {};
+      if (skillsParam) {
+        filters.skills = skillsParam.split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (locationsParam) {
+        filters.locations = locationsParam.split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (sourceTypesParam) {
+        filters.sourceTypes = sourceTypesParam.split(",").map((item) => item.trim()).filter(Boolean);
+      }
+      if (minScoreParam) {
+        const minScore = Number(minScoreParam);
+        if (Number.isFinite(minScore)) {
+          filters.minScore = minScore;
+        }
+      }
+      if (minArtifactsParam) {
+        const minArtifacts = Number(minArtifactsParam);
+        if (Number.isFinite(minArtifacts)) {
+          filters.minArtifacts = minArtifacts;
+        }
+      }
+
       const profiles = await options.store.listProfiles();
       const documents: PersonSearchDocument[] = profiles
         .map((profile) => toPublicProfile(profile))
@@ -511,9 +540,15 @@ export function createApiRoutes(options: ApiRouteOptions) {
           claims: profile.claims
         }));
 
+      const results = await hybridSearchPeople(query, documents);
+      const filtered = applySearchFilters(results, filters);
+      const facets = collectFacets(documents);
+
       return context.json({
         query,
-        results: await hybridSearchPeople(query, documents)
+        filters,
+        facets,
+        results: filtered
       });
     } catch (error) {
       return errorResponse(context, error);
