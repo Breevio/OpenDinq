@@ -29,7 +29,7 @@ git clone https://github.com/Breevio/OpenDinq.git
 cd OpenDinq
 corepack enable
 pnpm install
-pnpm start
+pnpm dev
 ```
 
 Open the web address shown in your terminal.

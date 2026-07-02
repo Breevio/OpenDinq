@@ -19,7 +19,6 @@
     "@opendinq/db": "workspace:*",
     "@opendinq/llm": "workspace:*",
     "@opendinq/search": "workspace:*",
-    "@opendinq/shared": "workspace:*",
     "hono": "^4.7.7",
     "zod": "^3.24.3"
   },

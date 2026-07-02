@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@opendinq/shared": "workspace:*",
     "zod": "^3.24.3"
   }
 }

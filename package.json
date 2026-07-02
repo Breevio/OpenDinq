@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "pnpm clean && pnpm -r --workspace-concurrency=1 build",
     "check": "./scripts/check.sh",
@@ -17,14 +20,13 @@
     "screenshots": "node scripts/capture-screenshots.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "start": "pnpm dev",
-    "test:scripts": "vitest run scripts/*.test.mjs",
+    "start:api": "pnpm --filter @opendinq/api start",
+    "start:web": "pnpm --filter @opendinq/web start",
+    "start:mcp": "pnpm --filter @opendinq/mcp start",
     "test": "pnpm -r --workspace-concurrency=1 test",
     "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
     "verify:db": "pnpm --dir apps/api exec tsx ../../scripts/verify-db-runtime.ts",
-    "clean": "node scripts/clean.mjs",
-    "start:api": "pnpm --filter @opendinq/api start",
-    "start:web": "pnpm --filter @opendinq/web start",
-    "start:mcp": "pnpm --filter @opendinq/mcp start"
+    "clean": "node scripts/clean.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

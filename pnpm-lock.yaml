@@ -47,9 +47,6 @@ importers:
       '@opendinq/search':
         specifier: workspace:*
         version: link:../../packages/search
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       hono:
         specifier: ^4.7.7
         version: 4.12.18
@@ -66,18 +63,12 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       zod:
         specifier: ^3.24.3
         version: 3.25.76
 
   apps/web:
     dependencies:
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.6)
@@ -98,17 +89,9 @@ importers:
         specifier: ^19.1.2
         version: 19.2.3(@types/react@19.2.14)
 
-  packages/cards:
-    dependencies:
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../shared
+  packages/cards: {}
 
-  packages/connectors:
-    dependencies:
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../shared
+  packages/connectors: {}
 
   packages/core: {}
 
@@ -117,9 +100,6 @@ importers:
       '@opendinq/core':
         specifier: workspace:*
         version: link:../core
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@prisma/client':
         specifier: ^6.7.0
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
@@ -134,17 +114,7 @@ importers:
         specifier: ^3.24.3
         version: 3.25.76
 
-  packages/search:
-    dependencies:
-      '@opendinq/shared':
-        specifier: workspace:*
-        version: link:../shared
-
-  packages/shared:
-    dependencies:
-      zod:
-        specifier: ^3.24.3
-        version: 3.25.76
+  packages/search: {}
 
 packages:
 

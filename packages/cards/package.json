@@ -19,8 +19,5 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "NODE_OPTIONS=--conditions=development vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "dependencies": {
-    "@opendinq/shared": "workspace:*"
   }
 }

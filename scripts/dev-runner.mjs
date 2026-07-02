@@ -1,5 +1,6 @@
 import net from "node:net";
 import { once } from "node:events";
+import { spawnSync } from "node:child_process";
 
 const DEFAULT_SHUTDOWN_SIGNAL = "SIGTERM";
 const DEFAULT_HOST = "127.0.0.1";
@@ -82,6 +83,7 @@ export async function runDevEnvironment(config, options = {}) {
       shutdownSignal
     });
     logger.log("[dev] Local environment is ready.");
+    maybeOpenBrowser(config.webUrl, env, logger);
     return {
       stop: async () => {
         cleanup();
@@ -229,6 +231,33 @@ function logIntro(config, logger) {
   logger.log("[dev] Recommended entrypoint: pnpm dev");
   logger.log("[dev] Use pnpm dev:api or pnpm dev:web only for single-service debugging.");
   logger.log("[dev] Press Ctrl+C to stop.\n");
+}
+
+function maybeOpenBrowser(url, env, logger) {
+  if (env.OPENDINQ_NO_OPEN_BROWSER === "1" || env.OPENDINQ_NO_OPEN_BROWSER === "true") {
+    return;
+  }
+  const platform = process.platform;
+  let command = null;
+  if (platform === "darwin") {
+    command = "open";
+  } else if (platform === "win32") {
+    command = "start";
+  } else if (platform === "linux") {
+    command = "xdg-open";
+  }
+  if (!command) {
+    return;
+  }
+  try {
+    if (command === "start") {
+      spawnSync(command, [url], { shell: true, stdio: "ignore" });
+    } else {
+      spawnSync(command, [url], { stdio: "ignore" });
+    }
+  } catch {
+    // Best-effort: if the browser fails to open, the URL is already printed.
+  }
 }
 
 function logServiceStarting(service, logger) {
