@@ -1,4 +1,5 @@
 import { createTimeoutFetchImpl } from "../fetch-timeout.js";
+import { assertSafeFetchUrl } from "../url-safety.js";
 
 export type WebsiteMetadata = {
   url: string;
@@ -12,7 +13,7 @@ export type WebsiteFetchOptions = {
 };
 
 export async function fetchWebsiteMetadata(inputUrl: string, options: WebsiteFetchOptions = {}): Promise<WebsiteMetadata> {
-  const url = normalizeHttpUrl(inputUrl);
+  const url = assertSafeFetchUrl(normalizeHttpUrl(inputUrl));
   const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
   const response = await fetchImpl(url, {
     headers: {

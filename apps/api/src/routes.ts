@@ -276,8 +276,18 @@ export function createApiRoutes(options: ApiRouteOptions) {
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
+        let closed = false;
+
         const send = (event: string, data: unknown) => {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          if (closed) {
+            return;
+          }
+          try {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          } catch {
+            // Controller may have been closed by the client; safe to ignore.
+            closed = true;
+          }
         };
 
         try {
@@ -294,8 +304,18 @@ export function createApiRoutes(options: ApiRouteOptions) {
         } catch (error) {
           send("error", { message: error instanceof Error ? error.message : "Agent search failed." });
         } finally {
-          controller.close();
+          if (!closed) {
+            try {
+              controller.close();
+            } catch {
+              // Already closed; ignore.
+            }
+            closed = true;
+          }
         }
+      },
+      cancel() {
+        // Client disconnected; the `closed` flag in `start` prevents further writes.
       }
     });
 

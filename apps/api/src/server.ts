@@ -3,17 +3,51 @@ import { dirname, join, parse, resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { createMemoryStore, type OpenDinqStore } from "@opendinq/core";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { createDemoProfiles } from "./demo-data.js";
 import { createApiRoutes, type ApiRouteOptions } from "./routes.js";
+import { rateLimiter } from "./rate-limit.js";
 
 loadLocalEnv();
 
 export function createApp(options?: Partial<ApiRouteOptions> & { seedDemo?: boolean }) {
   const app = new Hono();
+
+  // Global error handler: catch any uncaught exceptions and return a
+  // sanitized 500 response. Log the full error server-side for debugging.
+  app.onError((error, context) => {
+    console.error("[api] uncaught error:", error);
+    return context.json(
+      { error: { code: "internal_error", message: "Internal server error." } },
+      500
+    );
+  });
+
   const store = options?.store ?? createMemoryStore(options?.seedDemo ? createDemoProfiles() : []);
 
-  app.use("/api/*", cors());
+  // CORS: allow the configured origin (default: web app origin in dev).
+  const corsOrigin = process.env.OPEN_DINQ_CORS_ORIGIN ?? "http://localhost:3012";
+  app.use("/api/*", cors({
+    origin: corsOrigin,
+    allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86400,
+    credentials: false
+  }));
+
+  // Rate limiting: protect against abuse and resource exhaustion.
+  const rateLimitWindowMs = Number(process.env.OPEN_DINQ_RATE_LIMIT_WINDOW_MS) || 60_000;
+  const rateLimitMax = Number(process.env.OPEN_DINQ_RATE_LIMIT_MAX) || 100;
+  app.use("/api/*", rateLimiter({ windowMs: rateLimitWindowMs, max: rateLimitMax }));
+
+  // Body size limit: prevent oversized request bodies from exhausting memory.
+  const maxBodySize = Number(process.env.OPEN_DINQ_MAX_BODY_SIZE) || 1_048_576; // 1MB
+  app.use("/api/*", bodyLimit({ maxSize: maxBodySize }));
+
+  // Security headers.
+  app.use("/api/*", secureHeaders());
 
   app.get("/health", (context) =>
     context.json({

@@ -1,3 +1,5 @@
+import { createTimeoutFetchImpl } from "../fetch-timeout.js";
+
 export type ArxivPaper = {
   id: string;
   title: string;
@@ -29,7 +31,8 @@ export async function fetchArxivPaper(input: string, options: ArxivFetchOptions 
   const url = new URL("https://export.arxiv.org/api/query");
   url.searchParams.set("id_list", id);
 
-  const response = await (options.fetchImpl ?? fetch)(url);
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(url);
 
   if (!response.ok) {
     throw new Error(`arXiv request failed with status ${response.status}.`);
@@ -51,7 +54,8 @@ export async function searchArxivPapers(query: string, options: ArxivFetchOption
   url.searchParams.set("sortBy", "submittedDate");
   url.searchParams.set("sortOrder", "descending");
 
-  const response = await (options.fetchImpl ?? fetch)(url);
+  const fetchImpl = createTimeoutFetchImpl(options.fetchImpl ?? fetch);
+  const response = await fetchImpl(url);
 
   if (!response.ok) {
     throw new Error(`arXiv search failed with status ${response.status}.`);

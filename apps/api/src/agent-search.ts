@@ -15,6 +15,7 @@ import { z } from "zod";
 import { ProfileCandidateResolver, type ProfileCandidate } from "./profile-candidate-resolver.js";
 import { createProfileGenerator, type ProfileGenerationSummary } from "./profile-generator.js";
 import { compactIdentifier, isHttpUrl, personLikeInput, withTimeout } from "./utils.js";
+import { isSafeHttpUrl } from "@opendinq/connectors";
 
 // ---------------------------------------------------------------------------
 // Agent search schemas and types (extracted from routes.ts)
@@ -798,7 +799,7 @@ function normalizeWebSearchResults(json: unknown): AgentWebEvidence[] {
   for (const item of items) {
     const record = item as { title?: unknown; url?: unknown; link?: unknown; snippet?: unknown; description?: unknown };
     const url = typeof record.url === "string" ? record.url : typeof record.link === "string" ? record.link : undefined;
-    if (!url || !isHttpUrl(url)) {
+    if (!url || !isSafeHttpUrl(url)) {
       continue;
     }
     results.push({
@@ -813,7 +814,7 @@ function normalizeWebSearchResults(json: unknown): AgentWebEvidence[] {
 
 function fallbackWebEvidence(query: string, selectedCandidate: ProfileCandidate | undefined): AgentWebEvidence[] {
   const sources: AgentWebEvidence[] = [];
-  if (selectedCandidate?.sourceUrl && isHttpUrl(selectedCandidate.sourceUrl)) {
+  if (selectedCandidate?.sourceUrl && isSafeHttpUrl(selectedCandidate.sourceUrl)) {
     sources.push({
       title: selectedCandidate.displayName,
       url: selectedCandidate.sourceUrl,

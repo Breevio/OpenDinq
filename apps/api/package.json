@@ -19,7 +19,7 @@
     "@opendinq/db": "workspace:*",
     "@opendinq/llm": "workspace:*",
     "@opendinq/search": "workspace:*",
-    "hono": "^4.7.7",
+    "hono": "^4.12.25",
     "zod": "^3.24.3"
   },
   "devDependencies": {
